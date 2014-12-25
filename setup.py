@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import os
 from distutils.command.sdist import sdist
 from distutils.command.build import build
@@ -19,7 +17,7 @@ def update_version(init_py_file):
     # Save the version number in config_diag/__init__.py
     with open(init_py_file) as f:
         init_py = f.read()
-    os.unlink(init_py_file)  # might be a hard link
+    os.unlink(init_py_file)  # Might be a hard link
     init_py = init_py.replace("version = None", 'version = "{0}"'.format(version))
     with open(init_py_file, "w") as f:
         f.write(init_py)
@@ -47,7 +45,7 @@ setup(name="config_diag",
       author_email="yasserglez@gmail.com",
       packages=find_packages(exclude=["*.tests"]),
       classifiers=[
-          "Programming Language :: Python",
+          "Programming Language :: Python :: 3 :: Only",
           "Development Status :: 4 - Beta",
           "Intended Audience :: Developers",
           "Intended Audience :: Science/Research",
@@ -57,4 +55,3 @@ setup(name="config_diag",
       ],
       test_suite="nose.collector",
       cmdclass={"sdist": custom_sdist, "build": custom_build})
-

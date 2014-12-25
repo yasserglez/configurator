@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 Constructing Adaptive Configuration Dialogs using Crowd Data
 """
