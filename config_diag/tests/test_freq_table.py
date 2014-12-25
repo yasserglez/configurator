@@ -3,7 +3,7 @@ import string
 import numpy as np
 import pandas as pd
 
-from .. import FrequencyTable
+from ..freq_table import FrequencyTable
 
 
 class TestFrequencyTable:
@@ -40,4 +40,3 @@ class TestFrequencyTable:
         assert freq_tab.cond_prob({"A": 3, "C": 1}, {"B": 5}) == 0.2
         assert freq_tab.cond_prob({"A": 1}, {"B": 5, "C": 4}) == 0
         assert freq_tab.cond_prob({"A": 3, "B": 5}, {"C": 1, "D": 2}) == 0.25
-
