@@ -3,28 +3,36 @@ Frequency Table and Conditional Probabilities
 """
 
 import numpy as np
+import pylru
 
 
 class FrequencyTable:
     """Compute frequency counts and conditional probabilities.
 
     A wrapper for a 2-dimensional numpy array with methods to compute
-    multivariate frequency counts and conditional probabilities. The
-    columns are the variables and each row is an observation.
+    multivariate frequency counts and conditional probabilities. Each
+    column corresponds to a categorical variable and each row to a
+    multi-variate observation.
 
     Attributes:
         data: A 2-dimensional numpy array.
     """
-    
-    def __init__(self, data):
+
+    def __init__(self, data, cache_size=0):
         """Initialize a new instance.
 
         Arguments:
             data: A 2-dimensional numpy array.
+            cache_size: Set the size of a LRU cache for the frequency
+                counts. It is disabled by default, i.e. set to zero.
+
         """
         self.data = data
+        self._cache_size = cache_size
+        if self._cache_size > 0:
+            self._cache = pylru.lrucache(self._cache_size)
 
-    def freq(self, x):
+    def freq_count(self, x):
         """Count the occurences of the sample of the variables in x.
 
         Arguments:
@@ -33,12 +41,21 @@ class FrequencyTable:
         Returns:
             The number of occurences of the values in x.
         """
-        global_filter = np.ones(self.data.shape[0], dtype=np.bool)
-        for col_index, col_value in x.items():
-            col_filter = self.data[:, col_index] == col_value
-            global_filter = np.logical_and(global_filter, col_filter)
-        freq = self.data[global_filter].shape[0]
-        return freq
+        # Return from the cache, if available.
+        if self._cache_size > 0:
+            cache_key = tuple(sorted(x.items()))
+            if cache_key in self._cache:
+                return self._cache[cache_key]
+        # Compute if not available or cache is disabled.
+        cumul_filter = np.ones(self.data.shape[0], dtype=np.bool)
+        for var_index, var_value in x.items():
+            var_filter = self.data[:, var_index] == var_value
+            cumul_filter = np.logical_and(cumul_filter, var_filter)
+        freq_count = self.data[cumul_filter].shape[0]
+        # Store in the cache (if enabled) and return.
+        if self._cache_size > 0:
+            self._cache[cache_key] = freq_count
+        return freq_count
 
     def joint_prob(self, x):
         """Joint probability distribution of x.
@@ -49,7 +66,7 @@ class FrequencyTable:
         Returns:
             Probability value in [0,1].
         """
-        prob = self.freq(x) / self.data.shape[0]
+        prob = self.freq_count(x) / self.data.shape[0]
         return prob
 
     def cond_prob(self, x, y):
@@ -58,7 +75,7 @@ class FrequencyTable:
         Arguments:
             x: A dictionary mapping column indexes to their values.
             y: A dictionary mapping column indexes to their values.
-        
+
         Returns:
             Conditional probability value in [0,1].
         """

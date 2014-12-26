@@ -8,7 +8,7 @@ import subprocess
 
 def get_version():
     """Get the version string.
-    
+
     Returns:
         The version string.
     """
@@ -17,7 +17,7 @@ def get_version():
     git_dir = os.path.join(src_dir, ".git")
     try:
         # Try to get the  version string dynamically from Git.
-        git_args = ("git", "--work-tree", src_dir, "--git-dir", git_dir, 
+        git_args = ("git", "--work-tree", src_dir, "--git-dir", git_dir,
                     "describe", "--tags", "--dirty")
         with open(os.devnull, "w") as devnull:
             version = subprocess.check_output(git_args, stderr=devnull).strip()

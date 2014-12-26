@@ -14,13 +14,19 @@ class TestFrequencyTable:
         freq_table = FrequencyTable(self.data)
         assert (freq_table.data == self.data).all()
 
-    def test_freq(self):
+    def test_freq_count(self):
         freq_table = FrequencyTable(self.data)
-        assert freq_table.freq({2: 5}) == 0
-        assert freq_table.freq({0: 4}) == 4
-        assert freq_table.freq({0: 4, 1: 5}) == 2
-        assert freq_table.freq({0: 4, 2: 3, 3: 5}) == 2
-        assert freq_table.freq({0: 4, 1: 5, 2: 3, 3: 5}) == 1
+        assert freq_table.freq_count({2: 5}) == 0
+        assert freq_table.freq_count({0: 4}) == 4
+        assert freq_table.freq_count({0: 4, 1: 5}) == 2
+        assert freq_table.freq_count({0: 4, 2: 3, 3: 5}) == 2
+        assert freq_table.freq_count({0: 4, 1: 5, 2: 3, 3: 5}) == 1
+
+    def test_cached_freq_count(self):
+        freq_table = FrequencyTable(self.data, cache_size=10)
+        first_time = freq_table.freq_count({0: 4, 1: 5})
+        second_time = freq_table.freq_count({0: 4, 1: 5})
+        assert first_time == second_time
 
     def test_joint_prob(self):
         freq_table = FrequencyTable(self.data)
