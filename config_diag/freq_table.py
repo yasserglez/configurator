@@ -5,57 +5,59 @@ Frequency Table and Conditional Probabilities
 import numpy as np
 
 
-class FrequencyTable(object):
+class FrequencyTable:
     """Compute frequency counts and conditional probabilities.
 
-    A wrapper for a pandas DataFrame that provides methods to compute
-    multivariate frequency counts and conditional probabilities.
+    A wrapper for a 2-dimensional numpy array with methods to compute
+    multivariate frequency counts and conditional probabilities. The
+    columns are the variables and each row is an observation.
 
     Attributes:
-        df: A pandas Dataframe.
+        data: A 2-dimensional numpy array.
     """
     
-    def __init__(self, df):
+    def __init__(self, data):
         """Initialize a new instance.
 
         Arguments:
-            df: A pandas DataFrame.
+            data: A 2-dimensional numpy array.
         """
-        self.df = df
+        self.data = data
 
     def freq(self, x):
-        """Count the occurence of the sample of the variables in x.
+        """Count the occurences of the sample of the variables in x.
 
         Arguments:
-            x: A dictionary mapping some variable names to their values.
+            x: A dictionary mapping column indexes to their values.
 
         Returns:
-            The number of occurences in the DataFrame of the values in x.
+            The number of occurences of the values in x.
         """
-        global_filter = np.ones(len(self.df.index), dtype=np.bool)
-        for col_name, col_value in x.items():
-            col_filter = self.df[col_name] == col_value
+        global_filter = np.ones(self.data.shape[0], dtype=np.bool)
+        for col_index, col_value in x.items():
+            col_filter = self.data[:, col_index] == col_value
             global_filter = np.logical_and(global_filter, col_filter)
-        return len(self.df[global_filter].index)
+        freq = self.data[global_filter].shape[0]
+        return freq
 
     def joint_prob(self, x):
         """Joint probability distribution of x.
 
         Arguments:
-            x: A dictionary mapping some variable names to their values.
+            x: A dictionary mapping column indexes to their values.
 
         Returns:
             Probability value in [0,1].
         """
-        prob = self.freq(x) / len(self.df.index)
+        prob = self.freq(x) / self.data.shape[0]
         return prob
 
     def cond_prob(self, x, y):
         """Conditional probability distribution of x given y.
 
         Arguments:
-            x: A dictionary mapping some variable names to their values.
-            y: A dictionary mapping some variable names to their values.
+            x: A dictionary mapping column indexes to their values.
+            y: A dictionary mapping column indexes to their values.
         
         Returns:
             Conditional probability value in [0,1].
