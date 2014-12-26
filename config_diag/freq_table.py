@@ -43,7 +43,7 @@ class FrequencyTable:
         """
         # Return from the cache, if available.
         if self._cache_size > 0:
-            cache_key = tuple(sorted(x.items()))
+            cache_key = hash(frozenset(x.items()))
             if cache_key in self._cache:
                 return self._cache[cache_key]
         # Compute if not available or cache is disabled.
