@@ -20,23 +20,23 @@ class TestFrequencyTable:
 
     def test_freq(self):
         freq_tab = FrequencyTable(self.df)
-        assert freq_tab.freq({"C": 5}) == 0
-        assert freq_tab.freq({"A": 4}) == 4
-        assert freq_tab.freq({"A": 4, "B": 5}) == 2
-        assert freq_tab.freq({"A": 4, "C": 3, "D": 5}) == 3
-        assert freq_tab.freq({"A": 4, "B": 5, "C": 3, "D": 5}) == 1
+        assert freq_tab.freq({"c": 5}) == 0
+        assert freq_tab.freq({"a": 4}) == 4
+        assert freq_tab.freq({"a": 4, "b": 5}) == 2
+        assert freq_tab.freq({"a": 4, "c": 3, "d": 5}) == 2
+        assert freq_tab.freq({"a": 4, "b": 5, "c": 3, "d": 5}) == 1
 
     def test_joint_prob(self):
         freq_tab = FrequencyTable(self.df)
-        assert freq_tab.joint_prob({"C": 5}) == 0
-        assert freq_tab.joint_prob({"A": 4}) == 0.4
-        assert freq_tab.joint_prob({"A": 4, "B": 5}) == 0.2
-        assert freq_tab.joint_prob({"A": 4, "C": 3, "D": 5}) == 0.3
-        assert freq_tab.joint_prob({"A": 4, "B": 5, "C": 3, "D": 5}) == 0.1
+        assert freq_tab.joint_prob({"c": 5}) == 0.0
+        assert freq_tab.joint_prob({"a": 4}) == 0.4
+        assert freq_tab.joint_prob({"a": 4, "b": 5}) == 0.2
+        assert freq_tab.joint_prob({"a": 4, "c": 3, "d": 5}) == 0.2
+        assert freq_tab.joint_prob({"a": 4, "b": 5, "c": 3, "d": 5}) == 0.1
 
     def test_cond_prob(self):
         freq_tab = FrequencyTable(self.df)
-        assert freq_tab.cond_prob({"A": 3}, {"B": 5}) == 0.4
-        assert freq_tab.cond_prob({"A": 3, "C": 1}, {"B": 5}) == 0.2
-        assert freq_tab.cond_prob({"A": 1}, {"B": 5, "C": 4}) == 0
-        assert freq_tab.cond_prob({"A": 3, "B": 5}, {"C": 1, "D": 2}) == 0.25
+        assert freq_tab.cond_prob({"a": 3}, {"b": 5}) == 0.4
+        assert freq_tab.cond_prob({"a": 3, "c": 1}, {"b": 5}) == 0.2
+        assert freq_tab.cond_prob({"a": 1}, {"b": 5, "c": 4}) == 0.0
+        assert freq_tab.cond_prob({"a": 3, "b": 5}, {"c": 1, "d": 2}) == 1.0
