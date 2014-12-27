@@ -53,5 +53,4 @@ setup(name="config_diag",
           "Topic :: Software Development :: User Interfaces",
           "Topic :: Scientific/Engineering :: Artificial Intelligence",
       ],
-      test_suite="nose.collector",
       cmdclass={"sdist": custom_sdist, "build": custom_build})
