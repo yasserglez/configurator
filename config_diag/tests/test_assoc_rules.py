@@ -1,6 +1,6 @@
-
 import os
 
+import pytest
 import numpy as np
 
 from ..assoc_rules import AssociationRuleMiner
@@ -18,10 +18,12 @@ class TestAssociationRuleMiner:
         miner = AssociationRuleMiner(self.data)
         np.testing.assert_array_equal(miner.data, self.data)
 
-    def test_mine_assoc_rlues(self):
+    def _test_mine_assoc_rlues(self, algorithm):
         miner = AssociationRuleMiner(self.data)
-        rules = miner.mine_assoc_rules(min_support=0.5, min_confidence=0.95)
+        rules = miner.mine_assoc_rules(min_support=0.5, min_confidence=0.95,
+                                       algorithm=algorithm)
         assert len(rules) == 3
+        rules.sort(key=lambda rule: rule.confidence, reverse=True)
         # Rule #1
         assert rules[0].lhs == {1: "Male", 3: "No"}
         assert rules[0].rhs == {2: "Adult"}
@@ -37,3 +39,14 @@ class TestAssociationRuleMiner:
         assert rules[2].rhs == {2: "Adult"}
         np.testing.assert_almost_equal(rules[2].support, 0.7573830)
         np.testing.assert_almost_equal(rules[2].confidence, 0.9630272)
+
+    def test_mine_assoc_rules_apriori(self):
+        self._test_mine_assoc_rlues('apriori')
+
+    def test_mine_assoc_rules_fpgrowth(self):
+        self._test_mine_assoc_rlues('fpgrowth')
+
+    def test_mine_assoc_rules_invalid(self):
+        miner = AssociationRuleMiner(self.data)
+        with pytest.raises(ValueError):
+            miner.mine_assoc_rules(algorithm='invalid')
