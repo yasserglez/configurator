@@ -1,10 +1,9 @@
-
 import numpy as np
 
 from ..freq_table import FrequencyTable
 
 
-class TestFrequencyTable:
+class TestFrequencyTable(object):
 
     def setup(self):
         np.random.seed(42)

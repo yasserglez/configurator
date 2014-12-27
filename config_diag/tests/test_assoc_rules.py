@@ -1,12 +1,11 @@
 import os
 
-import pytest
 import numpy as np
 
 from ..assoc_rules import AssociationRuleMiner
 
 
-class TestAssociationRuleMiner:
+class TestAssociationRuleMiner(object):
 
     def setup(self):
         tests_dir = os.path.abspath(os.path.dirname(__file__))
@@ -48,5 +47,5 @@ class TestAssociationRuleMiner:
 
     def test_mine_assoc_rules_invalid(self):
         miner = AssociationRuleMiner(self.data)
-        with pytest.raises(ValueError):
-            miner.mine_assoc_rules(algorithm='invalid')
+        np.testing.assert_raises(ValueError, miner.mine_assoc_rules,
+                                 algorithm='invalid')

@@ -6,7 +6,7 @@ import numpy as np
 import pylru
 
 
-class FrequencyTable:
+class FrequencyTable(object):
     """Compute frequency counts and conditional probabilities.
 
     Compute multivariate frequency counts and conditional

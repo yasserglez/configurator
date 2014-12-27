@@ -5,7 +5,7 @@ Association Rule Mining
 from fim import apriori, fpgrowth
 
 
-class AssociationRule:
+class AssociationRule(object):
     """An association rule mined by AssociationRuleMiner.
 
     Attributes:
@@ -32,7 +32,7 @@ class AssociationRule:
         self.confidence = confidence
 
 
-class AssociationRuleMiner:
+class AssociationRuleMiner(object):
     """Association rule mining.
 
     Discover association rules in a 2-dimensional numpy array. Each
