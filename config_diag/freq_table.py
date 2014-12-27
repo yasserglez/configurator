@@ -9,9 +9,9 @@ import pylru
 class FrequencyTable:
     """Compute frequency counts and conditional probabilities.
 
-    A wrapper for a 2-dimensional numpy array with methods to compute
-    multivariate frequency counts and conditional probabilities. Each
-    column corresponds to a categorical variable and each row to a
+    Compute multivariate frequency counts and conditional
+    probabilities from a 2-dimensional numpy array. Each column is
+    expected to represent a categorical variable and each row a
     multi-variate observation.
 
     Attributes:
@@ -25,7 +25,6 @@ class FrequencyTable:
             data: A 2-dimensional numpy array.
             cache_size: Set the size of a LRU cache for the frequency
                 counts. It is disabled by default, i.e. set to zero.
-
         """
         self.data = data
         self._cache_size = cache_size
@@ -36,7 +35,7 @@ class FrequencyTable:
         """Count the occurences of the sample of the variables in x.
 
         Arguments:
-            x: A dictionary mapping column indexes to their values.
+            x: A dictionary mapping variable indexes to their values.
 
         Returns:
             The number of occurences of the values in x.
@@ -61,7 +60,7 @@ class FrequencyTable:
         """Joint probability distribution of x.
 
         Arguments:
-            x: A dictionary mapping column indexes to their values.
+            x: A dictionary mapping variable indexes to their values.
 
         Returns:
             Probability value in [0,1].
@@ -73,8 +72,8 @@ class FrequencyTable:
         """Conditional probability distribution of x given y.
 
         Arguments:
-            x: A dictionary mapping column indexes to their values.
-            y: A dictionary mapping column indexes to their values.
+            x: A dictionary mapping variable indexes to their values.
+            y: A dictionary mapping variable indexes to their values.
 
         Returns:
             Conditional probability value in [0,1].
