@@ -31,7 +31,7 @@ class FrequencyTable(object):
         if self._cache_size > 0:
             self._cache = pylru.lrucache(self._cache_size)
 
-    def freq_count(self, x):
+    def count_freq(self, x):
         """Count the occurences of the sample of the variables in x.
 
         Arguments:
@@ -50,11 +50,11 @@ class FrequencyTable(object):
         for var_index, var_value in x.items():
             var_filter = self.data[:, var_index] == var_value
             cumul_filter = np.logical_and(cumul_filter, var_filter)
-        freq_count = self.data[cumul_filter].shape[0]
+        count_freq = self.data[cumul_filter].shape[0]
         # Store in the cache (if enabled) and return.
         if self._cache_size > 0:
-            self._cache[cache_key] = freq_count
-        return freq_count
+            self._cache[cache_key] = count_freq
+        return count_freq
 
     def joint_prob(self, x):
         """Joint probability distribution of x.
@@ -65,7 +65,7 @@ class FrequencyTable(object):
         Returns:
             Probability value in [0,1].
         """
-        prob = self.freq_count(x) / self.data.shape[0]
+        prob = self.count_freq(x) / self.data.shape[0]
         return prob
 
     def cond_prob(self, x, y):
