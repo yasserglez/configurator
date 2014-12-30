@@ -1,13 +1,13 @@
 import numpy as np
 
-from ..mdp import MDP, EpisodicMDP
+from ..mdp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 
 
 # Example 4.1 of Reinforcement Learning: An Introduction
 # by Richard S. Sutton and Andrew G. Barto.
 
 GRIDWORLD_S = 15  # {1, 2, ..., 14} and the terminal state 15.
-GRIDWORLD_INITIAL_S, GRIDWORLD_TERMINAL_S = 0, 14
+GRIDWORLD_INITIAL_S, GRIDWORLD_TERMINAL_S = 11, 14
 GRIDWORLD_A = 4  # {up, down, right, left}.
 up, down, right, left = range(GRIDWORLD_A)
 
@@ -45,8 +45,6 @@ for i in (3, 7, 11):
 for i in (4, 8, 12):
     GRIDWORLD_P[left, i - 1, i - 1] = 1.0
 
-del up, down, right, left
-
 # 15 should be an absorbing state.
 GRIDWORLD_P[:, GRIDWORLD_TERMINAL_S, GRIDWORLD_TERMINAL_S] = 1.0
 
@@ -56,12 +54,32 @@ GRIDWORLD_R[:, GRIDWORLD_TERMINAL_S, :] = 0
 
 GRIDWORLD_GAMMA = 1.0
 
+GRIDWORLD_POLICY = {
+    1: left,
+    2: left,
+    3: down,
+    4: up,
+    5: up,
+    6: up,
+    7: down,
+    8: up,
+    9: up,
+    10: down,
+    11: down,
+    12: up,
+    13: right,
+    14: right,
+}
+
+del up, down, right, left
+
 
 class TestMDP(object):
 
+    mdp_class = MDP
+
     def setup(self):
         np.random.seed(42)
-        self.mdp_class = MDP
 
     def test_init_attributes(self):
         mdp = self.mdp_class(GRIDWORLD_P, GRIDWORLD_R, GRIDWORLD_GAMMA)
@@ -83,9 +101,7 @@ class TestMDP(object):
 
 class TestEpisodicMDP(TestMDP):
 
-    def setup(self):
-        np.random.seed(42)
-        self.mdp_class = EpisodicMDP
+    mdp_class = EpisodicMDP
 
     def test_init_attributes(self):
         mdp = self.mdp_class(GRIDWORLD_P, GRIDWORLD_R, GRIDWORLD_GAMMA,
@@ -105,3 +121,26 @@ class TestEpisodicMDP(TestMDP):
                                  GRIDWORLD_P, invalid_R,
                                  GRIDWORLD_GAMMA, GRIDWORLD_INITIAL_S,
                                  GRIDWORLD_TERMINAL_S)
+
+
+class BaseTestMDPSolver(object):
+
+    solver_class = None
+
+    def setup(self):
+        mdp = EpisodicMDP(GRIDWORLD_P, GRIDWORLD_R, GRIDWORLD_GAMMA)
+        self.solver = self.solver_class(mdp)
+
+    def test_solve(self):
+        policy = self.solver.solve()
+        assert policy == {s - 1: a for s, a in GRIDWORLD_POLICY.items()}
+
+
+class TestPolicyIteration(BaseTestMDPSolver):
+
+    solver_class = PolicyIteration
+
+
+class TestValueIteration(BaseTestMDPSolver):
+
+    solver_class = ValueIteration
