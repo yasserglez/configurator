@@ -34,6 +34,7 @@ class MDP(object):
                 should be validated, False otherwise. A ValueError
                 exception will be raised if any error is found.
         """
+        super().__init__()
         self.transitions = transitions
         self.rewards = rewards
         self.discount_factor = discount_factor
@@ -96,3 +97,60 @@ class EpisodicMDP(MDP):
             raise ValueError("The terminal state is not an absorbing state")
         if self.rewards[:, s, s].any():
             raise ValueError("Terminal state has transitions with non-zero rewards")
+
+
+class MDPSolver(object):
+    """MDP solver.
+
+    Attributes:
+        mdp: MDP instance.
+    """
+
+    def __init__(self, mdp):
+        """Initialize a new instance.
+
+        Arguments:
+            mdp: MDP instance.
+        """
+        super().__init__()
+        self.mdp = mdp
+
+    def solve():
+        """Solve an MDP.
+
+        Returns:
+            A policy, i.e. a dict mapping state indexes to action indexes.
+        """
+        raise NotImplementedError()
+
+
+class PolicyIteration(MDPSolver):
+    """MDP solver using policy iterantion.
+
+    Attributes:
+        mdp: MDP instance.
+    """
+
+    def solve():
+        """Run the policy iteration algorithm.
+
+        Returns:
+            A policy, i.e. a dict mapping state indexes to action indexes.
+        """
+        super().__init__()
+
+
+class ValueIteration(MDPSolver):
+    """MDP solver using value iteration.
+
+    Attributes:
+        mdp: MDP instance.
+    """
+
+    def solve():
+        """Run the value iteration algorithm.
+
+        Returns:
+            A policy, i.e. a dict mapping state indexes to action indexes.
+        """
+        super().__init__()
