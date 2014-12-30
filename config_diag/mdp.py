@@ -2,6 +2,7 @@
 Markov Decision Processes
 """
 
+import numpy.ma as ma
 import mdptoolbox.util
 
 
@@ -48,36 +49,50 @@ class MDP(object):
         except AssertionError as error:
             raise ValueError(str(error))
         except mdptoolbox.util.InvalidMDPError as error:
-            raise ValueError(error.message[len("PyMDPToolbox: "):])
+            raise ValueError(error.message)
 
 
 class EpisodicMDP(MDP):
-    """Undiscounted, episodic, finite MDP.
+    """Episodic MDP.
 
     Attributes:
         transitions: Transition probability matrices.
         rewards: Reward matrices.
-        discount_factor: Set to 1.0, for an undiscounted MDP.
+        discount_factor: Discount factor in [0,1].
         initial_state: Index of the initial state.
         terminal_state: Index of the terminal state.
     """
 
-    def __init__(self, transitions, rewards, initial_state,
-                 terminal_state, validate=True):
+    def __init__(self, transitions, rewards, discount_factor,
+                 initial_state=None, terminal_state=None, validate=True):
         """Initialize a new instance.
+
+        Let S denote the number of states and A the number of actions.
 
         Arguments:
             transitions: Transition probability matrices.
             rewards: Reward matrices.
-            initial_state: Index of the initial state.
-            terminal_state: Index of the terminal state.
+            discount_factor: Discount factor in [0,1].
+            initial_state: Index of the initial state (default: 0).
+            terminal_state: Index of the terminal state (default: S - 1).
             validate: Set it to True (default) if the MDP formulation
                 should be validated, False otherwise. A ValueError
                 exception will be raised if any error is found.
         """
-        super(EpisodicMDP, self).__init__(transitions, rewards, 1.0, validate)
-        self.initial_state = initial_state
-        self.terminal_state = terminal_state
+        self.initial_state = initial_state if initial_state is not None else 0
+        self.terminal_state = (terminal_state
+                               if terminal_state is not None else
+                               transitions[0].shape[0] - 1)
+        super().__init__(transitions, rewards, discount_factor, validate)
 
     def _validate(self):
-        super(EpisodicMDP, self)._validate()
+        super()._validate()
+        # Check that the terminal state is absorbing.
+        s = self.terminal_state
+        to_terminal = self.transitions[:, s, s]
+        to_non_terminal = ma.array(self.transitions[:, s, :], mask=False)
+        to_non_terminal.mask[:, s] = True
+        if (to_terminal != 1).any() or to_non_terminal.any():
+            raise ValueError("The terminal state is not an absorbing state")
+        if self.rewards[:, s, s].any():
+            raise ValueError("Terminal state has transitions with non-zero rewards")
