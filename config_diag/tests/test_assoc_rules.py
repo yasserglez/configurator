@@ -43,7 +43,7 @@ class TestAssociationRuleMiner(object):
         self._test_mine_assoc_rlues('apriori')
 
     def test_mine_assoc_rules_fpgrowth(self):
-        self._test_mine_assoc_rlues('fpgrowth')
+        self._test_mine_assoc_rlues('fp-growth')
 
     def test_mine_assoc_rules_invalid(self):
         miner = AssociationRuleMiner(self.data)
