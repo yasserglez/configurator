@@ -4,7 +4,7 @@ Markov Decision Processes
 
 import numpy.ma
 
-from mdptoolbox.util import check
+import mdptoolbox.util
 from mdptoolbox.mdp import PolicyIteration as _PolicyIteration
 from mdptoolbox.mdp import ValueIteration as _ValueIteration
 
@@ -49,7 +49,7 @@ class MDP(object):
             raise ValueError("Discount factor not in [0,1]")
         # Rely on pymdptoolbox to check the transition and reward matrices.
         try:
-            check(self.transitions, self.rewards)
+            mdptoolbox.util.check(self.transitions, self.rewards)
         except AssertionError as error:
             raise ValueError(str(error))
         except mdptoolbox.util.InvalidMDPError as error:

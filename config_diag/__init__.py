@@ -27,3 +27,28 @@ def get_version():
     return version
 
 __version__ = get_version()
+
+
+class ConfigDialog(object):
+    """Adaptive configuration dialog.
+
+    This is the base class of all the configuration dialogs defined in
+    the package (not intented to be instantiated directly). It defines
+    a common interface followed by the dialogs generated using the
+    different ConfigDiagBuilder subclasses.
+    """
+
+    def __init__(self):
+        """Initialize a new instance.
+        """
+        super().__init__()
+
+
+class ConfigDialogBuilder(object):
+    """Adaptive configuration dialog builder.
+    """
+
+    def __init__(self):
+        """Initialize a new instance.
+        """
+        super().__init__()
