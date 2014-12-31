@@ -128,11 +128,11 @@ class BaseTestMDPSolver(object):
     solver_class = None
 
     def setup(self):
-        mdp = EpisodicMDP(GRIDWORLD_P, GRIDWORLD_R, GRIDWORLD_GAMMA)
-        self.solver = self.solver_class(mdp)
+        self.solver = self.solver_class()
 
     def test_solve(self):
-        policy = self.solver.solve()
+        mdp = EpisodicMDP(GRIDWORLD_P, GRIDWORLD_R, GRIDWORLD_GAMMA)
+        policy = self.solver.solve(mdp)
         assert policy == {s - 1: a for s, a in GRIDWORLD_POLICY.items()}
 
 

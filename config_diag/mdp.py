@@ -104,22 +104,18 @@ class EpisodicMDP(MDP):
 
 class MDPSolver(object):
     """MDP solver.
-
-    Attributes:
-        mdp: MDP instance.
     """
 
-    def __init__(self, mdp):
+    def __init__(self):
         """Initialize a new instance.
-
-        Arguments:
-            mdp: MDP instance.
         """
         super().__init__()
-        self.mdp = mdp
 
-    def solve(self):
+    def solve(self, mdp):
         """Solve an MDP.
+
+        Arguments:
+            mdp: An MDP instance.
 
         Returns:
             A policy, i.e. a dict mapping state indexes to action indexes.
@@ -130,68 +126,55 @@ class MDPSolver(object):
 class PolicyIteration(MDPSolver):
     """MDP solver using (modified) policy iterantion.
 
-    Attributes:
-        mdp: MDP instance.
+    The initial policy is the one that maximizes the expected
+    immediate rewards. The algorithm terminates when the policy does
+    not change between two consecutive iterations or after a maximum
+    number of iterations. The policy evaluation step is implemented
+    iteratively, stopping when the maximum change in the value
+    function is less than the threshold computed for epsilon 0.0001
+    (only for discounted MDPs) or after 10000 iterations.
     """
 
-    def __init__(self, mdp):
+    def __init__(self, max_iter=1000):
         """Initialize a new instance.
 
         Arguments:
-            mdp: MDP instance.
+            max_iter: The maximum number of iterations (default: 1000).
         """
-        super().__init__(mdp)
+        super().__init__()
+        self._max_iter = max_iter
 
-    def solve(self, max_iter=1000):
+    def solve(self, mdp):
         """Run the (modified) policy iteration algorithm.
 
-        The initial policy is the one that maximizes the expected
-        immediate rewards. The algorithm terminates when the policy
-        does not change between two consecutive iterations or after a
-        maximum number of iterations. The policy evaluation step is
-        implemented iteratively, stopping when the maximum change in
-        the value function is less than the threshold computed for
-        epsilon 0.0001 (only for discounted MDPs) or after 10000
-        iterations.
-
         Arguments:
-            max_iter: The maximum number of iterations (default: 1000).
+            mdp: An MDP instance.
 
         Returns:
             A policy, i.e. a dict mapping state indexes to action indexes.
         """
-        P = self.mdp.transitions
-        R = self.mdp.rewards
-        gamma = self.mdp.discount_factor
-        pi = _PolicyIteration(P, R, gamma, max_iter=max_iter, eval_type="iterative")
+        P = mdp.transitions
+        R = mdp.rewards
+        gamma = mdp.discount_factor
+        pi = _PolicyIteration(P, R, gamma, max_iter=self._max_iter,
+                              eval_type="iterative")
         pi.run()
         policy = {s: a for s, a in enumerate(pi.policy)
-                  if (not isinstance(self.mdp, EpisodicMDP) or
-                      s != self.mdp.terminal_state)}
+                  if (not isinstance(mdp, EpisodicMDP) or
+                      s != mdp.terminal_state)}
         return policy
 
 
 class ValueIteration(MDPSolver):
     """MDP solver using value iteration.
 
-    Attributes:
-        mdp: MDP instance.
+    The initial value function is zero for all the states. The
+    algorithm terminates when an epsilon-optimal policy is found or
+    after a maximum number of iterations.
     """
 
-    def __init__(self, mdp):
+    def __init__(self, epsilon=0.01, max_iter=1000):
         """Initialize a new instance.
-
-        Arguments:
-            mdp: MDP instance.
-        """
-        super().__init__(mdp)
-
-    def solve(self, epsilon=0.01, max_iter=1000):
-        """Run the value iteration algorithm.
-
-        The initial value function is zero for all the states. The
-        algorithm terminates when an epsilon-optimal policy is found
-        or after a maximum number of iterations.
 
         Parameters:
             epsilon: Stopping criterion (default: 0.01). For discounted
@@ -200,16 +183,26 @@ class ValueIteration(MDPSolver):
                 between two subsequent iterations. For undiscounted
                 MDPs it defines the absolute threshold.
             max_iter: The maximum number of iterations (default: 1000).
+        """
+        super().__init__()
+        self._epsilon = epsilon
+        self._max_iter = max_iter
+
+    def solve(self, mdp):
+        """Run the value iteration algorithm.
+
+        Arguments:
+            mdp: An MDP instance.
 
         Returns:
             A policy, i.e. a dict mapping state indexes to action indexes.
         """
-        P = self.mdp.transitions
-        R = self.mdp.rewards
-        gamma = self.mdp.discount_factor
-        vi = _ValueIteration(P, R, gamma, epsilon, max_iter)
+        P = mdp.transitions
+        R = mdp.rewards
+        gamma = mdp.discount_factor
+        vi = _ValueIteration(P, R, gamma, self._epsilon, self._max_iter)
         vi.run()
         policy = {s: a for s, a in enumerate(vi.policy)
-                  if (not isinstance(self.mdp, EpisodicMDP) or
-                      s != self.mdp.terminal_state)}
+                  if (not isinstance(mdp, EpisodicMDP) or
+                      s != mdp.terminal_state)}
         return policy
