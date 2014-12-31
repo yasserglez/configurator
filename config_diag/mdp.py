@@ -5,8 +5,8 @@ Markov Decision Processes
 import numpy.ma
 
 from mdptoolbox.util import check
-from mdptoolbox.mdp import PolicyIteration as PolicyIteration_
-from mdptoolbox.mdp import ValueIteration as ValueIteration_
+from mdptoolbox.mdp import PolicyIteration as _PolicyIteration
+from mdptoolbox.mdp import ValueIteration as _ValueIteration
 
 
 class MDP(object):
@@ -163,7 +163,7 @@ class PolicyIteration(MDPSolver):
         P = self.mdp.transitions
         R = self.mdp.rewards
         gamma = self.mdp.discount_factor
-        pi = PolicyIteration_(P, R, gamma, max_iter=max_iter, eval_type="iterative")
+        pi = _PolicyIteration(P, R, gamma, max_iter=max_iter, eval_type="iterative")
         pi.run()
         policy = {s: a for s, a in enumerate(pi.policy)
                   if (not isinstance(self.mdp, EpisodicMDP) or
@@ -207,7 +207,7 @@ class ValueIteration(MDPSolver):
         P = self.mdp.transitions
         R = self.mdp.rewards
         gamma = self.mdp.discount_factor
-        vi = ValueIteration_(P, R, gamma, epsilon, max_iter)
+        vi = _ValueIteration(P, R, gamma, epsilon, max_iter)
         vi.run()
         policy = {s: a for s, a in enumerate(vi.policy)
                   if (not isinstance(self.mdp, EpisodicMDP) or
