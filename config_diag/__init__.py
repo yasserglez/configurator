@@ -46,9 +46,25 @@ class ConfigDialog(object):
 
 class ConfigDialogBuilder(object):
     """Adaptive configuration dialog builder.
+
+    Attributes:
+        config_sample: A sample of the configuration variables.
     """
 
-    def __init__(self):
+    def __init__(self, config_sample):
         """Initialize a new instance.
+
+        Arguments:
+            config_sample: A 2-dimensional numpy array containing a
+                sample of the configuration variables.
         """
         super().__init__()
+        self.config_sample = config_sample
+
+    def build_dialog():
+        """Construct the adaptive configuration dialog.
+
+        Returns:
+            An instance of a ConfigDialog subclass.
+        """
+        raise NotImplementedError()
