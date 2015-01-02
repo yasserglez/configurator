@@ -3,6 +3,7 @@ Constructing Adaptive Configuration Dialogs using Crowd Data
 """
 
 import os
+import logging
 import subprocess
 from collections import defaultdict
 from functools import reduce
@@ -85,6 +86,7 @@ class ConfigDialogBuilder(object):
         self._assoc_rule_algorithm = assoc_rule_algorithm
         self._assoc_rule_min_support = assoc_rule_min_support
         self._assoc_rule_min_confidence = assoc_rule_min_confidence
+        self._logger = logging.getLogger(self.__class__.__name__)
 
     def build_dialog():
         """Construct an adaptive configuration dialog.
@@ -96,10 +98,19 @@ class ConfigDialogBuilder(object):
 
     def _mine_assoc_rules(self):
         # Mine the association rules.
+        self._logger.debug("mining association rules")
         miner = AssociationRuleMiner(self._config_sample)
         rules = miner.mine_assoc_rules(self._assoc_rule_min_support,
                                        self._assoc_rule_min_confidence,
                                        algorithm=self._assoc_rule_algorithm)
+        if self._logger.isEnabledFor(logging.DEBUG):
+            self._logger.debug("found %d rules", len(rules))
+            supp = [rule.support for rule in rules]
+            self._logger.debug("support values in [%.2f,%.2f]",
+                               min(supp), max(supp))
+            conf = [rule.confidence for rule in rules]
+            self._logger.debug("confidence values in [%.2f,%.2f]",
+                               min(conf), max(conf))
         # Merge rules with the same lhs. If two rules have
         # contradictory rhs, the rule with the greatest confidence
         # takes precedence.
@@ -115,5 +126,8 @@ class ConfigDialogBuilder(object):
             return r1
         merged_rules = [reduce(merge_rules, grouped_rules)
                         for grouped_rules in rules_dict.values()]
+        self._logger.debug("turned into %d rules after merging",
+                           len(merged_rules))
+        self._logger.debug("finished mining association rules")
         # Return the merged rules.
         return merged_rules

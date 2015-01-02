@@ -1,8 +1,13 @@
 import os
+import logging
 
 import numpy as np
 
 from ..policy import MDPDialogBuilder
+
+
+logging.basicConfig(format="%(asctime)s:%(name)s:%(funcName)s:%(message)s",
+                    level=logging.DEBUG)
 
 
 class TestMDPDialogBuilder(object):
@@ -13,6 +18,7 @@ class TestMDPDialogBuilder(object):
         self.config_sample = np.genfromtxt(csv_file, skip_header=1,
                                            dtype=np.dtype(str),
                                            delimiter=",")
+        print("")  # put a newline before the logging output
 
     def _test_builder(self, mdp_algorithm):
         builder = MDPDialogBuilder(config_sample=self.config_sample,
