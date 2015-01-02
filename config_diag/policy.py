@@ -78,25 +78,53 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # updated later using the association rules in _update_graph.
         self._logger.debug("building the initial graph")
         graph = igraph.Graph(directed=True)
-        # Add one node for each possible configuration state.
+        self._add_graph_nodes(graph)
+        self._add_graph_edges(graph)
+        self._logger.debug("created a graph with %d nodes and %d edges",
+                           graph.vcount(), graph.ecount())
+        self._logger.debug("finished building the initial graph")
+        return graph
+
+    def _add_graph_nodes(self, graph):
+        # Add one node for each possible configuration state. It also
+        # adds the edges that make the terminal absorving states.
+        self._logger.debug("adding the nodes")
         config_values = [[None] + values for values in self._config_values]
+        num_vars = len(config_values)
         for state_values in itertools.product(*config_values):
             # Since None goes first in config_values, the first state
             # will have all the variables set to None (empty dict).
+            # It will be the initial state in the EpisodicMDP.
             state = {var_index: var_value
                      for var_index, var_value in enumerate(state_values)
                      if var_value is not None}
-            # If the flag is set, do not add multiple terminal states.
-            if not (self._mdp_collapse_terminals and
-                    len(state) == len(self._config_values)):
+            if len(state) == num_vars:
+                # It's a terminal state. Add the vertex only if
+                # terminal states shouldn't be collapsed.
+                if not self._mdp_collapse_terminals:
+                    # Add it and make it absorbing.
+                    graph.add_vertex(state=state)
+                    vid = graph.vcount() - 1
+                    for var_index in range(num_vars):
+                        graph.add_edge(vid, vid, reward=0, prob=1.0,
+                                       action=var_index)
+            else:
+                # Intermediate state, add the vertex.
                 graph.add_vertex(state=state)
         if self._mdp_collapse_terminals:
             # If the terminal states were collapsed, add a single
             # state where all the configuration values are known.
+            # Make it an absorbing.
             graph.add_vertex(state=None)
-        self._logger.debug("created a graph with %d nodes", graph.vcount())
-        self._logger.debug("finished building the initial graph")
-        return graph
+            vid = graph.vcount() - 1
+            for var_index in range(num_vars):
+                graph.add_edge(vid, vid, reward=0, prob=1.0,
+                               action=var_index)
+        self._logger.debug("finishing adding the nodes")
+
+    def _add_graph_edges(self, graph):
+        self._logger.debug("adding the edges")
+        self._logger.debug("finished adding the edges")
 
     def _update_graph(self, graph, rules):
         # Update the graph using the association rules.
