@@ -126,15 +126,18 @@ class ConfigDialogBuilder(object):
         for rule in rules:
             lhs_key = hash(frozenset(rule.lhs.items()))
             rules_dict[lhs_key].add(rule)
-        def merge_rules(r1, r2):
-            r1.support = None
-            r1.confidence = None
-            r1.rhs.update(r2.rhs)
-            return r1
-        merged_rules = [reduce(merge_rules, grouped_rules)
+        merged_rules = [reduce(self._merge_assoc_rules, grouped_rules)
                         for grouped_rules in rules_dict.values()]
         self._logger.debug("turned into %d rules after merging",
                            len(merged_rules))
         self._logger.debug("finished mining association rules")
         # Return the merged rules.
         return merged_rules
+
+    def _merge_assoc_rules(self, rule1, rule2):
+        # Merge two association rules with the same lhs.
+        # rule1 is overwritten and returned.
+        rule1.support = None
+        rule1.confidence = None
+        rule1.rhs.update(rule2.rhs)
+        return rule1
