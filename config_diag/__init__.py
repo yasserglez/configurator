@@ -10,6 +10,7 @@ from functools import reduce
 
 from sortedcontainers import SortedSet, SortedListWithKey
 
+from .freq_table import FrequencyTable
 from .assoc_rules import AssociationRuleMiner
 
 
@@ -79,6 +80,7 @@ class ConfigDialogBuilder(object):
         """
         super().__init__()
         self._config_sample = config_sample
+        self._freq_tab = FrequencyTable(self._config_sample, cache_size=0)
         if config_values is None:
             config_values = [list(SortedSet(self._config_sample[:, i]))
                              for i in range(self._config_sample.shape[1])]
@@ -95,6 +97,11 @@ class ConfigDialogBuilder(object):
             An instance of a ConfigDialog subclass.
         """
         raise NotImplementedError()
+
+    def _cond_prob(self, x, y):
+        # Conditional probability distributionn of x given y in the
+        # sample of the configuration variables.
+        return self._freq_tab.cond_prob(x, y)
 
     def _mine_assoc_rules(self):
         # Mine the association rules.

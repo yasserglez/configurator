@@ -46,7 +46,6 @@ class MDPDialogBuilder(ConfigDialogBuilder):
                 be collapsed into a single state.
 
         See ConfigDialogBuilder for the remaining arguments.
-
         """
         super().__init__(**kwargs)
         if mdp_algorithm == "policy-iteration":
@@ -80,7 +79,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         graph = igraph.Graph(directed=True)
         self._add_graph_nodes(graph)
         self._add_graph_edges(graph)
-        self._logger.debug("created a graph with %d nodes and %d edges",
+        self._logger.debug("built a graph with %d nodes and %d edges",
                            graph.vcount(), graph.ecount())
         self._logger.debug("finished building the initial graph")
         return graph
@@ -88,7 +87,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
     def _add_graph_nodes(self, graph):
         # Add one node for each possible configuration state. It also
         # adds the edges that make the terminal absorving states.
-        self._logger.debug("adding the nodes")
+        self._logger.debug("adding nodes")
         config_values = [[None] + values for values in self._config_values]
         num_vars = len(config_values)
         for state_values in itertools.product(*config_values):
@@ -106,25 +105,71 @@ class MDPDialogBuilder(ConfigDialogBuilder):
                     graph.add_vertex(state=state)
                     vid = graph.vcount() - 1
                     for var_index in range(num_vars):
-                        graph.add_edge(vid, vid, reward=0, prob=1.0,
-                                       action=var_index)
+                        graph.add_edge(vid, vid, action=var_index,
+                                       reward=0, prob=1.0)
             else:
                 # Intermediate state, add the vertex.
                 graph.add_vertex(state=state)
         if self._mdp_collapse_terminals:
             # If the terminal states were collapsed, add a single
-            # state where all the configuration values are known.
-            # Make it an absorbing.
+            # state (with the state dict set to None) where all the
+            # configuration values are known. Make it an absorbing.
             graph.add_vertex(state=None)
             vid = graph.vcount() - 1
             for var_index in range(num_vars):
-                graph.add_edge(vid, vid, reward=0, prob=1.0,
-                               action=var_index)
-        self._logger.debug("finishing adding the nodes")
+                graph.add_edge(vid, vid, action=var_index,
+                               reward=0, prob=1.0)
+        self._logger.debug("finishing adding nodes")
 
     def _add_graph_edges(self, graph):
-        self._logger.debug("adding the edges")
-        self._logger.debug("finished adding the edges")
+        # Add the initial graph edges (one-step transitions).
+        self._logger.debug("adding edges")
+        for v in graph.vs:
+            for w in graph.vs.select(lambda w: self._is_one_step_transition(v, w)):
+                self._add_one_step_edge(graph, v, w)
+        self._logger.debug("finished adding edges")
+
+    def _is_one_step_transition(self, v, w):
+        # Check v and w represent a one-step transition, i.e.
+        # transitions from states in which (k - 1) variables are known
+        # to states where k variables are known. Additionally, v and w
+        # have to differ only in one variable (the one that becomes
+        # known after the question is asked).
+        num_vars = len(self._config_values)
+        state_len = lambda vertex: (num_vars if vertex["state"] is None
+                                    else len(vertex["state"]))
+        v_state_len, w_state_len = state_len(v), state_len(w)
+        if v_state_len + 1 == w_state_len:
+            v_set = set(v["state"].items())
+            if w["state"] is None:
+                # Collapsed terminal states.
+                return True
+            else:
+                w_set = set(w["state"].items())
+                return len(v_set & w_set) == v_state_len
+        return False
+
+    def _add_one_step_edge(self, graph, v, w):
+        # Add the one-step transition edges. Each edge is labelled with:
+        # - the action corresponding to the variable that becomes known,
+        # - the conditional probability of the variable taking the
+        #   value, given the previous user responses, and
+        # - a reward of 1 (variables whose values become known).
+        num_vars = len(self._config_values)
+        v_vars = set(v["state"].keys())
+        w_vars = (set(range(num_vars)) if w["state"] is None
+                  else set(w["state"].keys()))
+        var_index = next(iter(w_vars - v_vars))
+        if w["state"] is None:
+            # w is a collapsed terminal state. Add a single edge with
+            # probability one and reward one. Whatever the user
+            # answers is going to take her/him to the terminal state.
+            graph.add_edge(v, w, action=var_index, reward=1, prob=1.0)
+        else:
+            var_value = w["state"][var_index]
+            prob = self._cond_prob({var_index: var_value}, v["state"])
+            graph.add_edge(v, w, action=var_index,
+                           reward=1, prob=prob)
 
     def _update_graph(self, graph, rules):
         # Update the graph using the association rules.

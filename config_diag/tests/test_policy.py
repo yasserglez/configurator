@@ -42,7 +42,7 @@ class TestMDPDialogBuilder(object):
     def test_policy_iteration_without_optim(self):
         self._test_builder_without_optim("policy-iteration")
 
-    def test_value_iteration_wit_optim(self):
+    def test_value_iteration_with_optim(self):
         self._test_builder_with_optim("value-iteration")
 
     def test_policy_iteration_with_optim(self):
