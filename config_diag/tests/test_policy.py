@@ -20,13 +20,30 @@ class TestMDPDialogBuilder(object):
                                            delimiter=",")
         print("")  # put a newline before the logging output
 
-    def _test_builder(self, mdp_algorithm):
-        builder = MDPDialogBuilder(config_sample=self.config_sample,
-                                   mdp_algorithm=mdp_algorithm)
+    def _test_builder(self, mdp_algorithm, mdp_collapse_terminals):
+        builder = MDPDialogBuilder(
+            config_sample=self.config_sample,
+            mdp_algorithm=mdp_algorithm,
+            mdp_collapse_terminals=mdp_collapse_terminals
+        )
         dialog = builder.build_dialog()
 
-    def test_value_iteration_builder(self):
-        self._test_builder("value-iteration")
+    def _test_builder_without_optim(self, mdp_algorithm):
+        self._test_builder(mdp_algorithm,
+                           mdp_collapse_terminals=False)
 
-    def test_policy_iteration_builder(self):
-        self._test_builder("policy-iteration")
+    def _test_builder_with_optim(self, mdp_algorithm):
+        self._test_builder(mdp_algorithm,
+                           mdp_collapse_terminals=True)
+
+    def test_value_iteration_without_optim(self):
+        self._test_builder_without_optim("value-iteration")
+
+    def test_policy_iteration_without_optim(self):
+        self._test_builder_without_optim("policy-iteration")
+
+    def test_value_iteration_wit_optim(self):
+        self._test_builder_with_optim("value-iteration")
+
+    def test_policy_iteration_with_optim(self):
+        self._test_builder_with_optim("policy-iteration")
