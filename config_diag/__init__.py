@@ -7,7 +7,7 @@ import subprocess
 from collections import defaultdict
 from functools import reduce
 
-from sortedcontainers import SortedListWithKey
+from sortedcontainers import SortedSet, SortedListWithKey
 
 from .assoc_rules import AssociationRuleMiner
 
@@ -55,21 +55,33 @@ class ConfigDialogBuilder(object):
     """
 
     def __init__(self, config_sample=None,
-                 assoc_rule_algorithm=None,
-                 assoc_rule_min_support=None,
-                 assoc_rule_min_confidence=None):
+                 config_values=None,
+                 assoc_rule_algorithm="apriori",
+                 assoc_rule_min_support=0.5,
+                 assoc_rule_min_confidence=0.95):
         """Initialize a new instance.
 
         Arguments:
             config_sample: A 2-dimensional numpy array containing a
                 sample of the configuration variables.
-            assoc_rule_algorithm: Algorithm for mining the frequent item sets.
-                Possible values are: 'apriori' and 'fp-growth'.
-            assoc_rule_min_supporte: Minimum item set support in [0,1].
-            assoc_rule_min_confidence: Minimum confidence of the rules [0,1].
+            config_values: A list with one entry for each variable
+                containing a list with all the possible values of the
+                variable. If it is not given, it is automatically
+                computed from the columns of config_sample.
+            assoc_rule_algorithm: Algorithm for mining the frequent
+                item sets. Possible values are: 'apriori' (default)
+                and 'fp-growth'.
+            assoc_rule_min_supporte: Minimum item set support in [0,1]
+                (default: 0.5).
+            assoc_rule_min_confidence: Minimum confidence of the rules
+                in [0,1] (default: 0.95).
         """
         super().__init__()
         self._config_sample = config_sample
+        if config_values is None:
+            config_values = [list(SortedSet(self._config_sample[:, i]))
+                             for i in range(self._config_sample.shape[1])]
+        self._config_values = config_values
         self._assoc_rule_algorithm = assoc_rule_algorithm
         self._assoc_rule_min_support = assoc_rule_min_support
         self._assoc_rule_min_confidence = assoc_rule_min_confidence
@@ -82,7 +94,7 @@ class ConfigDialogBuilder(object):
         """
         raise NotImplementedError()
 
-    def _mine_assoc_rules(self, min_support, min_confidence, algorithm):
+    def _mine_assoc_rules(self):
         # Mine the association rules.
         miner = AssociationRuleMiner(self._config_sample)
         rules = miner.mine_assoc_rules(self._assoc_rule_min_support,
