@@ -55,29 +55,3 @@ class FrequencyTable(object):
         if self._cache_size > 0:
             self._cache[cache_key] = count_freq
         return count_freq
-
-    def joint_prob(self, x):
-        """Joint probability distribution of x.
-
-        Arguments:
-            x: A dictionary mapping variable indexes to their values.
-
-        Returns:
-            Probability value in [0,1].
-        """
-        prob = self.count_freq(x) / self.data.shape[0]
-        return prob
-
-    def cond_prob(self, x, y):
-        """Conditional probability distribution of x given y.
-
-        Arguments:
-            x: A dictionary mapping variable indexes to their values.
-            y: A dictionary mapping variable indexes to their values.
-
-        Returns:
-            Conditional probability value in [0,1].
-        """
-        z = dict(x.items() | y.items())
-        prob = self.joint_prob(z) / self.joint_prob(y)
-        return prob

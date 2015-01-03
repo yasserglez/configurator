@@ -7,6 +7,7 @@ import logging
 import subprocess
 from collections import defaultdict
 from functools import reduce
+from operator import mul
 
 from sortedcontainers import SortedSet, SortedListWithKey
 
@@ -98,10 +99,19 @@ class ConfigDialogBuilder(object):
         """
         raise NotImplementedError()
 
-    def _cond_prob(self, x, y):
+    def _cond_prob(self, x, y, add_one_smoothing=True):
         # Conditional probability distributionn of x given y in the
-        # sample of the configuration variables.
-        return self._freq_tab.cond_prob(x, y)
+        # sample of the configuration variables. By default the
+        # frequencies are computed using add-one (Laplace) smoothing.
+        z = dict(x.items() | y.items())
+        num = self._freq_tab.count_freq(z)
+        den = self._freq_tab.count_freq(y)
+        if add_one_smoothing:
+            num += 1
+            x_card = [len(self._config_values[i]) for i in x.keys()]
+            den += reduce(mul, x_card)
+        prob = num / den
+        return prob
 
     def _mine_assoc_rules(self):
         # Mine the association rules.
