@@ -2,6 +2,8 @@
 Markov Decision Processes
 """
 
+import types
+
 import numpy.ma
 
 import mdptoolbox.util
@@ -128,21 +130,32 @@ class PolicyIteration(MDPSolver):
 
     The initial policy is the one that maximizes the expected
     immediate rewards. The algorithm terminates when the policy does
-    not change between two consecutive iterations or after a maximum
-    number of iterations. The policy evaluation step is implemented
-    iteratively, stopping when the maximum change in the value
-    function is less than the threshold computed for epsilon 0.0001
-    (only for discounted MDPs) or after 10000 iterations.
+    not change between two consecutive iterations or after max_iter.
+    The policy evaluation step is implemented iteratively, stopping
+    when the maximum change in the value function is less than the
+    threshold computed for eval_epsilon (only for discounted MDPs) or
+    after eval_max_iter iterations.
     """
 
-    def __init__(self, max_iter=1000):
+    def __init__(self, max_iter=1000, eval_epsilon=0.01, eval_max_iter=100):
         """Initialize a new instance.
 
         Arguments:
             max_iter: The maximum number of iterations (default: 1000).
+            eval_epsilon: Stopping criterion for the policy evaluation
+                step (default: 0.01). For discounted MDPs it defines
+                the epsilon value used to compute the threshold for
+                the maximum change in the value function between two
+                subsequent iterations. It has no effect for
+                undiscounted MDPs.
+            eval_max_iter: Stopping criterion for the policy
+                evaluation step (default: 100). The maximum number of
+                iterations.
         """
         super().__init__()
         self._max_iter = max_iter
+        self._eval_epsilon = eval_epsilon
+        self._eval_max_iter = eval_max_iter
 
     def solve(self, mdp):
         """Run the (modified) policy iteration algorithm.
@@ -158,6 +171,14 @@ class PolicyIteration(MDPSolver):
         gamma = mdp.discount_factor
         pi = _PolicyIteration(P, R, gamma, max_iter=self._max_iter,
                               eval_type="iterative")
+        # Monkey-patch the _evalPoicyIterative method in order to
+        # change the default values of epsilon and max_iter.
+        original = pi._evalPolicyIterative
+        epsilon = self._eval_epsilon
+        max_iter = self._eval_max_iter
+        patched = lambda self, V0=0, epsilon=epsilon, max_iter=max_iter: \
+            original(V0, epsilon, max_iter)
+        pi._evalPolicyIterative = types.MethodType(patched, pi)
         pi.run()
         policy = {s: a for s, a in enumerate(pi.policy)
                   if (not isinstance(mdp, EpisodicMDP) or
