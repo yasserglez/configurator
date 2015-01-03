@@ -9,7 +9,7 @@ class TestAssociationRuleMiner(object):
 
     def setup(self):
         tests_dir = os.path.abspath(os.path.dirname(__file__))
-        self.data = np.genfromtxt(os.path.join(tests_dir, "Titanic.csv"),
+        self.data = np.genfromtxt(os.path.join(tests_dir, "titanic.csv"),
                                   skip_header=1, dtype=np.dtype(str),
                                   delimiter=",")
 

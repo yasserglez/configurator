@@ -14,7 +14,7 @@ class TestMDPDialogBuilder(object):
 
     def setup(self):
         tests_dir = os.path.abspath(os.path.dirname(__file__))
-        csv_file = os.path.join(tests_dir, "Titanic.csv")
+        csv_file = os.path.join(tests_dir, "titanic.csv")
         self.config_sample = np.genfromtxt(csv_file, skip_header=1,
                                            dtype=np.dtype(str),
                                            delimiter=",")
