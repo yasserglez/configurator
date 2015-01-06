@@ -86,15 +86,14 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         return graph
 
     def _add_graph_nodes(self, graph):
-        # Add one node for each possible configuration state. It also
-        # adds the edges that make the terminal absorving states.
+        # Add one node for each possible configuration state.
         self._logger.debug("adding nodes")
         config_values = [[None] + values for values in self._config_values]
         num_vars = len(config_values)
         for state_values in itertools.product(*config_values):
             # Since None goes first in config_values, the first state
             # will have all the variables set to None (empty dict).
-            # It will be the initial state in the EpisodicMDP.
+            # It will be the initial state in EpisodicMDP.
             state = {var_index: var_value
                      for var_index, var_value in enumerate(state_values)
                      if var_value is not None}
@@ -102,33 +101,41 @@ class MDPDialogBuilder(ConfigDialogBuilder):
                 # It's a terminal state. Add the vertex only if
                 # terminal states shouldn't be collapsed.
                 if not self._mdp_collapse_terminals:
-                    # Add it and make it absorbing.
                     graph.add_vertex(state=state)
-                    vid = graph.vcount() - 1
-                    for var_index in range(num_vars):
-                        graph.add_edge(vid, vid, action=var_index,
-                                       reward=0, prob=1.0)
             else:
                 # Intermediate state, add the vertex.
                 graph.add_vertex(state=state)
         if self._mdp_collapse_terminals:
             # If the terminal states were collapsed, add a single
             # state (with the state dict set to None) where all the
-            # configuration values are known. Make it an absorbing.
+            # configuration values are known. It will be the terminal
+            # state in EpisodicMDP.
             graph.add_vertex(state=None)
-            vid = graph.vcount() - 1
-            for var_index in range(num_vars):
-                graph.add_edge(vid, vid, action=var_index,
-                               reward=0, prob=1.0)
         self._logger.debug("finishing adding nodes")
 
     def _add_graph_edges(self, graph):
-        # Add the initial graph edges (one-step transitions).
+        # Add the initial graph edges: loop edges for the known
+        # variables and one-step transitions.
         self._logger.debug("adding edges")
         for v in graph.vs:
-            for w in graph.vs.select(lambda w: self._is_one_step_transition(v, w)):
+            # Loop edges:
+            self._add_loop_edges(graph, v)
+            # One-step transitions:
+            criterion = lambda w: self._is_one_step_transition(v, w)
+            for w in graph.vs.select(criterion):
                 self._add_one_step_edge(graph, v, w)
         self._logger.debug("finished adding edges")
+
+    def _add_loop_edges(self, graph, v):
+        # Add loop edges for the known variables.
+        if v["state"] is None:
+            # Collapsed terminal state. All variables are known.
+            known_vars = range(len(self._config_values))
+        else:
+            # Regular, intermediate state.
+            known_vars = v["state"].keys()
+        for var_index in known_vars:
+            graph.add_edge(v, v, action=var_index, reward=0, prob=1.0)
 
     def _is_one_step_transition(self, v, w):
         # Check v and w represent a one-step transition, i.e.
@@ -143,7 +150,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         if v_state_len + 1 == w_state_len:
             v_set = set(v["state"].items())
             if w["state"] is None:
-                # Collapsed terminal states.
+                # Collapsed terminal state.
                 return True
             else:
                 w_set = set(w["state"].items())
