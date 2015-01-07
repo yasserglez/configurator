@@ -31,6 +31,8 @@ class MDPDialogBuilder(ConfigDialogBuilder):
 
     def __init__(self, mdp_algorithm="policy-iteration",
                  mdp_max_iter=1000,
+                 mdp_discard_states=None,
+                 mdp_partial_assoc_rules=None,
                  mdp_collapse_terminals=None,
                  **kwargs):
         """Initialize a new instance.
@@ -41,9 +43,16 @@ class MDPDialogBuilder(ConfigDialogBuilder):
                 'value-iteration'.
             mdp_max_iter: The maximum number of iterations of the
                 algorithm used to solve the MDP (default: 1000).
+            mdp_discard_states: Indicates whether states that can't be
+                reached from the initial state after applying the
+                association rules should be discarded.
+            mdp_partial_assoc_rules: Indicates whether the association
+                rules can be applied when some of the variables in the
+                right-hand-side are already set to the correct values
+                (the opposite is to require that all variables in the
+                left-hand-side are unknown).
             mdp_collapse_terminals: Indicates whether all terminal
-                states (all configuration variables are known) should
-                be collapsed into a single state.
+                states should be collapsed into a single state.
 
         See ConfigDialogBuilder for the remaining arguments.
         """
@@ -55,6 +64,8 @@ class MDPDialogBuilder(ConfigDialogBuilder):
             self._solver = ValueIteration(max_iter=mdp_max_iter)
         else:
             raise ValueError("Invalid mdp_algorithm value")
+        self._mdp_discard_states = mdp_discard_states
+        self._mdp_partial_assoc_rules = mdp_partial_assoc_rules
         self._mdp_collapse_terminals = mdp_collapse_terminals
 
     def build_dialog(self):
@@ -69,7 +80,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # Build the initial graph.
         graph = self._build_graph()
         # Update the graph using the association rules.
-        rules = self._mine_assoc_rules()
+        rules = self._mine_rules()
         self._update_graph(graph, rules)
 
     def _build_graph(self):
@@ -89,7 +100,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # Add one node for each possible configuration state.
         self._logger.debug("adding nodes")
         config_values = [[None] + values for values in self._config_values]
-        num_vars = len(config_values)
+        num_vars = len(self._config_values)
         for state_values in itertools.product(*config_values):
             # Since None goes first in config_values, the first state
             # will have all the variables set to None (empty dict).
@@ -132,7 +143,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
             # Collapsed terminal state. All variables are known.
             known_vars = range(len(self._config_values))
         else:
-            # Regular, intermediate state.
+            # Non-collapsed terminal or intermediate state.
             known_vars = v["state"].keys()
         for var_index in known_vars:
             graph.add_edge(v, v, action=var_index, reward=0, prob=1.0)
@@ -143,18 +154,16 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # to states where k variables are known. Additionally, v and w
         # have to differ only in one variable (the one that becomes
         # known after the question is asked).
-        num_vars = len(self._config_values)
-        state_len = lambda vertex: (num_vars if vertex["state"] is None
-                                    else len(vertex["state"]))
-        v_state_len, w_state_len = state_len(v), state_len(w)
-        if v_state_len + 1 == w_state_len:
-            v_set = set(v["state"].items())
+        num_known_vars_in_v = self._count_known_vars(v)
+        num_known_vars_in_w = self._count_known_vars(w)
+        if num_known_vars_in_v + 1 == num_known_vars_in_w:
             if w["state"] is None:
                 # Collapsed terminal state.
                 return True
             else:
+                v_set = set(v["state"].items())
                 w_set = set(w["state"].items())
-                return len(v_set & w_set) == v_state_len
+                return len(v_set & w_set) == num_known_vars_in_v
         return False
 
     def _add_one_step_edge(self, graph, v, w):
@@ -182,4 +191,109 @@ class MDPDialogBuilder(ConfigDialogBuilder):
     def _update_graph(self, graph, rules):
         # Update the graph using the association rules.
         self._logger.debug("updating the graph using the association rules")
+        inaccessible_vertices = []
+        for rule in rules:
+            # It doesn't make sense to apply the rule in a terminal
+            # state, so the S selection is restricted to non-terminals.
+            for v_s in graph.vs.select(self._is_non_terminal):
+                s = v_s["state"]  # S
+                if not (v_s.index not in inaccessible_vertices and
+                        self._update_graph_cond_a(rule, s) and
+                        self._update_graph_cond_bii(rule, s)):
+                    continue  # skip this vertex
+                for v_sp in graph.vs:
+                    sp = v_sp["state"]  # S'
+                    if not (v_sp.index not in inaccessible_vertices and
+                            self._update_graph_cond_a(rule, sp) and
+                            self._update_graph_cond_bi(rule, sp) and
+                            self._update_graph_cond_c(rule, s, sp)):
+                        continue  # skip this vertex
+                    # If we've reached this far, the rule can be used to
+                    # "shortcut" from S to S'. After creating the "shortcut",
+                    # S becomes inaccessible and it's added to a list of
+                    # vertices to be deleted at the end.
+                    self._update_graph_shortcut(graph, v_s, v_sp)
+                    inaccessible_vertices.append(v_s.index)
+                    break  # a match for S was found, don't keep looking
+        # Delete the inaccesible vertices.
+        if self._mdp_discard_states:
+            graph.delete_vertices(inaccessible_vertices)
+        self._logger.debug("found %d applications of the %d rules",
+                           len(inaccessible_vertices), len(rules))
+        self._logger.debug("turned into a graph with %d nodes and %d edges",
+                           graph.vcount(), graph.ecount())
         self._logger.debug("finished updating the graph")
+
+    def _update_graph_cond_a(self, rule, s_or_sp):
+        # (a) variables in lhs have known and same options in S and S'.
+        # When called with S', it could be a collapsed terminal state
+        # which will satisfy any rule.
+        return (s_or_sp is None or self._is_rule_lhs_compatible(rule, s_or_sp))
+
+    def _update_graph_cond_bi(self, rule, sp):
+        # (b-i) variables in the rhs appear with all values exactly
+        # the same as in the rule in S'. The collapsed terminal state
+        # satisfies any rule.
+        if sp is not None:
+            for var_index, var_value in rule.rhs.items():
+                if var_index not in sp or sp[var_index] != var_value:
+                    return False
+        return True
+
+    def _update_graph_cond_bii(self, rule, s):
+        if self._mdp_partial_assoc_rules:
+            # (b-ii) variables in the rhs appear with the same values
+            # or set to unknown in S. At least one must be set to
+            # unknown in S.
+            return self._is_rule_rhs_compatible(rule, s)
+        else:
+            # (b-ii) variables in the rhs appear with all values set
+            # to unknown in S.
+            return all((var_index not in s for var_index in rule.rhs.keys()))
+
+    def _update_graph_cond_c(self, rule, s, sp):
+        # (c) all other variables not mentioned in the rule are set to
+        # the same values for both S and S'.
+        all_vars = set(range(len(self._config_values)))
+        mentioned_vars = set(rule.lhs.keys()) | set(rule.rhs.keys())
+        if sp is None:
+            # S' is a collapsed terminal state and it has all the
+            # variable combinations. We only need to check for S.
+            for var_index in (all_vars - mentioned_vars):
+                if var_index not in s:
+                    return False
+        else:
+            for var_index in (all_vars - mentioned_vars):
+                if not (var_index in s and
+                        var_index in sp and
+                        s[var_index] == sp[var_index]):
+                    return False
+        return True
+
+    def _update_graph_shortcut(self, graph, v_s, v_sp):
+        # Create a "shortcut" from S to S'. Take all the edges that
+        # are targeting S and move them so that they now target S'.
+        # The reward of those edges is incremented by the difference
+        # in the number of known variables between S' and S.
+        old_edges = []
+        for e in graph.es.select(_target=v_s.index):
+            reward = e["reward"] + (self._count_known_vars(v_sp) -
+                                    self._count_known_vars(v_s))
+            graph.add_edge(e.source, target=v_sp, action=e["action"],
+                           prob=e["prob"], reward=reward)
+            old_edges.append(e.index)
+        graph.delete_edges(old_edges)
+
+    def _count_known_vars(self, v):
+        # Return the number of variables whose value is known.
+        num_known_vars = (len(self._config_values) if v["state"] is None
+                          else len(v["state"]))
+        return num_known_vars
+
+    def _is_terminal(self, v):
+        # Check if v representes a terminal state.
+        return self._count_known_vars(v) == len(self._config_values)
+
+    def _is_non_terminal(self, v):
+        # Check if v represents a terminal state.
+        return not self._is_terminal(v)
