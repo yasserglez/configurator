@@ -113,7 +113,7 @@ class ConfigDialogBuilder(object):
         prob = num / den
         return prob
 
-    def _mine_assoc_rules(self):
+    def _mine_rules(self):
         # Mine the association rules.
         self._logger.debug("mining association rules")
         miner = AssociationRuleMiner(self._config_sample)
@@ -136,7 +136,7 @@ class ConfigDialogBuilder(object):
         for rule in rules:
             lhs_key = hash(frozenset(rule.lhs.items()))
             rules_dict[lhs_key].add(rule)
-        merged_rules = [reduce(self._merge_assoc_rules, grouped_rules)
+        merged_rules = [reduce(self._merge_rules, grouped_rules)
                         for grouped_rules in rules_dict.values()]
         self._logger.debug("turned into %d rules after merging",
                            len(merged_rules))
@@ -144,10 +144,35 @@ class ConfigDialogBuilder(object):
         # Return the merged rules.
         return merged_rules
 
-    def _merge_assoc_rules(self, rule1, rule2):
+    def _merge_rules(self, rule1, rule2):
         # Merge two association rules with the same lhs.
         # rule1 is overwritten and returned.
         rule1.support = None
         rule1.confidence = None
         rule1.rhs.update(rule2.rhs)
         return rule1
+
+    def _is_rule_lhs_compatible(self, rule, state):
+        # Check if the rule's lhs is compatible with the given
+        # configuration state. All the variables in the lhs have to
+        # match the values in the state.
+        return set(rule.lhs.items()) <= set(state.items())
+
+    def _is_rule_rhs_compatible(self, rule, state):
+        # Check if the rule's rhs is compatible with the given
+        # configuration state. Each variable in the rhs has the same
+        # value in the state or it's value is still unknown. At least
+        # one variable must be unknown in order to apply the rule.
+        one_unknown_var = False
+        for var_index, var_value in rule.rhs.items():
+            if var_index in state:
+                if state[var_index] != var_value:
+                    return False
+            else:
+                one_unknown_var = True
+        return one_unknown_var
+
+    def _is_rule_applicable(self, rule, state):
+        # Check if a rule can be applied at a given configuration state.
+        return (self._is_rule_lhs_compatible(rule, state) and
+                self._is_rule_rhs_compatible(rule, state))
