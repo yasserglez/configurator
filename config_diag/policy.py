@@ -75,7 +75,12 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         Returns:
             A PolicyConfigDialog instance.
         """
+        self._logger.debug("building the MDP")
         mdp = self._build_mdp()
+        self._logger.debug("finished building the MDP")
+        self._logger.debug("solving the MDP")
+        policy = self._solver.solve(mdp)
+        self._logger.debug("finished solving the MDP")
 
     def _build_mdp(self):
         # Build the initial graph.
@@ -197,7 +202,8 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # - the action corresponding to the variable that becomes known,
         # - the conditional probability of the variable taking the
         #   value, given the previous user responses, and
-        # - a reward of 1 (variables whose values become known).
+        # - a reward of zero (we asked one question and we got a
+        #   response, no variables were automatically discovered).
         num_vars = len(self._config_values)
         v_vars = set(v["state"].keys())
         w_vars = (set(range(num_vars)) if w["state"] is None
@@ -205,14 +211,14 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         var_index = next(iter(w_vars - v_vars))
         if w["state"] is None:
             # w is a collapsed terminal state. Add a single edge with
-            # probability one and reward one. Whatever the user
+            # probability one and reward zero. Whatever the user
             # answers is going to take her/him to the terminal state.
-            graph.add_edge(v, w, action=var_index, reward=1, prob=1.0)
+            graph.add_edge(v, w, action=var_index, reward=0, prob=1.0)
         else:
             var_value = w["state"][var_index]
             prob = self._cond_prob({var_index: var_value}, v["state"])
             graph.add_edge(v, w, action=var_index,
-                           reward=1, prob=prob)
+                           reward=0, prob=prob)
 
     def _update_graph(self, graph, rules):
         # Update the graph using the association rules.
