@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 
 import numpy as np
 
@@ -88,3 +89,24 @@ def load_gridworld():
     }
 
     return S, A, P, R, INITIAL_S, TERMINAL_S, GAMMA, POLICY
+
+
+def load_email_client():
+    # Small example of the configuration of an email client presented in:
+    # Saeideh Hamidi. Automating Software Customization via
+    # Crowdsourcing using Association Rule Mining and Markov Decision
+    # Processes. Master's thesis, York University, 2014.
+
+    # Table 2 - Contingency Table of preferences in Email Client Example.
+    # (The entry {disp=no,ico=lgi} was incorrectly labelled as 540
+    # instead of 560 in the thesis. It was corrected in the CSV file.)
+    config_sample = _load_csv("email_client.csv")
+
+    # Only one rule obtained with confidence 0.9 (page 46).
+    min_support, min_confidence = 0.5, 0.9
+
+    # The second question (ico) should be asked first.
+    policy = defaultdict(lambda: 0)
+    policy[frozenset()] = 1
+
+    return config_sample, min_support, min_confidence, policy
