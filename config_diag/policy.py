@@ -5,6 +5,7 @@ Configuration Dialogs Based on Policies
 import itertools
 
 import igraph
+import numpy as np
 
 from . import ConfigDialog, ConfigDialogBuilder
 from .mdp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
@@ -82,6 +83,9 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # Update the graph using the association rules.
         rules = self._mine_rules()
         self._update_graph(graph, rules)
+        # Transform the graph into MDP components.
+        mdp = self._transform_graph_to_mdp(graph)
+        return mdp
 
     def _build_graph(self):
         # Build the graph that is used to compute the transition and
@@ -95,6 +99,28 @@ class MDPDialogBuilder(ConfigDialogBuilder):
                            graph.vcount(), graph.ecount())
         self._logger.debug("finished building the initial graph")
         return graph
+
+    def _transform_graph_to_mdp(self, graph):
+        # Generate the transition and reward matrices from the graph.
+        self._logger.debug("transforming the graph to the MDP")
+        S, A = graph.vcount(), len(self._config_values)
+        self._logger.debug("the MDP has %d states and %d actions", S, A)
+        transitions = [np.zeros((S, S)) for a in range(A)]
+        rewards = [np.zeros((S, S)) for a in range(A)]
+        for e in graph.es:
+            a, i, j = e["action"], e.source, e.target
+            transitions[a][i, j] = e["prob"]
+            rewards[a][i, j] = e["reward"]
+        if self._mdp_collapse_terminals:
+            initial_state = 0
+            terminal_state = S - 1
+            mdp = EpisodicMDP(transitions, rewards, discount_factor=1.0,
+                              initial_state=initial_state,
+                              terminal_state=terminal_state)
+        else:
+            mdp = MDP(transitions, rewards, discount_factor=1.0)
+        self._logger.debug("finished transforming the graph to the MDP")
+        return mdp
 
     def _add_graph_nodes(self, graph):
         # Add one node for each possible configuration state.
