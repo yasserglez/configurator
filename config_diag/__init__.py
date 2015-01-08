@@ -60,8 +60,8 @@ class ConfigDialogBuilder(object):
     def __init__(self, config_sample=None,
                  config_values=None,
                  assoc_rule_algorithm="apriori",
-                 assoc_rule_min_support=0.5,
-                 assoc_rule_min_confidence=0.95):
+                 assoc_rule_min_support=None,
+                 assoc_rule_min_confidence=None):
         """Initialize a new instance.
 
         Arguments:
@@ -74,10 +74,8 @@ class ConfigDialogBuilder(object):
             assoc_rule_algorithm: Algorithm for mining the frequent
                 item sets. Possible values are: 'apriori' (default)
                 and 'fp-growth'.
-            assoc_rule_min_supporte: Minimum item set support in [0,1]
-                (default: 0.5).
-            assoc_rule_min_confidence: Minimum confidence of the rules
-                in [0,1] (default: 0.95).
+            assoc_rule_min_support: Minimum item set support in [0,1].
+            assoc_rule_min_confidence: Minimum confidence in [0,1].
         """
         super().__init__()
         self._config_sample = config_sample
