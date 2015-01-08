@@ -1,21 +1,18 @@
-import os
+from numpy.testing import (assert_raises, assert_array_equal,
+                           assert_almost_equal)
 
-import numpy as np
-
+from .examples import load_titanic
 from ..assoc_rules import AssociationRuleMiner
 
 
 class TestAssociationRuleMiner(object):
 
     def setup(self):
-        tests_dir = os.path.abspath(os.path.dirname(__file__))
-        self.data = np.genfromtxt(os.path.join(tests_dir, "titanic.csv"),
-                                  skip_header=1, dtype=np.dtype(str),
-                                  delimiter=",")
+        self.data = load_titanic()
 
     def test_init(self):
         miner = AssociationRuleMiner(self.data)
-        np.testing.assert_array_equal(miner.data, self.data)
+        assert_array_equal(miner.data, self.data)
 
     def _test_mine_assoc_rlues(self, algorithm):
         miner = AssociationRuleMiner(self.data)
@@ -26,18 +23,18 @@ class TestAssociationRuleMiner(object):
         # Rule #1
         assert rules[0].lhs == {1: "Male", 3: "No"}
         assert rules[0].rhs == {2: "Adult"}
-        np.testing.assert_almost_equal(rules[0].support, 0.6038164)
-        np.testing.assert_almost_equal(rules[0].confidence, 0.9743402)
+        assert_almost_equal(rules[0].support, 0.6038164)
+        assert_almost_equal(rules[0].confidence, 0.9743402)
         # Rule #2
         assert rules[1].lhs == {3: "No"}
         assert rules[1].rhs == {2: "Adult"}
-        np.testing.assert_almost_equal(rules[1].support, 0.6533394)
-        np.testing.assert_almost_equal(rules[1].confidence, 0.9651007)
+        assert_almost_equal(rules[1].support, 0.6533394)
+        assert_almost_equal(rules[1].confidence, 0.9651007)
         # Rule #3
         assert rules[2].lhs == {1: "Male"}
         assert rules[2].rhs == {2: "Adult"}
-        np.testing.assert_almost_equal(rules[2].support, 0.7573830)
-        np.testing.assert_almost_equal(rules[2].confidence, 0.9630272)
+        assert_almost_equal(rules[2].support, 0.7573830)
+        assert_almost_equal(rules[2].confidence, 0.9630272)
 
     def test_mine_assoc_rules_apriori(self):
         self._test_mine_assoc_rlues('apriori')
@@ -47,5 +44,5 @@ class TestAssociationRuleMiner(object):
 
     def test_mine_assoc_rules_invalid(self):
         miner = AssociationRuleMiner(self.data)
-        np.testing.assert_raises(ValueError, miner.mine_assoc_rules,
+        assert_raises(ValueError, miner.mine_assoc_rules,
                                  algorithm='invalid')

@@ -1,21 +1,17 @@
-import os
+from numpy.testing import assert_array_equal
 
-import numpy as np
-
+from .examples import load_titanic
 from ..freq_table import FrequencyTable
 
 
 class TestFrequencyTable(object):
 
     def setup(self):
-        tests_dir = os.path.abspath(os.path.dirname(__file__))
-        self.data = np.genfromtxt(os.path.join(tests_dir, "titanic.csv"),
-                                  skip_header=1, dtype=np.dtype(str),
-                                  delimiter=",")
+        self.data = load_titanic()
 
     def test_init(self):
         freq_table = FrequencyTable(self.data)
-        np.testing.assert_array_equal(freq_table.data, self.data)
+        assert_array_equal(freq_table.data, self.data)
 
     def test_count_freq(self):
         freq_table = FrequencyTable(self.data)

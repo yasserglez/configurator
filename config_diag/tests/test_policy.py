@@ -1,8 +1,7 @@
-import os
+import sys
 import logging
 
-import numpy as np
-
+from .examples import load_titanic
 from ..policy import MDPDialogBuilder
 
 
@@ -13,12 +12,8 @@ logging.basicConfig(format="%(asctime)s:%(name)s:%(funcName)s:%(message)s",
 class TestMDPDialogBuilder(object):
 
     def setup(self):
-        tests_dir = os.path.abspath(os.path.dirname(__file__))
-        csv_file = os.path.join(tests_dir, "titanic.csv")
-        self.config_sample = np.genfromtxt(csv_file, skip_header=1,
-                                           dtype=np.dtype(str),
-                                           delimiter=",")
-        print("")  # put a newline before the logging output
+        self.config_sample = load_titanic()
+        print("", file=sys.stderr)  # newline before the logging output
 
     def _test_builder(self, algorithm, discard_states,
                       partial_assoc_rules, collapse_terminals):
