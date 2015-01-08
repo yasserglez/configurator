@@ -1,7 +1,7 @@
 import sys
 import logging
 
-from .examples import load_titanic
+from .examples import load_email_client
 from ..policy import MDPDialogBuilder
 
 
@@ -9,21 +9,28 @@ logging.basicConfig(format="%(asctime)s:%(name)s:%(funcName)s:%(message)s",
                     level=logging.DEBUG)
 
 
+config_sample, min_support, min_confidence, policy = load_email_client()
+
+
 class TestMDPDialogBuilder(object):
 
     def setup(self):
-        self.config_sample = load_titanic()
         print("", file=sys.stderr)  # newline before the logging output
 
     def _test_builder(self, algorithm, discard_states,
                       partial_assoc_rules, collapse_terminals):
         builder = MDPDialogBuilder(
-            config_sample=self.config_sample,
+            config_sample=config_sample,
+            assoc_rule_algorithm="apriori",
+            assoc_rule_min_support=min_support,
+            assoc_rule_min_confidence=min_confidence,
             mdp_algorithm=algorithm,
             mdp_discard_states=discard_states,
             mdp_partial_assoc_rules=partial_assoc_rules,
             mdp_collapse_terminals=collapse_terminals)
         dialog = builder.build_dialog()
+        initial_state = frozenset()
+        assert dialog.policy[initial_state] == policy[initial_state]
 
     def _test_builder_without_optim(self, algorithm):
         self._test_builder(algorithm, False, False, False)

@@ -13,17 +13,23 @@ from .mdp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 
 class PolicyConfigDialog(ConfigDialog):
     """Adaptive configuration dialog based on a policy.
+
+    Attributes:
+        policy: The MDP policy.
     """
 
     def __init__(self, policy):
         """Initialize a new instance.
 
         Arguments:
-            policy: The MDP policy, i.e. a dict mapping state indexes
-                to action indexes.
+
+            policy: The MDP policy, i.e. a dict mapping configuration
+                states to variable indices. The configuration states
+                are represented as frozensets of (index, value) tuples
+                for each variable.
         """
         super().__init__()
-        self._policy = policy
+        self.policy = policy
 
 
 class MDPDialogBuilder(ConfigDialogBuilder):
@@ -76,13 +82,6 @@ class MDPDialogBuilder(ConfigDialogBuilder):
             A PolicyConfigDialog instance.
         """
         self._logger.debug("building the MDP")
-        mdp = self._build_mdp()
-        self._logger.debug("finished building the MDP")
-        self._logger.debug("solving the MDP")
-        policy = self._solver.solve(mdp)
-        self._logger.debug("finished solving the MDP")
-
-    def _build_mdp(self):
         # Build the initial graph.
         graph = self._build_graph()
         # Update the graph using the association rules.
@@ -90,7 +89,15 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         self._update_graph(graph, rules)
         # Transform the graph into MDP components.
         mdp = self._transform_graph_to_mdp(graph)
-        return mdp
+        self._logger.debug("finished building the MDP")
+        self._logger.debug("solving the MDP")
+        policy = self._solver.solve(mdp)
+        self._logger.debug("finished solving the MDP")
+        # Create the PolicyConfigDialog instance.
+        policy = {frozenset(graph.vs[s]["state"]): a
+                  for s, a in policy.items()}
+        dialog = PolicyConfigDialog(policy)
+        return dialog
 
     def _build_graph(self):
         # Build the graph that is used to compute the transition and
