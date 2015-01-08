@@ -53,9 +53,9 @@ class MDP(object):
         try:
             mdptoolbox.util.check(self.transitions, self.rewards)
         except AssertionError as error:
-            raise ValueError(str(error))
+            raise ValueError(str(error)) from error
         except mdptoolbox.util.InvalidMDPError as error:
-            raise ValueError(error.message)
+            raise ValueError(error.message) from error
 
 
 class EpisodicMDP(MDP):
