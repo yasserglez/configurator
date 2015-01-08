@@ -1,7 +1,7 @@
 numpy >= 1.9.1
 scipy >= 0.14.0
 pylru >= 1.0.6
-pymdptoolbox >= 4.0b2
 python-igraph >= 0.7
 sortedcontainers >= 0.9.4
+git+git://github.com/sawcordwell/pymdptoolbox#egg=mdptoolbox
 http://www.borgelt.net/src/pyfim.tar.gz
