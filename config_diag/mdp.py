@@ -95,13 +95,14 @@ class EpisodicMDP(MDP):
         super()._validate()
         # Check that the terminal state is absorbing.
         s = self.terminal_state
-        to_terminal = self.transitions[:, s, s]
-        to_non_terminal = numpy.ma.array(self.transitions[:, s, :], mask=False)
-        to_non_terminal.mask[:, s] = True
-        if (to_terminal != 1).any() or to_non_terminal.any():
-            raise ValueError("The terminal state is not an absorbing state")
-        if self.rewards[:, s, s].any():
-            raise ValueError("Terminal state has transitions with non-zero rewards")
+        for a in range(len(self.transitions)):
+            to_term = self.transitions[a][s, s]
+            to_nonterm = numpy.ma.array(self.transitions[a][s, :], mask=False)
+            to_nonterm.mask[s] = True
+            if (to_term != 1).any() or to_nonterm.any():
+                raise ValueError("The terminal state is not an absorbing state")
+            if self.rewards[a][s, s] != 0:
+                raise ValueError("Terminal state has transitions with non-zero rewards")
 
 
 class MDPSolver(object):
