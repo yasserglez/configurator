@@ -31,6 +31,73 @@ class AssociationRule(object):
         self.support = support
         self.confidence = confidence
 
+    def is_lhs_compatible(self, observation):
+        """Check left-hand-side compatibility.
+
+        Check if the rules' left-hand-side is compatible with an
+        observation of the variables. All the variables in the
+        left-hand-side must match the observed values.
+
+        Arguments:
+            observation: A dictionary mapping variable indexes to
+                their values.
+
+        Returns:
+            True if the left-hand-side is compaible, False if not.
+        """
+
+    def is_rhs_compatible(self, observation):
+        """Check right-hand-side compatibility.
+
+        Check if the rules' right-hand-side is compatible with a
+        partial observation of the variables. Each variable in the
+        right-hand-side must be unknown or have the same observed
+        value. At least one variable must be unknown to avoid trivial
+        applications of the rule.
+
+        Arguments:
+            observation: A dictionary mapping variable indexes to
+                their values.
+
+        Returns:
+            True if the right-hand-side is compaible, False if not.
+        """
+
+    def is_applicable(self, observation):
+        """Check if the rule can be applied.
+
+        Check if both the left-hand-side and the right-hand-side of
+        the rule are compatible with a partial observation of the
+        variables. See the documentation of the is_lhs_compatible and
+        is_rhs_compatible methods.
+
+        Arguments:
+            observation: A dictionary mapping variable indexes to
+                their values.
+
+        Returns:
+            True if rule is applicable, False if not.
+        """
+        return (self.is_lhs_compatible(observation) and
+                self.is_rhs_compatible(observation))
+
+    def apply_rule(self, observation):
+        """Apply the rule.
+
+        Complete the values of a partial observation of the variables
+        by setting the variables in the right-hand-side to the values
+        indicated by the rule. is_applicable method must be called
+        first to ensure that no variables will be overwritten.
+
+        Arguments:
+            observation: A dictionary mapping variable indexes to
+                their values.
+
+        Returns:
+            The completed observation. A dictionary mapping variable
+                indexes to their values.
+        """
+
 
 class AssociationRuleMiner(object):
     """Association rule mining.
