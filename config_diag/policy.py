@@ -121,8 +121,10 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         rewards = [np.zeros((S, S)) for a in range(A)]
         for e in graph.es:
             a, i, j = e["action"], e.source, e.target
-            transitions[a][i, j] = e["prob"]
-            rewards[a][i, j] = e["reward"]
+            if e["prob"] > 0:
+                transitions[a][i, j] = e["prob"]
+            if e["reward"] != 0:
+                rewards[a][i, j] = e["reward"]
         if self._mdp_collapse_terminals:
             initial_state = 0
             terminal_state = S - 1

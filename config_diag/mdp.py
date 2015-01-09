@@ -96,11 +96,10 @@ class EpisodicMDP(MDP):
         # Check that the terminal state is absorbing.
         s = self.terminal_state
         for a in range(len(self.transitions)):
-            to_term = self.transitions[a][s, s]
-            to_nonterm = numpy.ma.array(self.transitions[a][s, :], mask=False)
-            to_nonterm.mask[s] = True
-            if (to_term != 1).any() or to_nonterm.any():
-                raise ValueError("The terminal state is not an absorbing state")
+            for sp in range(self.transitions[0].shape[0]):
+                value = self.transitions[a][s, sp]
+                if (s == sp and value != 1) or (s != sp and value != 0):
+                    raise ValueError("The terminal state is not an absorbing state")
             if self.rewards[a][s, s] != 0:
                 raise ValueError("Terminal state has transitions with non-zero rewards")
 
