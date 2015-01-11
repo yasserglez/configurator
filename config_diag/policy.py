@@ -5,7 +5,7 @@ Configuration Dialogs Based on Policies
 import itertools
 
 import igraph
-import numpy as np
+from scipy import sparse
 
 from . import ConfigDialog, ConfigDialogBuilder
 from .mdp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
@@ -117,8 +117,8 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         self._logger.debug("transforming the graph to the MDP")
         S, A = graph.vcount(), len(self._config_values)
         self._logger.debug("the MDP has %d states and %d actions", S, A)
-        transitions = [np.zeros((S, S)) for a in range(A)]
-        rewards = [np.zeros((S, S)) for a in range(A)]
+        transitions = [sparse.csr_matrix((S, S)) for a in range(A)]
+        rewards = [sparse.csr_matrix((S, S)) for a in range(A)]
         for e in graph.es:
             a, i, j = e["action"], e.source, e.target
             if e["prob"] > 0:
