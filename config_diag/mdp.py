@@ -54,7 +54,7 @@ class MDP(object):
             mdptoolbox.util.check(self.transitions, self.rewards)
         except AssertionError as error:
             raise ValueError(str(error)) from error
-        except mdptoolbox.util.InvalidMDPError as error:
+        except mdptoolbox.error.Error as error:
             raise ValueError(error.message) from error
 
 
