@@ -114,7 +114,6 @@ class ConfigDialog(object):
             var_value: The value of the variable. It must be one of
                 the possible values of the variable in the
                 config_values instance attribute.
-
         """
         if var_index in self.config:
             raise ValueError("Variable #{0} is already set".format(var_index))

@@ -15,20 +15,41 @@ class PolicyConfigDialog(ConfigDialog):
     """Adaptive configuration dialog based on a policy.
 
     Attributes:
+        rules: A list of AssociationRule instances.
         policy: The MDP policy.
+
+    See ConfigDialog for other attributes.
     """
 
-    def __init__(self, policy):
+    def __init__(self, config_values, rules, policy):
         """Initialize a new instance.
 
         Arguments:
+            rules: A list of AssociationRule instances.
             policy: The MDP policy, i.e. a dict mapping configuration
                 states to variable indices. The configuration states
                 are represented as frozensets of (index, value) tuples
                 for each variable.
+
+        See ConfigDialog for the remaining arguments.
         """
-        super().__init__()
+        super().__init__(config_values)
+        self.rules = rules
         self.policy = policy
+
+    def set_answer(self, var_index, var_value):
+        """Set the value of a configuration variable.
+
+        See ConfigDialog for more information.
+        """
+        super().set_answer(var_index, var_value)
+        for rule in self.rules:
+            rule.apply_rule(self.config)
+
+    def get_next_question(self):
+        """Get the question that should be asked next.
+        """
+        return self.policy[frozenset(self.config)]
 
 
 class MDPDialogBuilder(ConfigDialogBuilder):
