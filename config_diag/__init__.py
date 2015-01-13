@@ -38,22 +38,6 @@ def get_version():
 __version__ = get_version()
 
 
-class ConfigError(Exception):
-    """Base class of all the exceptions raised in the package.
-
-    Attributes:
-        message: Explanation of the error.
-    """
-
-    def __init__(self, message):
-        """Initialize a new exception.
-
-        Arguments:
-            message: Explanation of the error.
-        """
-        self.message = message
-
-
 class ConfigDialog(object):
     """Adaptive configuration dialog.
 
@@ -131,12 +115,9 @@ class ConfigDialog(object):
                 the possible values of the variable in the
                 config_values instance attribute.
 
-        Raises:
-            ConfigError: A value for the variable identified by
-                var_index has already been set.
         """
         if var_index in self.config:
-            raise ConfigError("Variable #{0} is already set".format(var_index))
+            raise ValueError("Variable #{0} is already set".format(var_index))
         else:
             self.config[var_index] = var_value
 
