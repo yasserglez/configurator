@@ -122,7 +122,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # Create the PolicyConfigDialog instance.
         policy = {frozenset(graph.vs[s]["state"]): a
                   for s, a in policy.items()}
-        dialog = PolicyConfigDialog(policy)
+        dialog = PolicyConfigDialog(self._config_values, rules, policy)
         return dialog
 
     def _build_graph(self):
