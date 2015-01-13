@@ -94,6 +94,8 @@ class ConfigDialog(object):
                 of the variable.
         """
         super().__init__()
+        self.config_values = config_values
+        self.reset()
 
     def reset(self):
         """Reset the dialog to the initial state.
@@ -102,6 +104,7 @@ class ConfigDialog(object):
         variables is unknown. This method must be called before making
         any call to get_next_question or set_answer methods.
         """
+        self.config = {}
 
     def get_next_question(self):
         """Get the question that should be asked next.
@@ -113,6 +116,7 @@ class ConfigDialog(object):
         Returns:
             An integer, the variable index.
         """
+        raise NotImplementedError()
 
     def set_answer(self, var_index, var_value):
         """Set the value of a configuration variable.
@@ -127,7 +131,14 @@ class ConfigDialog(object):
                 the possible values of the variable in the
                 config_values instance attribute.
 
+        Raises:
+            ConfigError: A value for the variable identified by
+                var_index has already been set.
         """
+        if var_index in self.config:
+            raise ConfigError("Variable #{0} is already set".format(var_index))
+        else:
+            self.config[var_index] = var_value
 
     def is_complete(self):
         """Check if the configuration is complete.
@@ -136,6 +147,7 @@ class ConfigDialog(object):
             True if the values of all the variables has been set,
             False otherwise.
         """
+        return len(self.config) == len(self.config_values)
 
 
 class ConfigDialogBuilder(object):

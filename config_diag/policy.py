@@ -22,7 +22,6 @@ class PolicyConfigDialog(ConfigDialog):
         """Initialize a new instance.
 
         Arguments:
-
             policy: The MDP policy, i.e. a dict mapping configuration
                 states to variable indices. The configuration states
                 are represented as frozensets of (index, value) tuples
