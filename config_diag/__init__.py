@@ -45,12 +45,81 @@ class ConfigDialog(object):
     the package (not intented to be instantiated directly). It defines
     a common interface followed by the dialogs generated using the
     different ConfigDiagBuilder subclasses.
+
+    The interaction with all subclasses must be as follows. First, the
+    reset method should be called to begin at a state where all the
+    configuration variables are unknown. Next, a call to the method
+    get_next_question will suggest a question, which can be posed to
+    the user and the answer should be given as feedback to the dialog
+    using the method set_answer. It is possible to ignore the
+    suggestion given by the dialog and answer the questions in any
+    order. In this case, simply call set_answer and future calls to
+    get_next_question will act accordingly.
+
+    The config attribute can be used at any time to retrieve the
+    configuration values collected so far. Additionally, the method
+    is_complete can be used to check whether all the variables has
+    been set.
+
+    Attributes:
+        config_values: A list with one entry for each variable,
+            containing an enumerable with all the possible values of
+            the variable.
+        config: The current configuration state, i.e. a dict mapping
+            variable indices to their values.
     """
 
-    def __init__(self):
+    def __init__(self, config_values):
         """Initialize a new instance.
+
+        Arguments:
+            config_values: A list with one entry for each variable,
+                containing an enumerable with all the possible values
+                of the variable.
         """
         super().__init__()
+
+    def reset(self):
+        """Reset the dialog to the initial state.
+
+        In the initial configuration state the value of all the
+        variables is unknown. This method must be called before making
+        any call to get_next_question or set_answer methods.
+        """
+
+    def get_next_question(self):
+        """Get the question that should be asked next.
+
+        Returns the question that should be asked next to the user,
+        according to this configuration dialog. Each question is
+        identified by the index of the corresponding variable.
+
+        Returns:
+            An integer, the variable index.
+        """
+
+    def set_answer(self, var_index, var_value):
+        """Set the value of a configuration variable.
+
+        It wil be usually called with a variable index returned right
+        before by get_next_question and the answer that the user gave
+        to the question.
+
+        Arguments:
+            var_index: An integer, the variable index.
+            var_value: The value of the variable. It must be one of
+                the possible values of the variable in the
+                config_values instance attribute.
+
+        """
+
+    def is_complete(self):
+        """Check if the configuration is complete.
+
+        Returns:
+            True if the values of all the variables has been set,
+            False otherwise.
+        """
 
 
 class ConfigDialogBuilder(object):
@@ -67,10 +136,11 @@ class ConfigDialogBuilder(object):
         Arguments:
             config_sample: A 2-dimensional numpy array containing a
                 sample of the configuration variables.
-            config_values: A list with one entry for each variable
-                containing a list with all the possible values of the
-                variable. If it is not given, it is automatically
-                computed from the columns of config_sample.
+            config_values: A list with one entry for each variable,
+                containing an enumerable with all the possible values
+                of the variable. If it is not given, it is
+                automatically computed from the columns of
+                config_sample.
             assoc_rule_algorithm: Algorithm for mining the frequent
                 item sets. Possible values are: 'apriori' (default)
                 and 'fp-growth'.
