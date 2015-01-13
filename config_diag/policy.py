@@ -277,7 +277,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # (a) variables in lhs have known and same options in S and S'.
         # When called with S', it could be a collapsed terminal state
         # which will satisfy any rule.
-        return (s_or_sp is None or self._is_rule_lhs_compatible(rule, s_or_sp))
+        return (s_or_sp is None or rule.is_lhs_compatible(s_or_sp))
 
     def _update_graph_cond_bi(self, rule, sp):
         # (b-i) variables in the rhs appear with all values exactly
@@ -294,7 +294,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
             # (b-ii) variables in the rhs appear with the same values
             # or set to unknown in S. At least one must be set to
             # unknown in S.
-            return self._is_rule_rhs_compatible(rule, s)
+            return rule.is_rhs_compatible(s)
         else:
             # (b-ii) variables in the rhs appear with all values set
             # to unknown in S.

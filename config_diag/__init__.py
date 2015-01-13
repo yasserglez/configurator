@@ -149,28 +149,3 @@ class ConfigDialogBuilder(object):
         rule1.confidence = None
         rule1.rhs.update(rule2.rhs)
         return rule1
-
-    def _is_rule_lhs_compatible(self, rule, state):
-        # Check if the rule's lhs is compatible with the given
-        # configuration state. All the variables in the lhs have to
-        # match the values in the state.
-        return set(rule.lhs.items()) <= set(state.items())
-
-    def _is_rule_rhs_compatible(self, rule, state):
-        # Check if the rule's rhs is compatible with the given
-        # configuration state. Each variable in the rhs has the same
-        # value in the state or it's value is still unknown. At least
-        # one variable must be unknown in order to apply the rule.
-        one_unknown_var = False
-        for var_index, var_value in rule.rhs.items():
-            if var_index in state:
-                if state[var_index] != var_value:
-                    return False
-            else:
-                one_unknown_var = True
-        return one_unknown_var
-
-    def _is_rule_applicable(self, rule, state):
-        # Check if a rule can be applied at a given configuration state.
-        return (self._is_rule_lhs_compatible(rule, state) and
-                self._is_rule_rhs_compatible(rule, state))
