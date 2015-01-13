@@ -38,6 +38,22 @@ def get_version():
 __version__ = get_version()
 
 
+class ConfigError(Exception):
+    """Base class of all the exceptions raised in the package.
+
+    Attributes:
+        message: Explanation of the error.
+    """
+
+    def __init__(self, message):
+        """Initialize a new exception.
+
+        Arguments:
+            message: Explanation of the error.
+        """
+        self.message = message
+
+
 class ConfigDialog(object):
     """Adaptive configuration dialog.
 
