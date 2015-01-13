@@ -58,9 +58,9 @@ class MDPDialogBuilder(ConfigDialogBuilder):
 
     def __init__(self, mdp_algorithm="policy-iteration",
                  mdp_max_iter=1000,
-                 mdp_discard_states=None,
-                 mdp_partial_assoc_rules=None,
-                 mdp_collapse_terminals=None,
+                 mdp_discard_states=True,
+                 mdp_partial_assoc_rules=True,
+                 mdp_collapse_terminals=True,
                  mdp_validate=False,
                  **kwargs):
         """Initialize a new instance.
@@ -73,14 +73,15 @@ class MDPDialogBuilder(ConfigDialogBuilder):
                 algorithm used to solve the MDP (default: 1000).
             mdp_discard_states: Indicates whether states that can't be
                 reached from the initial state after applying the
-                association rules should be discarded.
+                association rules should be discarded (default: True).
             mdp_partial_assoc_rules: Indicates whether the association
                 rules can be applied when some of the variables in the
-                right-hand-side are already set to the correct values
+                right-hand-side are already set to the correct values.
                 (the opposite is to require that all variables in the
-                left-hand-side are unknown).
+                left-hand-side are unknown) (default: True).
             mdp_collapse_terminals: Indicates whether all terminal
-                states should be collapsed into a single state.
+                states should be collapsed into a single state
+                (default: True).
             mdp_validate: Indicates whether the resulting MDP
                 transition and reward matrices should be validated
                 (default: False).
