@@ -41,6 +41,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
                  mdp_discard_states=None,
                  mdp_partial_assoc_rules=None,
                  mdp_collapse_terminals=None,
+                 mdp_validate=False,
                  **kwargs):
         """Initialize a new instance.
 
@@ -60,6 +61,9 @@ class MDPDialogBuilder(ConfigDialogBuilder):
                 left-hand-side are unknown).
             mdp_collapse_terminals: Indicates whether all terminal
                 states should be collapsed into a single state.
+            mdp_validate: Indicates whether the resulting MDP
+                transition and reward matrices should be validated
+                (default: False).
 
         See ConfigDialogBuilder for the remaining arguments.
         """
@@ -74,6 +78,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         self._mdp_discard_states = mdp_discard_states
         self._mdp_partial_assoc_rules = mdp_partial_assoc_rules
         self._mdp_collapse_terminals = mdp_collapse_terminals
+        self._mdp_validate = mdp_validate
 
     def build_dialog(self):
         """Construct an adaptive configuration dialog.
@@ -128,11 +133,14 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         if self._mdp_collapse_terminals:
             initial_state = 0
             terminal_state = S - 1
-            mdp = EpisodicMDP(transitions, rewards, discount_factor=1.0,
+            mdp = EpisodicMDP(transitions, rewards,
+                              discount_factor=1.0,
                               initial_state=initial_state,
-                              terminal_state=terminal_state)
+                              terminal_state=terminal_state,
+                              validate=self._mdp_validate)
         else:
-            mdp = MDP(transitions, rewards, discount_factor=1.0)
+            mdp = MDP(transitions, rewards, discount_factor=1.0,
+                      validate=self._mdp_validate)
         self._logger.debug("finished transforming the graph to the MDP")
         return mdp
 

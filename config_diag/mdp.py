@@ -4,8 +4,6 @@ Markov Decision Processes
 
 import types
 
-import numpy.ma
-
 import mdptoolbox.util
 from mdptoolbox.mdp import PolicyIteration as _PolicyIteration
 from mdptoolbox.mdp import ValueIteration as _ValueIteration
@@ -48,7 +46,7 @@ class MDP(object):
 
     def _validate(self):
         if not (0 <= self.discount_factor <= 1):
-            raise ValueError("Discount factor not in [0,1]")
+            raise ValueError("The discount factor is not in [0,1]")
         # Rely on pymdptoolbox to check the transition and reward matrices.
         try:
             mdptoolbox.util.check(self.transitions, self.rewards)
@@ -120,7 +118,7 @@ class MDPSolver(object):
             mdp: An MDP instance.
 
         Returns:
-            A policy, i.e. a dict mapping state indexes to action indexes.
+            A policy, i.e. a dict mapping state indices to action indices.
         """
         raise NotImplementedError()
 
@@ -164,15 +162,15 @@ class PolicyIteration(MDPSolver):
             mdp: An MDP instance.
 
         Returns:
-            A policy, i.e. a dict mapping state indexes to action indexes.
+            A policy, i.e. a dict mapping state indices to action indices.
         """
         P = mdp.transitions
         R = mdp.rewards
         gamma = mdp.discount_factor
         pi = _PolicyIteration(P, R, gamma, max_iter=self._max_iter,
                               eval_type="iterative")
-        # Monkey-patch the _evalPoicyIterative method in order to
-        # change the default values of epsilon and max_iter.
+        # Monkey-patch the _evalPoicyIterative method to change the
+        # default values for epsilon and max_iter.
         original = pi._evalPolicyIterative
         epsilon = self._eval_epsilon
         max_iter = self._eval_max_iter
@@ -216,7 +214,7 @@ class ValueIteration(MDPSolver):
             mdp: An MDP instance.
 
         Returns:
-            A policy, i.e. a dict mapping state indexes to action indexes.
+            A policy, i.e. a dict mapping state indices to action indices.
         """
         P = mdp.transitions
         R = mdp.rewards

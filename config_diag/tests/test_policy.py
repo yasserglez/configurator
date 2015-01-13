@@ -27,7 +27,8 @@ class TestMDPDialogBuilder(object):
             mdp_algorithm=algorithm,
             mdp_discard_states=discard_states,
             mdp_partial_assoc_rules=partial_assoc_rules,
-            mdp_collapse_terminals=collapse_terminals)
+            mdp_collapse_terminals=collapse_terminals,
+            mdp_validate=True)
         dialog = builder.build_dialog()
         initial_state = frozenset()
         assert dialog.policy[initial_state] == policy[initial_state]
