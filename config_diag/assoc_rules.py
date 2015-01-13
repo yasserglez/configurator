@@ -10,9 +10,9 @@ class AssociationRule(object):
 
     Attributes:
         lhs: Left-hand-side (also called antecedent or body) of the rule.
-            A dictionary mapping variable indexes to their values.
+            A dictionary mapping variable indices to their values.
         rhs: Right-hand-side (also called consequent or head) of the rule.
-            A dictionary mapping variable indexes to their values.
+            A dictionary mapping variable indices to their values.
         support: Item set support in [0,1].
         confidence: Confidence of the association rule in [0,1].
     """
@@ -39,12 +39,13 @@ class AssociationRule(object):
         left-hand-side must match the observed values.
 
         Arguments:
-            observation: A dictionary mapping variable indexes to
+            observation: A dictionary mapping variable indices to
                 their values.
 
         Returns:
             True if the left-hand-side is compaible, False if not.
         """
+        return set(self.lhs.items()) <= set(observation.items())
 
     def is_rhs_compatible(self, observation):
         """Check right-hand-side compatibility.
@@ -56,12 +57,20 @@ class AssociationRule(object):
         applications of the rule.
 
         Arguments:
-            observation: A dictionary mapping variable indexes to
+            observation: A dictionary mapping variable indices to
                 their values.
 
         Returns:
             True if the right-hand-side is compaible, False if not.
         """
+        one_unknown_var = False
+        for var_index, var_value in self.rhs.items():
+            if var_index in observation:
+                if observation[var_index] != var_value:
+                    return False
+            else:
+                one_unknown_var = True
+        return one_unknown_var
 
     def is_applicable(self, observation):
         """Check if the rule can be applied.
@@ -72,7 +81,7 @@ class AssociationRule(object):
         is_rhs_compatible methods.
 
         Arguments:
-            observation: A dictionary mapping variable indexes to
+            observation: A dictionary mapping variable indices to
                 their values.
 
         Returns:
@@ -90,13 +99,10 @@ class AssociationRule(object):
         first to ensure that no variables will be overwritten.
 
         Arguments:
-            observation: A dictionary mapping variable indexes to
-                their values.
-
-        Returns:
-            The completed observation. A dictionary mapping variable
-                indexes to their values.
+            observation: A dictionary mapping variable indices to
+                their values. It is updated in-place.
         """
+        observation.update(self.rhs)
 
 
 class AssociationRuleMiner(object):

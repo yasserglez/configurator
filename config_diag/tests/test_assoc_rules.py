@@ -30,9 +30,9 @@ class TestAssociationRule(object):
         assert not self.rule.is_applicable({1: "z", 2: "b", 3: "c"})
 
     def test_apply_rule(self):
-        before = {1: "a", 2: "b", 3: "c"}
-        after = self.rule.apply_rule(before)
-        assert after == {1: "a", 2: "b", 3: "c", 4: "d"}
+        observation = {1: "a", 2: "b", 3: "c"}
+        self.rule.apply_rule(observation)
+        assert observation == {1: "a", 2: "b", 3: "c", 4: "d"}
 
 
 class TestAssociationRuleMiner(object):
