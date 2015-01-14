@@ -37,8 +37,7 @@ class TestAssociationRule(object):
 
 class TestAssociationRuleMiner(object):
 
-    def setup(self):
-        self.data = load_titanic()
+    data = load_titanic()
 
     def test_init(self):
         miner = AssociationRuleMiner(self.data)

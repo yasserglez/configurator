@@ -6,8 +6,7 @@ from ..freq_table import FrequencyTable
 
 class TestFrequencyTable(object):
 
-    def setup(self):
-        self.data = load_titanic()
+    data = load_titanic()
 
     def test_init(self):
         freq_table = FrequencyTable(self.data)
