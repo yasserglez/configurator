@@ -1,5 +1,5 @@
 import os
-from collections import defaultdict
+from collections import namedtuple
 
 import numpy as np
 
@@ -16,12 +16,12 @@ def load_titanic():
     return _load_csv("titanic.csv")
 
 
-def load_gridworld():
+def load_grid_world():
     # Example 4.1 of Reinforcement Learning: An Introduction
     # by Richard S. Sutton and Andrew G. Barto.
 
     S = 15  # {1, 2, ..., 14} and the terminal state 15
-    INITIAL_S, TERMINAL_S = 11, 14
+    initial_state, terminal_state = 11, 14
     A = 4  # {up, down, right, left}
 
     up, down, right, left = range(A)
@@ -44,7 +44,7 @@ def load_gridworld():
         11: ((up, 7), (down, 15), (left, 10)),
         12: ((up, 8), (right, 13)),
         13: ((up, 9), (right, 14), (left, 12)),
-        14: ((up, 10), (right, 15), (left, 13)),
+        14: ((up, 10), (right, 15), (left, 13))
     }
     for i, moves in grid_transitions.items():
         for a, j in moves:
@@ -61,17 +61,17 @@ def load_gridworld():
         P[left, i - 1, i - 1] = 1.0
 
     # 15 should be an absorbing state.
-    P[:, TERMINAL_S, TERMINAL_S] = 1.0
+    P[:, terminal_state, terminal_state] = 1.0
 
     # Rewards.
     R = -1 * np.ones((A, S, S))
-    R[:, TERMINAL_S, :] = 0
+    R[:, terminal_state, :] = 0
 
     # Discounting factor.
-    GAMMA = 1.0
+    gamma = 1.0
 
     # Optimal policy.
-    POLICY = {
+    policy = {
         1: left,
         2: left,
         3: down,
@@ -85,10 +85,18 @@ def load_gridworld():
         11: down,
         12: up,
         13: right,
-        14: right,
+        14: right
     }
 
-    return S, A, P, R, INITIAL_S, TERMINAL_S, GAMMA, POLICY
+    field_names = ["num_states", "num_actions", "transitions",
+                   "rewards", "initial_state", "terminal_state",
+                   "discount_factor", "policy"]
+    GridWorld = namedtuple("GridWorld", field_names)
+    grid_world = GridWorld(num_states=S, num_actions=A, transitions=P,
+                           rewards=R, initial_state=initial_state,
+                           terminal_state=terminal_state,
+                           discount_factor=gamma, policy=policy)
+    return grid_world
 
 
 def load_email_client():
@@ -107,8 +115,15 @@ def load_email_client():
 
     # The second question should be asked first. Then, if the user
     # answers ico=lgi it is possible to use the discovered association
-    # rule to predict disp=no.
+    # rule to predict disp=no and only one question is needed.
     questions = [1]
     config = {0: "no", 1: "lgi"}
 
-    return config_sample, min_supp, min_conf, questions, config
+    field_names = ["config_sample", "min_support", "min_confidence",
+                   "questions", "config"]
+    EmailClient = namedtuple("EmailClient", field_names)
+    email_client = EmailClient(config_sample=config_sample,
+                               min_support=min_supp,
+                               min_confidence=min_conf,
+                               questions=questions, config=config)
+    return email_client
