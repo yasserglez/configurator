@@ -2,6 +2,8 @@
 Utility Functions
 """
 
+import numpy as np
+import pandas as pd
 from sortedcontainers import SortedSet
 from sklearn.cross_validation import KFold
 
@@ -34,8 +36,7 @@ def simulate_dialog(dialog, config):
     return accuracy, questions
 
 
-
-def cross_validation(n_folds, random_state, buildier_class, builder_kwargs,
+def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
                      config_sample, config_values=None):
     """Measure the performance of a dialog builder.
 
@@ -52,7 +53,7 @@ def cross_validation(n_folds, random_state, buildier_class, builder_kwargs,
             None, use default numpy RNG for shuffling.
         builder_class: A ConfigDialogBuilder subclass.
         builder_kwargs: A dictionary with arguments to pass to
-            buildier_class when a new instance is created (except
+            builder_class when a new instance is created (except
             config_sample and config_values).
         config_sample: A 2-dimensional numpy array containing a sample
             of the configuration variables.
@@ -68,10 +69,47 @@ def cross_validation(n_folds, random_state, buildier_class, builder_kwargs,
         deviation of the number of questions that were asked
         (normalized by the total number of questions).
     """
+    if config_values is None:
+        config_values = [list(SortedSet(config_sample[:, i]))
+                         for i in range(config_sample.shape[1])]
+    # Copy builder_kwargs to avoid inserting config_sample and
+    # config_values into the original dict.
+    builder_kwargs = builder_kwargs.copy()
+    builder_kwargs["config_values"] = config_values
+    # Initialize the output and collect the statistics.
+    result = pd.DataFrame({"fold": range(1, n_folds + 1),
+                           "accuracy_mean": 0.0, "accuracy_std": 0.0,
+                           "questions_mean": 0.0, "questions_std": 0.0})
+    result = result[["fold", "accuracy_mean", "accuracy_std",
+                     "questions_mean", "questions_std"]]
+    k = 0  # current fold index
+    folds = KFold(config_sample.shape[0], n_folds=n_folds,
+                  shuffle=True, random_state=random_state)
+    for train_indices, test_indices in folds:
+        # Build the dialog using the training sample.
+        train_sample = config_sample[train_indices, :]
+        builder_kwargs["config_sample"] = train_sample
+        builder = builder_class(**builder_kwargs)
+        dialog = builder.build_dialog()
+        # Collect the results from the testing sample.
+        test_sample = config_sample[test_indices, :]
+        accuracy_results, questions_results = [], []
+        for i in range(test_sample.shape[0]):
+            config = {j: test_sample[i, j] for j in range(len(config_values))}
+            accuracy, questions = simulate_dialog(dialog, config)
+            accuracy_results.append(accuracy)
+            questions_results.append(questions)
+        # Summarize the results.
+        result["accuracy_mean"][k] = np.mean(accuracy_results)
+        result["accuracy_std"][k] = np.std(accuracy_results)
+        result["questions_mean"][k] = np.mean(questions_results)
+        result["questions_std"][k] = np.std(questions_results)
+        k += 1  # move to the next fold
+    return result
 
 
 def measure_scalability(random_state, builder_class, builder_kwargs,
-                        config_sample, config_values):
+                        config_sample, config_values=None):
     """Measure the scalability of a dialog builder.
 
     Use the dialog builder to construct a sequence of dialogs with an
@@ -85,7 +123,7 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
             None, use default numpy RNG for shuffling.
         builder_class: A ConfigDialogBuilder subclass.
         builder_kwargs: A dictionary with arguments to pass to
-            buildier_class when a new instance is created (except
+            builder_class when a new instance is created (except
             config_sample and config_values).
         config_sample: A 2-dimensional numpy array containing a sample
             of the configuration variables.
