@@ -2,9 +2,41 @@
 Utility Functions
 """
 
+from sortedcontainers import SortedSet
+from sklearn.cross_validation import KFold
 
-def cross_validation(n_folds, random_state, buildier_class,
-                     builder_kwargs, config_sample, config_values):
+
+def simulate_dialog(dialog, config):
+    """Simulate the use of the dialog to predict the given configuration.
+
+    Arguments:
+        dialog: An instance of a ConfigDialog subclass.
+        config: A complete configuration, i.e. a dict mapping variable
+            indices to their values.
+
+    Returns:
+        A tuple with two elements. The first elements gives the
+        accuracy of the prediction, the second the number of questions
+        that were asked (both normalized in [0,1]).
+    """
+    accuracy, questions = 0, 0
+    dialog.reset()
+    while not dialog.is_complete():
+        var_index = dialog.get_next_question()
+        dialog.set_answer(var_index, config[var_index])
+        questions += 1
+    for var_index in config.keys():
+        if dialog.config[var_index] == config[var_index]:
+            accuracy += 1
+    # Normalize the measures and return.
+    questions /= len(config)
+    accuracy /= len(config)
+    return accuracy, questions
+
+
+
+def cross_validation(n_folds, random_state, buildier_class, builder_kwargs,
+                     config_sample, config_values=None):
     """Measure the performance of a dialog builder.
 
     Use the dialog builder to perform a k-folds cross validation on
