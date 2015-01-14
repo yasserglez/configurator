@@ -103,10 +103,12 @@ def load_email_client():
     config_sample = _load_csv("email_client.csv")
 
     # Only one rule obtained with confidence 0.9 (page 46).
-    min_support, min_confidence = 0.5, 0.9
+    min_supp, min_conf = 0.5, 0.9
 
-    # The second question (ico) should be asked first.
-    policy = defaultdict(lambda: 0)
-    policy[frozenset()] = 1
+    # The second question should be asked first. Then, if the user
+    # answers ico=lgi it is possible to use the discovered association
+    # rule to predict disp=no.
+    questions = [1]
+    config = {0: "no", 1: "lgi"}
 
-    return config_sample, min_support, min_confidence, policy
+    return config_sample, min_supp, min_conf, questions, config
