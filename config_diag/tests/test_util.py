@@ -34,14 +34,40 @@ def test_cross_validation():
     assert (df["questions_std"] == 0).all()
 
 
-def test_measure_scalability():
+def _test_measure_scalability(builder_class, builder_kwargs):
     random_state = 42
     config_sample = load_titanic()
-    builder_class = MDPDialogBuilder
-    builder_kwargs = {"assoc_rule_min_support": 0.5,
-                      "assoc_rule_min_confidence": 0.9}
+    builder_kwargs.update({"assoc_rule_min_support": 0.5,
+                           "assoc_rule_min_confidence": 0.9})
     df = measure_scalability(random_state, builder_class,
                              builder_kwargs, config_sample)
     assert df.shape == (config_sample.shape[1] - 1, 2)
     assert (df["bin_vars"] > 0).all()
     assert (df["cpu_time"] > 0).all()
+
+
+def _test_scalability_mdp(algorithm, discard_states,
+                          partial_assoc_rules, collapse_terminals):
+    builder_class = MDPDialogBuilder
+    builder_kwargs = {"mdp_algorithm": algorithm,
+                      "mdp_discard_states": discard_states,
+                      "mdp_partial_assoc_rules": partial_assoc_rules,
+                      "mdp_collapse_terminals": collapse_terminals,
+                      "mdp_validate": True}
+    _test_measure_scalability(builder_class, builder_kwargs)
+
+
+def test_scalability_value_iteration_without_optim():
+    _test_scalability_mdp("value-iteration", False, False, False)
+
+
+def test_scalability_policy_iteration_without_optim():
+    _test_scalability_mdp("policy-iteration", False, False, False)
+
+
+def test_scalability_value_iteration_with_optim():
+    _test_scalability_mdp("value-iteration", True, True, True)
+
+
+def test_scalability_policy_iteration_with_optim():
+    _test_scalability_mdp("policy-iteration", True, True, True)
