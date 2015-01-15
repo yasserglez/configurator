@@ -2,10 +2,16 @@
 Utility Functions
 """
 
+import math
+import time
+from functools import reduce
+from operator import mul
+
 import numpy as np
 import pandas as pd
 from sortedcontainers import SortedSet
 from sklearn.cross_validation import KFold
+from sklearn.utils import check_random_state
 
 
 def simulate_dialog(dialog, config):
@@ -76,7 +82,7 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
     # config_values into the original dict.
     builder_kwargs = builder_kwargs.copy()
     builder_kwargs["config_values"] = config_values
-    # Initialize the output and collect the statistics.
+    # Initialize the output df and collect the statistics.
     result = pd.DataFrame({"fold": range(1, n_folds + 1),
                            "accuracy_mean": 0.0, "accuracy_std": 0.0,
                            "questions_mean": 0.0, "questions_std": 0.0})
@@ -135,7 +141,39 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
     Returns:
         A pandas.DataFrame with two columns. The first column gives
         the number of binary variables and the second the
-        corresponding measured CPU time. The number of binary
-        variables is computed as the log2 of the number of possible
-        configurations.
+        corresponding measured CPU time (in seconds). The number of
+        binary variables is computed as the log2 of the number of
+        possible configurations.
     """
+    if config_values is None:
+        config_values = [list(SortedSet(config_sample[:, i]))
+                         for i in range(config_sample.shape[1])]
+    # Copy builder_kwargs to avoid inserting config_sample and
+    # config_values into the original dict.
+    builder_kwargs = builder_kwargs.copy()
+    # Choose the order of the variables.
+    num_vars = len(config_values)
+    var_order = np.arange(num_vars)
+    rng = check_random_state(random_state)
+    rng.shuffle(var_order)
+    # Initialize the output df.
+    result = pd.DataFrame({"bin_vars": np.zeros(num_vars - 1),
+                           "cpu_time": np.zeros(num_vars - 1)})
+    for i in range(2, num_vars + 1):
+        if i == num_vars:
+            curr_config_sample = config_sample
+            curr_config_values = config_values
+        else:
+            curr_vars = var_order[:i]
+            curr_config_sample = config_sample[:, curr_vars]
+            curr_config_values = [config_values[v] for v in curr_vars]
+        curr_config_card = reduce(mul, map(len, curr_config_values))
+        builder_kwargs["config_sample"] = curr_config_sample
+        builder_kwargs["config_values"] = curr_config_values
+        t_start = time.process_time()  # start
+        builder = builder_class(**builder_kwargs)
+        builder.build_dialog()
+        t_end = time.process_time()  # stop
+        result["bin_vars"][i - 2] = math.log2(curr_config_card)
+        result["cpu_time"][i - 2] = t_end - t_start
+    return result
