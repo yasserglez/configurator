@@ -143,8 +143,8 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         self._logger.debug("transforming the graph to the MDP")
         S, A = graph.vcount(), len(self._config_values)
         self._logger.debug("the MDP has %d states and %d actions", S, A)
-        transitions = [sparse.dok_matrix((S, S)) for a in range(A)]
-        rewards = [sparse.dok_matrix((S, S)) for a in range(A)]
+        transitions = [sparse.lil_matrix((S, S)) for a in range(A)]
+        rewards = [sparse.lil_matrix((S, S)) for a in range(A)]
         for e in graph.es:
             a, i, j = e["action"], e.source, e.target
             if e["prob"] > 0:
