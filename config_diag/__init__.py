@@ -198,12 +198,13 @@ class ConfigDialogBuilder(object):
                                        algorithm=self._assoc_rule_algorithm)
         if self._logger.isEnabledFor(logging.DEBUG):
             self._logger.debug("found %d rules", len(rules))
-            supp = [rule.support for rule in rules]
-            self._logger.debug("support values in [%.2f,%.2f]",
-                               min(supp), max(supp))
-            conf = [rule.confidence for rule in rules]
-            self._logger.debug("confidence values in [%.2f,%.2f]",
-                               min(conf), max(conf))
+            if rules:
+                supp = [rule.support for rule in rules]
+                self._logger.debug("support values in [%.2f,%.2f]",
+                                   min(supp), max(supp))
+                conf = [rule.confidence for rule in rules]
+                self._logger.debug("confidence values in [%.2f,%.2f]",
+                                   min(conf), max(conf))
         # Merge rules with the same lhs. If two rules have
         # contradictory rhs, the rule with the greatest confidence
         # takes precedence.
