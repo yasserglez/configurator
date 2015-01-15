@@ -1,7 +1,8 @@
 
-from .examples import load_email_client
+from .examples import load_email_client, load_titanic
 from ..policy import MDPDialogBuilder
-from ..util import simulate_dialog, cross_validation
+from ..util import (simulate_dialog, cross_validation,
+                    measure_scalability)
 
 
 EMAIL_CLIENT = load_email_client()
@@ -31,3 +32,16 @@ def test_cross_validation():
     assert ((0 <= df["accuracy_std"]) & (df["accuracy_std"] <= 0.25)).all()
     assert (df["questions_mean"] == 0.5).all()
     assert (df["questions_std"] == 0).all()
+
+
+def test_measure_scalability():
+    random_state = 42
+    config_sample = load_titanic()
+    builder_class = MDPDialogBuilder
+    builder_kwargs = {"assoc_rule_min_support": 0.5,
+                      "assoc_rule_min_confidence": 0.9}
+    df = measure_scalability(random_state, builder_class,
+                             builder_kwargs, config_sample)
+    assert df.shape == (config_sample.shape[1] - 1, 2)
+    assert (df["bin_vars"] > 0).all()
+    assert (df["cpu_time"] > 0).all()
