@@ -292,7 +292,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # Delete the inaccesible vertices.
         if self._mdp_discard_states:
             graph.delete_vertices(inaccessible_vertices)
-        self._logger.debug("found %d applications of the %d rules",
+        self._logger.debug("found %d applications of %d rules",
                            len(inaccessible_vertices), len(rules))
         self._logger.debug("turned into a graph with %d nodes and %d edges",
                            graph.vcount(), graph.ecount())
@@ -351,10 +351,23 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         # in the number of known variables between S' and S.
         old_edges = []
         for e in graph.es.select(_target=v_s.index):
-            reward = e["reward"] + (self._count_known_vars(v_sp) -
-                                    self._count_known_vars(v_s))
-            graph.add_edge(e.source, target=v_sp, action=e["action"],
-                           prob=e["prob"], reward=reward)
+            try:
+                # Edges pointing to the collapsed terminal state must
+                # be collapsed into a single edge. If the edge was
+                # already added, then just update the probability (it
+                # will be 1 in the end). Otherwise, add the edge.
+                if v_sp["state"] is None:
+                    collapsed_e = graph.es.find(_source=e.source,
+                                                _target=v_sp.index,
+                                                action=e["action"])
+                    collapsed_e["prob"] += e["prob"]
+                else:
+                    raise ValueError  # jump to the except clause
+            except ValueError:
+                reward = e["reward"] + (self._count_known_vars(v_sp) -
+                                        self._count_known_vars(v_s))
+                graph.add_edge(e.source, target=v_sp, action=e["action"],
+                               prob=e["prob"], reward=reward)
             old_edges.append(e.index)
         graph.delete_edges(old_edges)
 
