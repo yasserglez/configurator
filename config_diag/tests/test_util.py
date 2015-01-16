@@ -1,32 +1,47 @@
+import os
+
+import numpy as np
 
 from .examples import load_email_client, load_titanic
 from ..policy import MDPDialogBuilder
-from ..util import (simulate_dialog, cross_validation,
-                    measure_scalability)
+from ..util import (load_config_sample, simulate_dialog,
+                    cross_validation, measure_scalability)
 
 
-EMAIL_CLIENT = load_email_client()
+def test_load_config_sample():
+    original_sample = load_titanic()
+    tests_dir = os.path.abspath(os.path.dirname(__file__))
+    csv_file = os.path.join(tests_dir, "titanic.csv")
+    loaded_sample = load_config_sample(csv_file)
+    assert np.issubdtype(loaded_sample.dtype, np.integer)
+    assert loaded_sample.shape == original_sample.shape
+    for j in range(loaded_sample.shape[1]):
+        original_j_labels = np.unique(original_sample[:, j])
+        loaded_j_labels = np.unique(loaded_sample[:, j])
+        assert len(loaded_j_labels) == len(original_j_labels)
 
 
 def test_simulate_dialog():
+    email_client = load_email_client()
     builder = MDPDialogBuilder(
-        config_sample=EMAIL_CLIENT.config_sample,
-        assoc_rule_min_support=EMAIL_CLIENT.min_support,
-        assoc_rule_min_confidence=EMAIL_CLIENT.min_confidence)
+        config_sample=email_client.config_sample,
+        assoc_rule_min_support=email_client.min_support,
+        assoc_rule_min_confidence=email_client.min_confidence)
     dialog = builder.build_dialog()
-    accuracy, questions = simulate_dialog(dialog, EMAIL_CLIENT.config)
+    accuracy, questions = simulate_dialog(dialog, email_client.config)
     assert accuracy == 1.0
     assert questions == 0.5
 
 
 def test_cross_validation():
+    email_client = load_email_client()
     n_folds = 10
     random_state = 42
     builder_class = MDPDialogBuilder
-    builder_kwargs = {"assoc_rule_min_support": EMAIL_CLIENT.min_support,
-                      "assoc_rule_min_confidence": EMAIL_CLIENT.min_confidence}
+    builder_kwargs = {"assoc_rule_min_support": email_client.min_support,
+                      "assoc_rule_min_confidence": email_client.min_confidence}
     df = cross_validation(n_folds, random_state, builder_class,
-                          builder_kwargs, EMAIL_CLIENT.config_sample)
+                          builder_kwargs, email_client.config_sample)
     assert len(df.index) == n_folds
     assert ((0.5 <= df["accuracy_mean"]) & (df["accuracy_mean"] <= 1)).all()
     assert ((0 <= df["accuracy_std"]) & (df["accuracy_std"] <= 0.25)).all()

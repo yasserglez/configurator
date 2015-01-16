@@ -14,6 +14,28 @@ from sklearn.cross_validation import KFold
 from sklearn.utils import check_random_state
 
 
+def load_config_sample(csv_file, dtype=np.uint8):
+    """Load a CSV file with a sample of categorical variables.
+
+    Read the CSV file and return an equivalent numpy array with the
+    different categorical values represented by integers.
+
+    Arguments:
+        csv_file: Path to a CSV file.
+        dtype: dtype of the returned numpy array
+            (default: numpy.uint8).
+
+    Returns:
+        A 2-dimensional numpy array.
+    """
+    df = pd.read_csv(csv_file)
+    config_sample = np.zeros(df.shape, dtype=dtype)
+    for j, column in enumerate(df):
+        df[column] = df[column].astype("category")
+        config_sample[:, j] = df[column].cat.codes
+    return config_sample
+
+
 def simulate_dialog(dialog, config):
     """Simulate the use of the dialog to predict the given configuration.
 
