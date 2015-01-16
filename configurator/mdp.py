@@ -135,7 +135,7 @@ class PolicyIteration(MDPSolver):
     after eval_max_iter iterations.
     """
 
-    def __init__(self, max_iter=1000, eval_epsilon=0.01, eval_max_iter=100):
+    def __init__(self, max_iter=1000, eval_epsilon=0.01, eval_max_iter=10):
         """Initialize a new instance.
 
         Arguments:
@@ -147,7 +147,7 @@ class PolicyIteration(MDPSolver):
                 subsequent iterations. It has no effect for
                 undiscounted MDPs.
             eval_max_iter: Stopping criterion for the policy
-                evaluation step (default: 100). The maximum number of
+                evaluation step (default: 10). The maximum number of
                 iterations.
         """
         super().__init__()

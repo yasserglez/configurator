@@ -90,8 +90,7 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
         """
         super().__init__(**kwargs)
         if mdp_algorithm == "policy-iteration":
-            self._solver = PolicyIteration(max_iter=mdp_max_iter,
-                                           eval_max_iter=100)
+            self._solver = PolicyIteration(max_iter=mdp_max_iter)
         elif mdp_algorithm == "value-iteration":
             self._solver = ValueIteration(max_iter=mdp_max_iter)
         else:
