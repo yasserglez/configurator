@@ -2,7 +2,9 @@
 Markov Decision Processes
 """
 
+import os
 import types
+from contextlib import redirect_stdout
 
 import mdptoolbox.util
 from mdptoolbox.mdp import PolicyIteration as _PolicyIteration
@@ -167,8 +169,11 @@ class PolicyIteration(MDPSolver):
         P = mdp.transitions
         R = mdp.rewards
         gamma = mdp.discount_factor
-        pi = _PolicyIteration(P, R, gamma, max_iter=self._max_iter,
-                              eval_type="iterative")
+        # Prevent pymdptoolbox from printing a warning about using a
+        # discount factor of 1.0.
+        with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
+            pi = _PolicyIteration(P, R, gamma, max_iter=self._max_iter,
+                                  eval_type="iterative")
         # Monkey-patch the _evalPoicyIterative method to change the
         # default values for epsilon and max_iter.
         original = pi._evalPolicyIterative
@@ -219,7 +224,10 @@ class ValueIteration(MDPSolver):
         P = mdp.transitions
         R = mdp.rewards
         gamma = mdp.discount_factor
-        vi = _ValueIteration(P, R, gamma, self._epsilon, self._max_iter)
+        # Prevent pymdptoolbox from printing a warning about using a
+        # discount factor of 1.0.
+        with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
+            vi = _ValueIteration(P, R, gamma, self._epsilon, self._max_iter)
         vi.run()
         policy = {s: a for s, a in enumerate(vi.policy)
                   if (not isinstance(mdp, EpisodicMDP) or
