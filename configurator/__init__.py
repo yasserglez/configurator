@@ -29,7 +29,8 @@ def get_version():
         git_args = ("git", "--work-tree", src_dir, "--git-dir", git_dir,
                     "describe", "--tags", "--dirty")
         with open(os.devnull, "w") as devnull:
-            version = subprocess.check_output(git_args, stderr=devnull).strip()
+            output = subprocess.check_output(git_args, stderr=devnull)
+            version = output.decode("utf-8").strip()
     except subprocess.CalledProcessError:
         # Overwritten by a custom 'python setup.py sdist/build' command.
         version = None
