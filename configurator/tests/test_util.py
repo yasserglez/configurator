@@ -1,4 +1,6 @@
 import os
+import sys
+import logging
 
 import numpy as np
 
@@ -6,6 +8,10 @@ from .examples import load_email_client, load_titanic
 from ..policy import MDPConfiguratorBuilder
 from ..util import (load_config_sample, simulate_configurator,
                     cross_validation, measure_scalability)
+
+
+logging.basicConfig(format="%(asctime)s:%(name)s:%(funcName)s:%(message)s",
+                    level=logging.DEBUG)
 
 
 def test_load_config_sample():
@@ -34,6 +40,7 @@ def test_simulate_configurator():
 
 
 def test_cross_validation():
+    print("", file=sys.stderr)  # newline before the logging output
     email_client = load_email_client()
     n_folds = 10
     random_state = 42
@@ -50,6 +57,7 @@ def test_cross_validation():
 
 
 def _test_measure_scalability(builder_class, builder_kwargs):
+    print("", file=sys.stderr)  # newline before the logging output
     random_state = 42
     config_sample = load_titanic()
     builder_kwargs.update({"assoc_rule_min_support": 0.5,
