@@ -37,7 +37,10 @@ def load_config_sample(csv_file, dtype=np.uint8):
 
 
 def simulate_configurator(configurator, config):
-    """Simulate the use of the configurator to predict the given configuration.
+    """Simulate a configurator.
+
+    Simulate the use of the configurator to predict the given
+    configuration.
 
     Arguments:
         configurator: An instance of a Configurator subclass.
@@ -128,10 +131,10 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
             accuracy_results.append(accuracy)
             questions_results.append(questions)
         # Summarize the results.
-        result["accuracy_mean"][k] = np.mean(accuracy_results)
-        result["accuracy_std"][k] = np.std(accuracy_results)
-        result["questions_mean"][k] = np.mean(questions_results)
-        result["questions_std"][k] = np.std(questions_results)
+        result.loc[k, "accuracy_mean"] = np.mean(accuracy_results)
+        result.loc[k, "accuracy_std"] = np.std(accuracy_results)
+        result.loc[k, "questions_mean"] = np.mean(questions_results)
+        result.loc[k, "questions_std"] = np.std(questions_results)
         k += 1  # move to the next fold
     return result
 
@@ -140,10 +143,10 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
                         config_sample, config_values=None):
     """Measure the scalability of a configurator builder.
 
-    Use the configurator builder to construct a sequence of configurators with an
-    increasing number of variables from the configuration sample,
-    measuring the CPU time on each case. The variables in the
-    configuration sample are added in a random order.
+    Use the configurator builder to construct a sequence of
+    configurators with an increasing number of variables from the
+    configuration sample, measuring the CPU time on each case. The
+    variables in the configuration sample are added in a random order.
 
     Arguments:
         random_state: Pseudo-random number generator state (int or
@@ -196,6 +199,6 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
         builder = builder_class(**builder_kwargs)
         builder.build_configurator()
         t_end = time.process_time()  # stop
-        result["bin_vars"][i - 2] = math.log2(curr_config_card)
-        result["cpu_time"][i - 2] = t_end - t_start
+        result.loc[i - 2, "bin_vars"] = math.log2(curr_config_card)
+        result.loc[i - 2, "cpu_time"] = t_end - t_start
     return result
