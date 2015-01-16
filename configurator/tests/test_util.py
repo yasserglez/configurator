@@ -27,16 +27,30 @@ def test_load_config_sample():
         assert len(loaded_j_labels) == len(original_j_labels)
 
 
-def test_simulate_configurator():
+def _test_simulate_configurator(builder_class):
+    print("", file=sys.stderr)  # newline before the logging output
     email_client = load_email_client()
-    builder = MDPConfiguratorBuilder(
+    builder = builder_class(
         config_sample=email_client.config_sample,
         assoc_rule_min_support=email_client.min_support,
         assoc_rule_min_confidence=email_client.min_confidence)
     configurator = builder.build_configurator()
-    accuracy, questions = simulate_configurator(configurator, email_client.config)
-    assert accuracy == 1.0
-    assert questions == 0.5
+    config = {1: "lgi", 0: "no"}
+    accuracy, questions = simulate_configurator(configurator, config)
+    assert (accuracy, questions) == (1.0, 0.5)
+    config = {1: "lgi", 0: "yes"}
+    accuracy, questions = simulate_configurator(configurator, config)
+    assert (accuracy, questions) == (0.5, 0.5)
+    config = {1: "smi", 0: "no"}
+    accuracy, questions = simulate_configurator(configurator, config)
+    assert (accuracy, questions) == (1.0, 1.0)
+    config = {1: "smi", 0: "yes"}
+    accuracy, questions = simulate_configurator(configurator, config)
+    assert (accuracy, questions) == (1.0, 1.0)
+
+
+def test_simulate_mdp_policy_configurator():
+    _test_simulate_configurator(MDPConfiguratorBuilder)
 
 
 def test_cross_validation():
@@ -52,8 +66,8 @@ def test_cross_validation():
     assert len(df.index) == n_folds
     assert ((0.5 <= df["accuracy_mean"]) & (df["accuracy_mean"] <= 1)).all()
     assert ((0 <= df["accuracy_std"]) & (df["accuracy_std"] <= 0.25)).all()
-    assert (df["questions_mean"] == 0.5).all()
-    assert (df["questions_std"] == 0).all()
+    assert ((0.5 <= df["questions_mean"]) & (df["questions_mean"] <= 1)).all()
+    assert ((0 <= df["questions_std"]) & (df["questions_std"] <= 0.25)).all()
 
 
 def _test_measure_scalability(builder_class, builder_kwargs):

@@ -44,7 +44,8 @@ class PolicyConfigurator(Configurator):
         """
         super().set_answer(var_index, var_value)
         for rule in self.rules:
-            rule.apply_rule(self.config)
+            if rule.is_applicable(self.config):
+                rule.apply_rule(self.config)
 
     def get_next_question(self):
         """Get the question that should be asked next.
