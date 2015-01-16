@@ -3,8 +3,8 @@ import os
 import numpy as np
 
 from .examples import load_email_client, load_titanic
-from ..policy import MDPDialogBuilder
-from ..util import (load_config_sample, simulate_dialog,
+from ..policy import MDPConfiguratorBuilder
+from ..util import (load_config_sample, simulate_configurator,
                     cross_validation, measure_scalability)
 
 
@@ -21,14 +21,14 @@ def test_load_config_sample():
         assert len(loaded_j_labels) == len(original_j_labels)
 
 
-def test_simulate_dialog():
+def test_simulate_configurator():
     email_client = load_email_client()
-    builder = MDPDialogBuilder(
+    builder = MDPConfiguratorBuilder(
         config_sample=email_client.config_sample,
         assoc_rule_min_support=email_client.min_support,
         assoc_rule_min_confidence=email_client.min_confidence)
-    dialog = builder.build_dialog()
-    accuracy, questions = simulate_dialog(dialog, email_client.config)
+    configurator = builder.build_configurator()
+    accuracy, questions = simulate_configurator(configurator, email_client.config)
     assert accuracy == 1.0
     assert questions == 0.5
 
@@ -37,7 +37,7 @@ def test_cross_validation():
     email_client = load_email_client()
     n_folds = 10
     random_state = 42
-    builder_class = MDPDialogBuilder
+    builder_class = MDPConfiguratorBuilder
     builder_kwargs = {"assoc_rule_min_support": email_client.min_support,
                       "assoc_rule_min_confidence": email_client.min_confidence}
     df = cross_validation(n_folds, random_state, builder_class,
@@ -63,7 +63,7 @@ def _test_measure_scalability(builder_class, builder_kwargs):
 
 def _test_scalability_mdp(algorithm, discard_states,
                           partial_assoc_rules, collapse_terminals):
-    builder_class = MDPDialogBuilder
+    builder_class = MDPConfiguratorBuilder
     builder_kwargs = {"mdp_algorithm": algorithm,
                       "mdp_discard_states": discard_states,
                       "mdp_partial_assoc_rules": partial_assoc_rules,

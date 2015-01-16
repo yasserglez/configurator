@@ -1,5 +1,5 @@
 """
-Configuration Dialogs Based on Policies
+Configurators Based on Policies
 """
 
 import itertools
@@ -7,18 +7,18 @@ import itertools
 import igraph
 from scipy import sparse
 
-from . import ConfigDialog, ConfigDialogBuilder
+from . import Configurator, ConfiguratorBuilder
 from .mdp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 
 
-class PolicyConfigDialog(ConfigDialog):
-    """Adaptive configuration dialog based on a policy.
+class PolicyConfigurator(Configurator):
+    """Configurator based on a policy.
 
     Attributes:
         rules: A list of AssociationRule instances.
         policy: The MDP policy.
 
-    See ConfigDialog for other attributes.
+    See Configurator for other attributes.
     """
 
     def __init__(self, config_values, rules, policy):
@@ -31,7 +31,7 @@ class PolicyConfigDialog(ConfigDialog):
                 are represented as frozensets of (index, value) tuples
                 for each variable.
 
-        See ConfigDialog for the remaining arguments.
+        See Configurator for the remaining arguments.
         """
         super().__init__(config_values)
         self.rules = rules
@@ -40,7 +40,7 @@ class PolicyConfigDialog(ConfigDialog):
     def set_answer(self, var_index, var_value):
         """Set the value of a configuration variable.
 
-        See ConfigDialog for more information.
+        See Configurator for more information.
         """
         super().set_answer(var_index, var_value)
         for rule in self.rules:
@@ -52,8 +52,8 @@ class PolicyConfigDialog(ConfigDialog):
         return self.policy[frozenset(self.config)]
 
 
-class MDPDialogBuilder(ConfigDialogBuilder):
-    """Adpative configuration dialog builder using MDPs.
+class MDPConfiguratorBuilder(ConfiguratorBuilder):
+    """Configurator builder using MDPs.
     """
 
     def __init__(self, mdp_algorithm="policy-iteration",
@@ -86,7 +86,7 @@ class MDPDialogBuilder(ConfigDialogBuilder):
                 transition and reward matrices should be validated
                 (default: False).
 
-        See ConfigDialogBuilder for the remaining arguments.
+        See ConfiguratorBuilder for the remaining arguments.
         """
         super().__init__(**kwargs)
         if mdp_algorithm == "policy-iteration":
@@ -101,11 +101,11 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         self._mdp_collapse_terminals = mdp_collapse_terminals
         self._mdp_validate = mdp_validate
 
-    def build_dialog(self):
-        """Construct an adaptive configuration dialog.
+    def build_configurator(self):
+        """Construct a configurator.
 
         Returns:
-            A PolicyConfigDialog instance.
+            A PolicyConfigurator instance.
         """
         self._logger.debug("building the MDP")
         # Build the initial graph.
@@ -119,11 +119,11 @@ class MDPDialogBuilder(ConfigDialogBuilder):
         self._logger.debug("solving the MDP")
         policy = self._solver.solve(mdp)
         self._logger.debug("finished solving the MDP")
-        # Create the PolicyConfigDialog instance.
+        # Create the PolicyConfigurator instance.
         policy = {frozenset(graph.vs[s]["state"]): a
                   for s, a in policy.items()}
-        dialog = PolicyConfigDialog(self._config_values, rules, policy)
-        return dialog
+        configurator = PolicyConfigurator(self._config_values, rules, policy)
+        return configurator
 
     def _build_graph(self):
         # Build the graph that is used to compute the transition and

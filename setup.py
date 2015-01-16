@@ -3,10 +3,10 @@ from distutils.command.sdist import sdist
 from distutils.command.build import build
 from setuptools import setup, find_packages
 
-import config_diag
+import configurator
 
 
-version = config_diag.__version__
+version = configurator.__version__
 
 src_dir = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(src_dir, "README.txt")) as f:
@@ -14,7 +14,7 @@ with open(os.path.join(src_dir, "README.txt")) as f:
 
 
 def update_version(init_py_file):
-    # Save the version number in config_diag/__init__.py
+    # Save the version number in configurator/__init__.py
     with open(init_py_file) as f:
         init_py = f.read()
     os.unlink(init_py_file)  # Might be a hard link
@@ -26,20 +26,20 @@ class custom_sdist(sdist):
     # Call update_version
     def make_release_tree(self, base_dir, files):
         sdist.make_release_tree(self, base_dir, files)
-        init_py_file = os.path.join(base_dir, "config_diag/__init__.py")
+        init_py_file = os.path.join(base_dir, "configurator/__init__.py")
         update_version(init_py_file)
 
 class custom_build(build):
     # Call update_version
     def run(self):
         build.run(self)
-        init_py_file = os.path.join(self.build_lib, "config_diag/__init__.py")
+        init_py_file = os.path.join(self.build_lib, "configurator/__init__.py")
         update_version(init_py_file)
 
 
-setup(name="config_diag",
+setup(name="configurator",
       version=version,
-      description="Constructing Adaptive Configuration Dialogs using Crowd Data",
+      description="Configurator",
       long_description=long_description,
       author="Yasser Gonzalez",
       author_email="yasserglez@gmail.com",

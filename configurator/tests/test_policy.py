@@ -2,7 +2,7 @@ import sys
 import logging
 
 from .examples import load_email_client
-from ..policy import MDPDialogBuilder
+from ..policy import MDPConfiguratorBuilder
 
 
 logging.basicConfig(format="%(asctime)s:%(name)s:%(funcName)s:%(message)s",
@@ -12,14 +12,14 @@ logging.basicConfig(format="%(asctime)s:%(name)s:%(funcName)s:%(message)s",
 EMAIL_CLIENT = load_email_client()
 
 
-class TestMDPDialogBuilder(object):
+class TestMDPConfiguratorBuilder(object):
 
     def setup(self):
         print("", file=sys.stderr)  # newline before the logging output
 
     def _test_builder(self, algorithm, discard_states,
                       partial_assoc_rules, collapse_terminals):
-        builder = MDPDialogBuilder(
+        builder = MDPConfiguratorBuilder(
             config_sample=EMAIL_CLIENT.config_sample,
             assoc_rule_algorithm="apriori",
             assoc_rule_min_support=EMAIL_CLIENT.min_support,
@@ -29,12 +29,12 @@ class TestMDPDialogBuilder(object):
             mdp_partial_assoc_rules=partial_assoc_rules,
             mdp_collapse_terminals=collapse_terminals,
             mdp_validate=True)
-        dialog = builder.build_dialog()
+        configurator = builder.build_configurator()
         for var_index in EMAIL_CLIENT.questions:
-            assert dialog.get_next_question() == var_index
-            dialog.set_answer(var_index, EMAIL_CLIENT.config[var_index])
-        assert dialog.is_complete()
-        assert dialog.config == EMAIL_CLIENT.config
+            assert configurator.get_next_question() == var_index
+            configurator.set_answer(var_index, EMAIL_CLIENT.config[var_index])
+        assert configurator.is_complete()
+        assert configurator.config == EMAIL_CLIENT.config
 
     def _test_builder_without_optim(self, algorithm):
         self._test_builder(algorithm, False, False, False)

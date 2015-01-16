@@ -1,5 +1,5 @@
 """
-Constructing Adaptive Configuration Dialogs using Crowd Data
+Configurator
 """
 
 import os
@@ -38,21 +38,21 @@ def get_version():
 __version__ = get_version()
 
 
-class ConfigDialog(object):
-    """Adaptive configuration dialog.
+class Configurator(object):
+    """Configurator.
 
-    This is the base class of all the configuration dialogs defined in
-    the package (not intented to be instantiated directly). It defines
-    a common interface followed by the dialogs generated using the
+    This is the base class of all the configurators defined in the
+    package (not intented to be instantiated directly). It defines a
+    common interface followed by the configurators generated using the
     different ConfigDiagBuilder subclasses.
 
     The interaction with all subclasses must be as follows. First, the
     reset method should be called to begin at a state where all the
     configuration variables are unknown. Next, a call to the method
     get_next_question will suggest a question, which can be posed to
-    the user and the answer should be given as feedback to the dialog
+    the user and the answer should be given as feedback to the configurator
     using the method set_answer. It is possible to ignore the
-    suggestion given by the dialog and answer the questions in any
+    suggestion given by the configurator and answer the questions in any
     order. In this case, simply call set_answer and future calls to
     get_next_question will act accordingly.
 
@@ -82,7 +82,7 @@ class ConfigDialog(object):
         self.reset()
 
     def reset(self):
-        """Reset the dialog to the initial state.
+        """Reset the configurator to the initial state.
 
         In the initial configuration state the value of all the
         variables is unknown. This method must be called before making
@@ -94,7 +94,7 @@ class ConfigDialog(object):
         """Get the question that should be asked next.
 
         Returns the question that should be asked next to the user,
-        according to this configuration dialog. Each question is
+        according to this configurator. Each question is
         identified by the index of the corresponding variable.
 
         Returns:
@@ -130,8 +130,8 @@ class ConfigDialog(object):
         return len(self.config) == len(self.config_values)
 
 
-class ConfigDialogBuilder(object):
-    """Adaptive configuration dialog builder.
+class ConfiguratorBuilder(object):
+    """Configurator builder.
     """
 
     def __init__(self, config_sample=None,
@@ -167,11 +167,11 @@ class ConfigDialogBuilder(object):
         self._assoc_rule_min_confidence = assoc_rule_min_confidence
         self._logger = logging.getLogger(self.__class__.__name__)
 
-    def build_dialog():
-        """Construct an adaptive configuration dialog.
+    def build_configurator():
+        """Construct a configurator.
 
         Returns:
-            An instance of a ConfigDialog subclass.
+            An instance of a Configurator subclass.
         """
         raise NotImplementedError()
 

@@ -1,5 +1,5 @@
 """
-Frequency Table and Conditional Probabilities
+Frequency Table
 """
 
 import numpy as np
