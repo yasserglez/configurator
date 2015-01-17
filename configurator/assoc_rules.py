@@ -17,7 +17,7 @@ class AssociationRule(object):
         confidence: Confidence of the association rule in [0,1].
     """
 
-    def __init__(self, lhs, rhs, support, confidence):
+    def __init__(self, lhs, rhs, support=None, confidence=None):
         """Initialize a new instance.
 
         Arguments:
@@ -30,6 +30,9 @@ class AssociationRule(object):
         self.rhs = rhs
         self.support = support
         self.confidence = confidence
+
+    def __repr__(self):
+        return "AssociationRule(lhs=%r, rhs=%r)" % (self.lhs, self.rhs)
 
     def is_lhs_compatible(self, observation):
         """Check left-hand-side compatibility.
