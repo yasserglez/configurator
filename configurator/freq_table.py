@@ -35,7 +35,7 @@ class FrequencyTable(object):
         """Count the occurences of the sample of the variables in x.
 
         Arguments:
-            x: A dictionary mapping variable indices to their values.
+            x: A dict mapping variable indices to their values.
 
         Returns:
             The number of occurences of the values in x.

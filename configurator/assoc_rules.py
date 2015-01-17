@@ -10,9 +10,9 @@ class AssociationRule(object):
 
     Attributes:
         lhs: Left-hand-side (also called antecedent or body) of the rule.
-            A dictionary mapping variable indices to their values.
+            A dict mapping variable indices to their values.
         rhs: Right-hand-side (also called consequent or head) of the rule.
-            A dictionary mapping variable indices to their values.
+            A dict mapping variable indices to their values.
         support: Item set support in [0,1].
         confidence: Confidence of the association rule in [0,1].
     """
@@ -42,7 +42,7 @@ class AssociationRule(object):
         left-hand-side must match the observed values.
 
         Arguments:
-            observation: A dictionary mapping variable indices to
+            observation: A dict mapping variable indices to
                 their values.
 
         Returns:
@@ -60,8 +60,7 @@ class AssociationRule(object):
         applications of the rule.
 
         Arguments:
-            observation: A dictionary mapping variable indices to
-                their values.
+            observation: A dict mapping variable indices to their values.
 
         Returns:
             True if the right-hand-side is compaible, False if not.
@@ -84,8 +83,7 @@ class AssociationRule(object):
         is_rhs_compatible methods.
 
         Arguments:
-            observation: A dictionary mapping variable indices to
-                their values.
+            observation: A dict mapping variable indices to their values.
 
         Returns:
             True if rule is applicable, False if not.
@@ -102,8 +100,9 @@ class AssociationRule(object):
         first to ensure that no variables will be overwritten.
 
         Arguments:
-            observation: A dictionary mapping variable indices to
-                their values. It is updated in-place.
+
+            observation: A dict mapping variable indices to their values.
+                It is updated in-place.
         """
         observation.update(self.rhs)
 

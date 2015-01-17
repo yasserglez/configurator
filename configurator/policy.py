@@ -16,7 +16,8 @@ class PolicyConfigurator(Configurator):
 
     Attributes:
         rules: A list of AssociationRule instances.
-        policy: The MDP policy.
+        policy: The MDP policy, i.e. a dict mapping every possible
+            configuration state to a variable index.
 
     See Configurator for other attributes.
     """

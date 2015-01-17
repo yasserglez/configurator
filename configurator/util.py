@@ -83,9 +83,9 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
             numpy.random.RandomState) used for random sampling. If
             None, use default numpy RNG for shuffling.
         builder_class: A ConfiguratorBuilder subclass.
-        builder_kwargs: A dictionary with arguments to pass to
-            builder_class when a new instance is created (except
-            config_sample and config_values).
+        builder_kwargs: A dict with arguments to pass to builder_class
+            when a new instance is created (except config_sample and
+            config_values).
         config_sample: A 2-dimensional numpy array containing a sample
             of the configuration variables.
         config_values: A list with one entry for each variable,
@@ -153,9 +153,9 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
             numpy.random.RandomState) used for random sampling. If
             None, use default numpy RNG for shuffling.
         builder_class: A ConfiguratorBuilder subclass.
-        builder_kwargs: A dictionary with arguments to pass to
-            builder_class when a new instance is created (except
-            config_sample and config_values).
+        builder_kwargs: A dict with arguments to pass to builder_class
+            when a new instance is created (except config_sample and
+            config_values).
         config_sample: A 2-dimensional numpy array containing a sample
             of the configuration variables.
         config_values: A list with one entry for each variable,
