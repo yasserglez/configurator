@@ -7,7 +7,7 @@ import itertools
 import igraph
 from scipy import sparse
 
-from . import Configurator, ConfiguratorBuilder
+from . import Configurator, TrivialConfigurator, ConfiguratorBuilder
 from .mdp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 
 
@@ -105,24 +105,30 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
         """Construct a configurator.
 
         Returns:
-            A PolicyConfigurator instance.
+            A PolicyConfigurator instance if at least one association
+            rule is discovered, otherwise a TrivialConfigurator instance.
         """
         self._logger.debug("building the MDP")
         # Build the initial graph.
         graph = self._build_graph()
         # Update the graph using the association rules.
         rules = self._mine_rules()
-        self._update_graph(graph, rules)
-        # Transform the graph into MDP components.
-        mdp = self._transform_graph_to_mdp(graph)
-        self._logger.debug("finished building the MDP")
-        self._logger.debug("solving the MDP")
-        policy = self._solver.solve(mdp)
-        self._logger.debug("finished solving the MDP")
-        # Create the PolicyConfigurator instance.
-        policy = {frozenset(graph.vs[s]["state"]): a
-                  for s, a in policy.items()}
-        configurator = PolicyConfigurator(self._config_values, rules, policy)
+        if rules:
+            self._update_graph(graph, rules)
+            # Transform the graph into MDP components.
+            mdp = self._transform_graph_to_mdp(graph)
+            self._logger.debug("finished building the MDP")
+            self._logger.debug("solving the MDP")
+            policy = self._solver.solve(mdp)
+            self._logger.debug("finished solving the MDP")
+            # Create the PolicyConfigurator instance.
+            policy = {frozenset(graph.vs[s]["state"]): a
+                      for s, a in policy.items()}
+            configurator = PolicyConfigurator(self._config_values,
+                                              rules, policy)
+        else:
+            # There are no rules. Build a trivial configurator.
+            configurator = TrivialConfigurator(self._config_values)
         return configurator
 
     def _build_graph(self):

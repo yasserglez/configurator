@@ -5,6 +5,7 @@ import logging
 import numpy as np
 
 from .examples import load_email_client, load_titanic
+from .. import TrivialConfigurator
 from ..policy import MDPConfiguratorBuilder
 from ..util import (load_config_sample, simulate_configurator,
                     cross_validation, measure_scalability)
@@ -51,6 +52,13 @@ def _test_simulate_configurator(builder_class):
 
 def test_simulate_mdp_policy_configurator():
     _test_simulate_configurator(MDPConfiguratorBuilder)
+
+
+def test_simulate_trivial_configurator():
+    email_client = load_email_client()
+    configurator = TrivialConfigurator(email_client.config_values)
+    result = simulate_configurator(configurator, email_client.config)
+    assert result == (1.0, 1.0)
 
 
 def test_cross_validation():

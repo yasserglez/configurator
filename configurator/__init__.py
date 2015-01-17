@@ -117,7 +117,7 @@ class Configurator(object):
                 config_values instance attribute.
         """
         if var_index in self.config:
-            raise ValueError("Variable #{0} is already set".format(var_index))
+            raise ValueError("Variable {0} is already set".format(var_index))
         else:
             self.config[var_index] = var_value
 
@@ -129,6 +129,39 @@ class Configurator(object):
             False otherwise.
         """
         return len(self.config) == len(self.config_values)
+
+
+class TrivialConfigurator(Configurator):
+    """Configurator that asks all the questions in sequential order.
+    """
+
+    def __init__(self, config_values):
+        """Initialize a new instance.
+
+        See Configurator for more information.
+        """
+        super().__init__(config_values)
+
+    def reset(self):
+        """Reset the configurator to the initial state.
+
+        See Configurator for more information.
+        """
+        super().reset()
+        self._next_question = 0
+
+    def set_answer(self, var_index, var_value):
+        """Set the value of a configuration variable.
+
+        See Configurator for more information.
+        """
+        super().set_answer(var_index, var_value)
+        self._next_question += 1
+
+    def get_next_question(self):
+        """Get the question that should be asked next.
+        """
+        return self._next_question
 
 
 class ConfiguratorBuilder(object):

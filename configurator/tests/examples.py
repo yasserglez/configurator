@@ -109,6 +109,7 @@ def load_email_client():
     # (The entry {disp=no,ico=lgi} was incorrectly labelled as 540
     # instead of 560 in the thesis. It was corrected in the CSV file.)
     config_sample = _load_csv("email_client.csv")
+    config_values = [["yes", "no"], ["smi", "lgi"]]
 
     # Only one rule obtained with confidence 0.9 (page 46).
     min_supp, min_conf = 0.5, 0.9
@@ -119,10 +120,11 @@ def load_email_client():
     questions = [1]
     config = {0: "no", 1: "lgi"}
 
-    field_names = ["config_sample", "min_support", "min_confidence",
-                   "questions", "config"]
+    field_names = ["config_sample", "config_values", "min_support",
+                   "min_confidence", "questions", "config"]
     EmailClient = namedtuple("EmailClient", field_names)
     email_client = EmailClient(config_sample=config_sample,
+                               config_values=config_values,
                                min_support=min_supp,
                                min_confidence=min_conf,
                                questions=questions, config=config)
