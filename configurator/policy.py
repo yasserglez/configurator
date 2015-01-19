@@ -189,69 +189,58 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
             state = {var_index: var_value
                      for var_index, var_value in enumerate(state_values)
                      if var_value is not None}
-            if len(state) == num_vars:
-                # It's a terminal state. Add the vertex only if
+            state_len = len(state)  # cached to be used in igraph's queries
+            if state_len != num_vars or not self._mdp_collapse_terminals:
+                # If it's a terminal state the vertex is added only if
                 # terminal states shouldn't be collapsed.
-                if not self._mdp_collapse_terminals:
-                    graph.add_vertex(state=state)
-            else:
-                # Intermediate state, add the vertex.
-                graph.add_vertex(state=state)
+                graph.add_vertex(state=state, state_len=state_len)
         if self._mdp_collapse_terminals:
             # If the terminal states were collapsed, add a single
             # state (with the state dict set to None) where all the
             # configuration values are known. It will be the terminal
             # state in EpisodicMDP.
-            graph.add_vertex(state=None)
+            graph.add_vertex(state=None, state_len=num_vars)
         self._logger.debug("finishing adding nodes")
 
     def _add_graph_edges(self, graph):
         # Add the initial graph edges: loop edges for the known
         # variables and one-step transitions.
         self._logger.debug("adding edges")
-        for v in graph.vs:
-            # Loop edges:
-            self._add_loop_edges(graph, v)
-            # One-step transitions:
-            criterion = lambda w: self._is_one_step_transition(v, w)
-            for w in graph.vs.select(criterion):
-                self._add_one_step_edge(graph, v, w)
+        self._add_loop_edges(graph)
+        self._add_one_step_edges(graph)
         self._logger.debug("finished adding edges")
 
-    def _add_loop_edges(self, graph, v):
+    def _add_loop_edges(self, graph):
+        self._logger.debug("adding loop edges")
         # Add loop edges for the known variables.
-        if self._is_terminal(v):
-            # In a terminal state the rewards are set to zero so the
-            # MDP can be solved with a discount factor of one.
-            reward = 0
-            known_vars = range(len(self._config_values))
-        else:
-            # In an intermediate state the rewards are set to -1:
-            # asked one question but got no new information.
-            reward = -1
-            known_vars = v["state"].keys()
-        for var_index in known_vars:
-            graph.add_edge(v, v, action=var_index, reward=reward, prob=1.0)
-
-    def _is_one_step_transition(self, v, w):
-        # Check v and w represent a one-step transition, i.e.
-        # transitions from states in which (k - 1) variables are known
-        # to states where k variables are known. Additionally, v and w
-        # have to differ only in one variable (the one that becomes
-        # known after the question is asked).
-        num_known_vars_in_v = self._count_known_vars(v)
-        num_known_vars_in_w = self._count_known_vars(w)
-        if num_known_vars_in_v + 1 == num_known_vars_in_w:
-            if w["state"] is None:
-                # Collapsed terminal state.
-                return True
+        num_vars = len(self._config_values)
+        edges, actions, rewards = [], [], []
+        for v in graph.vs:
+            if v["state_len"] == num_vars:
+                # In a terminal state the rewards are set to zero so
+                # the MDP can be solved with a discount factor of one.
+                known_vars = range(num_vars)
+                reward = 0
             else:
-                v_set = set(v["state"].items())
-                w_set = set(w["state"].items())
-                return len(v_set & w_set) == num_known_vars_in_v
-        return False
+                # In an intermediate state the rewards are set to -1:
+                # asked one question but got no new information.
+                known_vars = v["state"].keys()
+                reward = -1
+            for var_index in known_vars:
+                edges.append((v.index, v.index))
+                actions.append(var_index)
+                rewards.append(reward)
+        # This is faster than using graph.add_edge one at a time.
+        base_eid = graph.ecount()
+        graph.add_edges(edges)
+        for i in range(len(edges)):
+            graph.es[base_eid + i]["action"] = actions[i]
+            graph.es[base_eid + i]["reward"] = rewards[i]
+            graph.es[base_eid + i]["prob"] = 1.0
+        self._logger.debug("finished adding loop edges")
 
-    def _add_one_step_edge(self, graph, v, w):
+    def _add_one_step_edges(self, graph):
+        self._logger.debug("adding one-step edges")
         # Add the one-step transition edges. Each edge is labelled with:
         # - the action corresponding to the variable that becomes known,
         # - the conditional probability of the variable taking the
@@ -259,20 +248,50 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
         # - a reward of zero (we asked one question and we got a
         #   response, no variables were automatically discovered).
         num_vars = len(self._config_values)
-        known_vars_in_v = set(v["state"].keys())
-        known_vars_in_w = (set(range(num_vars)) if w["state"] is None
-                           else set(w["state"].keys()))
-        var_index = next(iter(known_vars_in_w - known_vars_in_v))
-        if w["state"] is None:
-            # w is a collapsed terminal state. Add a single edge with
-            # probability one and reward zero. Whatever the user
-            # answers is going to take her/him to the terminal state.
-            graph.add_edge(v, w, action=var_index, reward=0, prob=1.0)
+        edges, actions, probs = [], [], []
+        for v in graph.vs(state_len_ne=num_vars):
+            for w in graph.vs.select(state_len=v["state_len"] + 1):
+                if self._is_one_step_transition(v, w):
+                    edges.append((v.index, w.index))
+                    v_config = set(v["state"].keys())
+                    w_config = (set(range(num_vars)) if w["state"] is None
+                                else set(w["state"].keys()))
+                    var_index = next(iter(w_config - v_config))
+                    actions.append(var_index)
+                    if w["state"] is None:
+                        # w is a collapsed terminal state. Add an edge with
+                        # probability one, whatever the user answers is
+                        # going to take her/him to the terminal state.
+                        probs.append(1.0)
+                    else:
+                        var_value = w["state"][var_index]
+                        prob = self._cond_prob({var_index: var_value}, v["state"])
+                        probs.append(prob)
+        # This is faster than using graph.add_edge one at a time.
+        base_eid = graph.ecount()
+        graph.add_edges(edges)
+        for i in range(len(edges)):
+            graph.es[base_eid + i]["action"] = actions[i]
+            graph.es[base_eid + i]["reward"] = 0
+            graph.es[base_eid + i]["prob"] = probs[i]
+        self._logger.debug("finished adding one-step edges")
+
+    def _is_one_step_transition(self, v, w):
+        # Check v and w represent a one-step transition, i.e. from a
+        # state in which k-1 variables are known to a state where k
+        # variables are known (checked before the function is called).
+        # Also, v and w have to differ only in one variable (the one
+        # that becomes known after the question is asked).
+        w_state = w["state"]
+        if w_state is None:
+            # Collapsed terminal state.
+            return True
         else:
-            var_value = w["state"][var_index]
-            prob = self._cond_prob({var_index: var_value}, v["state"])
-            graph.add_edge(v, w, action=var_index,
-                           reward=0, prob=prob)
+            for var_index, var_value in v["state"].items():
+                if (var_index not in w_state or
+                        w_state[var_index] != var_value):
+                    return False
+            return True
 
     def _update_graph(self, graph, rules):
         # Update the graph using the association rules.
@@ -281,7 +300,7 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
         for rule in rules:
             # It doesn't make sense to apply the rule in a terminal
             # state, so the S selection is restricted to non-terminals.
-            for v_s in graph.vs.select(self._is_non_terminal):
+            for v_s in graph.vs.select(state_len_ne=len(self._config_values)):
                 s = v_s["state"]  # S
                 if not (v_s.index not in inaccessible_vertices and
                         self._update_graph_cond_a(rule, s) and
@@ -364,8 +383,7 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
             # The reward is incremented by the difference in the
             # number of known variables between S' and S (i.e. the
             # variables that are automaticallly discovered).
-            reward = e["reward"] + (self._count_known_vars(v_sp) -
-                                    self._count_known_vars(v_s))
+            reward = e["reward"] + (v_sp["state_len"] - v_s["state_len"])
             if v_sp["state"] is None:
                 # Eliminate multi-edges pointing to the collapsed
                 # terminal state by combining them into a single edge.
@@ -387,18 +405,3 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
             rewired_edges.append(e.index)
         # Remove the edges that were rewired.
         graph.delete_edges(rewired_edges)
-
-    def _count_known_vars(self, v):
-        # Return the number of variables whose value is known.
-        num_known_vars = (len(self._config_values) if v["state"] is None
-                          else len(v["state"]))
-        return num_known_vars
-
-    def _is_terminal(self, v):
-        # Check if v representes a terminal state.
-        return (v["state"] is None or
-                self._count_known_vars(v) == len(self._config_values))
-
-    def _is_non_terminal(self, v):
-        # Check if v represents a terminal state.
-        return not self._is_terminal(v)

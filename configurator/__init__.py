@@ -191,7 +191,7 @@ class ConfiguratorBuilder(object):
         """
         super().__init__()
         self._config_sample = config_sample
-        self._freq_tab = FrequencyTable(self._config_sample, cache_size=0)
+        self._freq_tab = FrequencyTable(self._config_sample, cache_size=1000)
         if config_values is None:
             config_values = [list(SortedSet(self._config_sample[:, i]))
                              for i in range(self._config_sample.shape[1])]
