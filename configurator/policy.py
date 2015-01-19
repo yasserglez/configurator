@@ -51,7 +51,8 @@ class PolicyConfigurator(Configurator):
     def get_next_question(self):
         """Get the question that should be asked next.
         """
-        return self.policy[frozenset(self.config)]
+        next_var_index = self.policy[frozenset(self.config.items())]
+        return next_var_index
 
 
 class MDPConfiguratorBuilder(ConfiguratorBuilder):
@@ -123,7 +124,7 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
             policy = self._solver.solve(mdp)
             self._logger.debug("finished solving the MDP")
             # Create the PolicyConfigurator instance.
-            policy = {frozenset(graph.vs[s]["state"]): a
+            policy = {frozenset(graph.vs[s]["state"].items()): a
                       for s, a in policy.items()}
             configurator = PolicyConfigurator(self._config_values,
                                               rules, policy)
@@ -147,7 +148,7 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
 
     def _transform_graph_to_mdp(self, graph):
         # Generate the transition and reward matrices from the graph.
-        self._logger.debug("transforming the graph to the MDP")
+        self._logger.debug("transforming the graph into the MDP")
         S, A = graph.vcount(), len(self._config_values)
         self._logger.debug("the MDP has %d states and %d actions", S, A)
         transitions = [sparse.lil_matrix((S, S)) for a in range(A)]
@@ -158,8 +159,8 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
                 transitions[a][i, j] = e["prob"]
             if e["reward"] != 0:
                 rewards[a][i, j] = e["reward"]
-        # pymdptoolbox seems to only work with csr_matrix, but
-        # dok_matrix matrices can be built faster.
+        # pymdptoolbox seems to work only with csr_matrix, but
+        # lil_matrix matrices can be built faster.
         transitions = list(map(lambda m: m.tocsr(), transitions))
         rewards = list(map(lambda m: m.tocsr(), rewards))
         if self._mdp_collapse_terminals:
@@ -173,7 +174,7 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
         else:
             mdp = MDP(transitions, rewards, discount_factor=1.0,
                       validate=self._mdp_validate)
-        self._logger.debug("finished transforming the graph to the MDP")
+        self._logger.debug("finished transforming the graph into the MDP")
         return mdp
 
     def _add_graph_nodes(self, graph):
@@ -219,14 +220,18 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
 
     def _add_loop_edges(self, graph, v):
         # Add loop edges for the known variables.
-        if v["state"] is None:
-            # Collapsed terminal state. All variables are known.
+        if self._is_terminal(v):
+            # In a terminal state the rewards are set to zero so the
+            # MDP can be solved with a discount factor of one.
+            reward = 0
             known_vars = range(len(self._config_values))
         else:
-            # Non-collapsed terminal or intermediate state.
+            # In an intermediate state the rewards are set to -1:
+            # asked one question but got no new information.
+            reward = -1
             known_vars = v["state"].keys()
         for var_index in known_vars:
-            graph.add_edge(v, v, action=var_index, reward=0, prob=1.0)
+            graph.add_edge(v, v, action=var_index, reward=reward, prob=1.0)
 
     def _is_one_step_transition(self, v, w):
         # Check v and w represent a one-step transition, i.e.
@@ -254,10 +259,10 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
         # - a reward of zero (we asked one question and we got a
         #   response, no variables were automatically discovered).
         num_vars = len(self._config_values)
-        v_vars = set(v["state"].keys())
-        w_vars = (set(range(num_vars)) if w["state"] is None
-                  else set(w["state"].keys()))
-        var_index = next(iter(w_vars - v_vars))
+        known_vars_in_v = set(v["state"].keys())
+        known_vars_in_w = (set(range(num_vars)) if w["state"] is None
+                           else set(w["state"].keys()))
+        var_index = next(iter(known_vars_in_w - known_vars_in_v))
         if w["state"] is None:
             # w is a collapsed terminal state. Add a single edge with
             # probability one and reward zero. Whatever the user
@@ -296,7 +301,7 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
                     self._update_graph_shortcut(graph, v_s, v_sp)
                     inaccessible_vertices.append(v_s.index)
                     break  # a match for S was found, don't keep looking
-        # Delete the inaccesible vertices.
+        # Remove the inaccesible vertices.
         if self._mdp_discard_states:
             graph.delete_vertices(inaccessible_vertices)
         self._logger.debug("found %d applications of %d rules",
@@ -353,30 +358,35 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
 
     def _update_graph_shortcut(self, graph, v_s, v_sp):
         # Create a "shortcut" from S to S'. Take all the edges that
-        # are targeting S and move them so that they now target S'.
-        # The reward of those edges is incremented by the difference
-        # in the number of known variables between S' and S.
-        old_edges = []
+        # are targeting S and rewire them so that they now target S'.
+        rewired_edges = []
         for e in graph.es.select(_target=v_s.index):
-            try:
-                # Edges pointing to the collapsed terminal state must
-                # be collapsed into a single edge. If the edge was
-                # already added, then just update the probability (it
-                # will be 1 in the end). Otherwise, add the edge.
-                if v_sp["state"] is None:
-                    collapsed_e = graph.es.find(_source=e.source,
-                                                _target=v_sp.index,
-                                                action=e["action"])
-                    collapsed_e["prob"] += e["prob"]
-                else:
-                    raise ValueError  # jump to the except clause
-            except ValueError:
-                reward = e["reward"] + (self._count_known_vars(v_sp) -
-                                        self._count_known_vars(v_s))
+            # The reward is incremented by the difference in the
+            # number of known variables between S' and S (i.e. the
+            # variables that are automaticallly discovered).
+            reward = e["reward"] + (self._count_known_vars(v_sp) -
+                                    self._count_known_vars(v_s))
+            if v_sp["state"] is None:
+                # Eliminate multi-edges pointing to the collapsed
+                # terminal state by combining them into a single edge.
+                try:
+                    # If the edge already exists, just add the probabilities.
+                    ep = graph.es.find(_source=e.source, _target=v_sp.index,
+                                       action=e["action"])
+                    ep["prob"] += e["prob"]
+                except ValueError:
+                    # If it doesn't exist. add the edge.
+                    graph.add_edge(e.source, target=v_sp, action=e["action"],
+                                   prob=e["prob"], reward=reward)
+            else:
+                # Edge pointing to an intermediate state or an individual
+                # terminal state when they are not collapsed.
                 graph.add_edge(e.source, target=v_sp, action=e["action"],
                                prob=e["prob"], reward=reward)
-            old_edges.append(e.index)
-        graph.delete_edges(old_edges)
+            # The edge was rewired, add it to a list of edges to be removed.
+            rewired_edges.append(e.index)
+        # Remove the edges that were rewired.
+        graph.delete_edges(rewired_edges)
 
     def _count_known_vars(self, v):
         # Return the number of variables whose value is known.
@@ -386,7 +396,8 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
 
     def _is_terminal(self, v):
         # Check if v representes a terminal state.
-        return self._count_known_vars(v) == len(self._config_values)
+        return (v["state"] is None or
+                self._count_known_vars(v) == len(self._config_values))
 
     def _is_non_terminal(self, v):
         # Check if v represents a terminal state.
