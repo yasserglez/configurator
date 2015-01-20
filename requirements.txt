@@ -5,5 +5,5 @@ pandas >= 0.15.2
 pylru >= 1.0.6
 python-igraph >= 0.7
 sortedcontainers >= 0.9.4
-git+git://github.com/sawcordwell/pymdptoolbox#egg=mdptoolbox
+pymdptoolbox >= 4.0-b3
 http://www.borgelt.net/src/pyfim.tar.gz
