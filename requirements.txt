@@ -1,3 +1,4 @@
+# Runtime requirements:
 numpy >= 1.9.1
 scipy >= 0.14.0
 scikit-learn >= 0.15.2
@@ -6,4 +7,11 @@ pylru >= 1.0.6
 python-igraph >= 0.7
 sortedcontainers >= 0.9.4
 pymdptoolbox >= 4.0-b3
-http://www.borgelt.net/src/pyfim.tar.gz
+http://www.borgelt.net/src/pyfim.tar.gz#egg=pyfim
+
+# Development requirements:
+ipython >= 2.3.1
+matplotlib >= 1.4.2
+nose >= 1.3.4
+pytest >= 2.6.4
+snakeviz >= 0.2.1

@@ -17,10 +17,12 @@ def update_version(init_py_file):
     # Save the version number in configurator/__init__.py
     with open(init_py_file) as f:
         init_py = f.read()
-    os.unlink(init_py_file)  # Might be a hard link
-    init_py = init_py.replace("version = None", 'version = "{0}"'.format(version))
+    os.unlink(init_py_file)  # might be a hard link
+    init_py = init_py.replace("version = None",
+                              'version = "{0}"'.format(version))
     with open(init_py_file, "w") as f:
         f.write(init_py)
+
 
 class custom_sdist(sdist):
     # Call update_version
@@ -28,6 +30,7 @@ class custom_sdist(sdist):
         sdist.make_release_tree(self, base_dir, files)
         init_py_file = os.path.join(base_dir, "configurator/__init__.py")
         update_version(init_py_file)
+
 
 class custom_build(build):
     # Call update_version
@@ -44,6 +47,20 @@ setup(name="configurator",
       author="Yasser Gonzalez",
       author_email="yasserglez@gmail.com",
       packages=find_packages(exclude=["*.tests"]),
+      install_requires=[
+          "numpy >= 1.9.1",
+          "scipy >= 0.14.0",
+          "scikit-learn >= 0.15.2",
+          "pandas >= 0.15.2",
+          "pylru >= 1.0.6",
+          "python-igraph >= 0.7",
+          "sortedcontainers >= 0.9.4",
+          "pymdptoolbox >= 4.0-b3",
+          "pyfim",
+      ],
+      dependency_links=[
+          "http://www.borgelt.net/src/pyfim.tar.gz#egg=pyfim",
+      ],
       classifiers=[
           "Programming Language :: Python :: 3 :: Only",
           "Development Status :: 4 - Beta",
