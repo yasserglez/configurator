@@ -1,2 +1,2 @@
-Configurator
-============
+Configurator: Adaptive Configuration Dialogs
+============================================

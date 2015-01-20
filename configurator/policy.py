@@ -1,25 +1,23 @@
-"""
-Configurators Based on Policies
-"""
+"""Policy-Based Configuration Dialogs"""
 
 import itertools
 
 import igraph
 from scipy import sparse
 
-from . import Configurator, TrivialConfigurator, ConfiguratorBuilder
-from .mdp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
+from .base import ConfigDialog, TrivialConfigDialog, ConfigDialogBuilder
+from .dp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 
 
-class PolicyConfigurator(Configurator):
-    """Configurator based on a policy.
+class PolicyConfigDialog(ConfigDialog):
+    """Configuration dialog based on a policy.
 
     Attributes:
         rules: A list of AssociationRule instances.
         policy: The MDP policy, i.e. a dict mapping every possible
             configuration state to a variable index.
 
-    See Configurator for other attributes.
+    See ConfigDialog for other attributes.
     """
 
     def __init__(self, config_values, rules, policy):
@@ -32,7 +30,7 @@ class PolicyConfigurator(Configurator):
                 are represented as frozensets of (index, value) tuples
                 for each variable.
 
-        See Configurator for the remaining arguments.
+        See ConfigDialog for the remaining arguments.
         """
         super().__init__(config_values)
         self.rules = rules
@@ -41,7 +39,7 @@ class PolicyConfigurator(Configurator):
     def set_answer(self, var_index, var_value):
         """Set the value of a configuration variable.
 
-        See Configurator for more information.
+        See ConfigDialog for more information.
         """
         super().set_answer(var_index, var_value)
         for rule in self.rules:
@@ -55,60 +53,60 @@ class PolicyConfigurator(Configurator):
         return next_var_index
 
 
-class MDPConfiguratorBuilder(ConfiguratorBuilder):
-    """Configurator builder using MDPs.
+class DPConfigDialogBuilder(ConfigDialogBuilder):
+    """Build a configuration dialog using dynamic programming.
     """
 
-    def __init__(self, mdp_algorithm="policy-iteration",
-                 mdp_max_iter=1000,
-                 mdp_discard_states=True,
-                 mdp_partial_assoc_rules=True,
-                 mdp_collapse_terminals=True,
-                 mdp_validate=False,
+    def __init__(self, dp_algorithm="policy-iteration",
+                 dp_max_iter=1000,
+                 dp_discard_states=True,
+                 dp_partial_assoc_rules=True,
+                 dp_collapse_terminals=True,
+                 dp_validate=False,
                  **kwargs):
         """Initialize a new instance.
 
         Arguments:
-            mdp_algorithm: Algorithm for solving the MDP. Possible
+            dp_algorithm: Algorithm for solving the MDP. Possible
                 values are: 'policy-iteration' (default) and
                 'value-iteration'.
-            mdp_max_iter: The maximum number of iterations of the
+            dp_max_iter: The maximum number of iterations of the
                 algorithm used to solve the MDP (default: 1000).
-            mdp_discard_states: Indicates whether states that can't be
+            dp_discard_states: Indicates whether states that can't be
                 reached from the initial state after applying the
                 association rules should be discarded (default: True).
-            mdp_partial_assoc_rules: Indicates whether the association
+            dp_partial_assoc_rules: Indicates whether the association
                 rules can be applied when some of the variables in the
                 right-hand-side are already set to the correct values.
                 (the opposite is to require that all variables in the
                 left-hand-side are unknown) (default: True).
-            mdp_collapse_terminals: Indicates whether all terminal
+            dp_collapse_terminals: Indicates whether all terminal
                 states should be collapsed into a single state
                 (default: True).
-            mdp_validate: Indicates whether the resulting MDP
+            dp_validate: Indicates whether the resulting MDP
                 transition and reward matrices should be validated
                 (default: False).
 
-        See ConfiguratorBuilder for the remaining arguments.
+        See ConfigDialogBuilder for the remaining arguments.
         """
         super().__init__(**kwargs)
-        if mdp_algorithm == "policy-iteration":
-            self._solver = PolicyIteration(max_iter=mdp_max_iter)
-        elif mdp_algorithm == "value-iteration":
-            self._solver = ValueIteration(max_iter=mdp_max_iter)
+        if dp_algorithm == "policy-iteration":
+            self._solver = PolicyIteration(max_iter=dp_max_iter)
+        elif dp_algorithm == "value-iteration":
+            self._solver = ValueIteration(max_iter=dp_max_iter)
         else:
-            raise ValueError("Invalid mdp_algorithm value")
-        self._mdp_discard_states = mdp_discard_states
-        self._mdp_partial_assoc_rules = mdp_partial_assoc_rules
-        self._mdp_collapse_terminals = mdp_collapse_terminals
-        self._mdp_validate = mdp_validate
+            raise ValueError("Invalid dp_algorithm value")
+        self._dp_discard_states = dp_discard_states
+        self._dp_partial_assoc_rules = dp_partial_assoc_rules
+        self._dp_collapse_terminals = dp_collapse_terminals
+        self._dp_validate = dp_validate
 
-    def build_configurator(self):
-        """Construct a configurator.
+    def build_dialog(self):
+        """Construct a configuration dialog.
 
         Returns:
-            A PolicyConfigurator instance if at least one association
-            rule is discovered, otherwise a TrivialConfigurator instance.
+            A PolicyConfigDialog instance if at least one association
+            rule is discovered, otherwise a TrivialConfigDialog instance.
         """
         self._logger.debug("building the MDP")
         # Build the initial graph.
@@ -123,15 +121,14 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
             self._logger.debug("solving the MDP")
             policy = self._solver.solve(mdp)
             self._logger.debug("finished solving the MDP")
-            # Create the PolicyConfigurator instance.
+            # Create the PolicyConfigDialog instance.
             policy = {frozenset(graph.vs[s]["state"].items()): a
                       for s, a in policy.items()}
-            configurator = PolicyConfigurator(self._config_values,
-                                              rules, policy)
+            dialog = PolicyConfigDialog(self._config_values, rules, policy)
         else:
-            # There are no rules. Build a trivial configurator.
-            configurator = TrivialConfigurator(self._config_values)
-        return configurator
+            # There are no rules. Build a trivial dialog.
+            dialog = TrivialConfigDialog(self._config_values)
+        return dialog
 
     def _build_graph(self):
         # Build the graph that is used to compute the transition and
@@ -163,17 +160,17 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
         # lil_matrix matrices can be built faster.
         transitions = list(map(lambda m: m.tocsr(), transitions))
         rewards = list(map(lambda m: m.tocsr(), rewards))
-        if self._mdp_collapse_terminals:
+        if self._dp_collapse_terminals:
             initial_state = 0
             terminal_state = S - 1
             mdp = EpisodicMDP(transitions, rewards,
                               discount_factor=1.0,
                               initial_state=initial_state,
                               terminal_state=terminal_state,
-                              validate=self._mdp_validate)
+                              validate=self._dp_validate)
         else:
             mdp = MDP(transitions, rewards, discount_factor=1.0,
-                      validate=self._mdp_validate)
+                      validate=self._dp_validate)
         self._logger.debug("finished transforming the graph into the MDP")
         return mdp
 
@@ -190,11 +187,11 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
                      for var_index, var_value in enumerate(state_values)
                      if var_value is not None}
             state_len = len(state)  # cached to be used in igraph's queries
-            if state_len != num_vars or not self._mdp_collapse_terminals:
+            if state_len != num_vars or not self._dp_collapse_terminals:
                 # If it's a terminal state the vertex is added only if
                 # terminal states shouldn't be collapsed.
                 graph.add_vertex(state=state, state_len=state_len)
-        if self._mdp_collapse_terminals:
+        if self._dp_collapse_terminals:
             # If the terminal states were collapsed, add a single
             # state (with the state dict set to None) where all the
             # configuration values are known. It will be the terminal
@@ -321,7 +318,7 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
                     inaccessible_vertices.append(v_s.index)
                     break  # a match for S was found, don't keep looking
         # Remove the inaccesible vertices.
-        if self._mdp_discard_states:
+        if self._dp_discard_states:
             graph.delete_vertices(inaccessible_vertices)
         self._logger.debug("found %d applications of %d rules",
                            len(inaccessible_vertices), len(rules))
@@ -346,7 +343,7 @@ class MDPConfiguratorBuilder(ConfiguratorBuilder):
         return True
 
     def _update_graph_cond_bii(self, rule, s):
-        if self._mdp_partial_assoc_rules:
+        if self._dp_partial_assoc_rules:
             # (b-ii) variables in the rhs appear with the same values
             # or set to unknown in S. At least one must be set to
             # unknown in S.

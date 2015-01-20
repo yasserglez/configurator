@@ -1,6 +1,4 @@
-"""
-Utility Functions
-"""
+"""Utility Functions"""
 
 import math
 import time
@@ -36,14 +34,13 @@ def load_config_sample(csv_file, dtype=np.uint8):
     return config_sample
 
 
-def simulate_configurator(configurator, config):
-    """Simulate a configurator.
+def simulate_dialog(dialog, config):
+    """Simulate a configuration dialog.
 
-    Simulate the use of the configurator to predict the given
-    configuration.
+    Simulate the use of the dialog to predict the given configuration.
 
     Arguments:
-        configurator: An instance of a Configurator subclass.
+        dialog: An instance of a ConfigDialog subclass.
         config: A complete configuration, i.e. a dict mapping variable
             indices to their values.
 
@@ -53,13 +50,13 @@ def simulate_configurator(configurator, config):
         that were asked (both normalized in [0,1]).
     """
     accuracy, questions = 0, 0
-    configurator.reset()
-    while not configurator.is_complete():
-        var_index = configurator.get_next_question()
-        configurator.set_answer(var_index, config[var_index])
+    dialog.reset()
+    while not dialog.is_complete():
+        var_index = dialog.get_next_question()
+        dialog.set_answer(var_index, config[var_index])
         questions += 1
     for var_index in config.keys():
-        if configurator.config[var_index] == config[var_index]:
+        if dialog.config[var_index] == config[var_index]:
             accuracy += 1
     # Normalize the measures and return.
     questions /= len(config)
@@ -69,9 +66,9 @@ def simulate_configurator(configurator, config):
 
 def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
                      config_sample, config_values=None):
-    """Measure the performance of a configurator builder.
+    """Measure the performance of a configuration dialog builder.
 
-    Use the configurator builder to perform a k-folds cross validation on
+    Use the dialog builder to perform a k-folds cross validation on
     the given configuration sample. The sample is shuffled before
     dividing it into batches. The performance is measured in terms of
     the accuracy of the predicted configuration and the number of
@@ -82,7 +79,7 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
         random_state: Pseudo-random number generator state (int or
             numpy.random.RandomState) used for random sampling. If
             None, use default numpy RNG for shuffling.
-        builder_class: A ConfiguratorBuilder subclass.
+        builder_class: A ConfigDialogBuilder subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
             when a new instance is created (except config_sample and
             config_values).
@@ -115,17 +112,17 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
     folds = KFold(config_sample.shape[0], n_folds=n_folds,
                   shuffle=True, random_state=random_state)
     for train_indices, test_indices in folds:
-        # Build the configurator using the training sample.
+        # Build the dialog using the training sample.
         train_sample = config_sample[train_indices, :]
         builder_kwargs["config_sample"] = train_sample
         builder = builder_class(**builder_kwargs)
-        configurator = builder.build_configurator()
+        dialog = builder.build_dialog()
         # Collect the results from the testing sample.
         test_sample = config_sample[test_indices, :]
         accuracy_results, questions_results = [], []
         for i in range(test_sample.shape[0]):
             config = {j: test_sample[i, j] for j in range(len(config_values))}
-            accuracy, questions = simulate_configurator(configurator, config)
+            accuracy, questions = simulate_dialog(dialog, config)
             accuracy_results.append(accuracy)
             questions_results.append(questions)
         # Summarize the results.
@@ -139,18 +136,18 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
 
 def measure_scalability(random_state, builder_class, builder_kwargs,
                         config_sample, config_values=None):
-    """Measure the scalability of a configurator builder.
+    """Measure the scalability of a configuration dialog builder.
 
-    Use the configurator builder to construct a sequence of
-    configurators with an increasing number of variables from the
-    configuration sample, measuring the CPU time on each case. The
-    variables in the configuration sample are added in a random order.
+    Use the dialog builder to construct a sequence of dialogs with an
+    increasing number of variables from the configuration sample,
+    measuring the CPU time on each case. The variables in the
+    configuration sample are added in a random order.
 
     Arguments:
         random_state: Pseudo-random number generator state (int or
             numpy.random.RandomState) used for random sampling. If
             None, use default numpy RNG for shuffling.
-        builder_class: A ConfiguratorBuilder subclass.
+        builder_class: A ConfigDialogBuilder subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
             when a new instance is created (except config_sample and
             config_values).
@@ -195,7 +192,7 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
         builder_kwargs["config_values"] = curr_config_values
         t_start = time.process_time()  # start
         builder = builder_class(**builder_kwargs)
-        builder.build_configurator()
+        builder.build_dialog()
         t_end = time.process_time()  # stop
         result.loc[i - 2, "bin_vars"] = math.log2(curr_config_card)
         result.loc[i - 2, "cpu_time"] = t_end - t_start

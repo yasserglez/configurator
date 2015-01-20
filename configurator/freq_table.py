@@ -1,18 +1,15 @@
-"""
-Frequency Table
-"""
+"""Frequency Table"""
 
 import numpy as np
 import pylru
 
 
 class FrequencyTable(object):
-    """Compute frequency counts and conditional probabilities.
+    """Multivariate frequency table.
 
-    Compute multivariate frequency counts and conditional
-    probabilities from a 2-dimensional numpy array. Each column is
-    expected to represent a categorical variable and each row a
-    multi-variate observation.
+    Compute multivariate frequencies from a 2-dimensional numpy array.
+    Each column is expected to represent a categorical variable and
+    each row a multi-variate observation.
 
     Attributes:
         data: A 2-dimensional numpy array.
@@ -23,8 +20,8 @@ class FrequencyTable(object):
 
         Arguments:
             data: A 2-dimensional numpy array.
-            cache_size: Set the size of a LRU cache for the frequency
-                counts. It is disabled by default, i.e. set to zero.
+            cache_size: Size of the LRU cache for the frequencies.
+                It is disabled by default, i.e. set to zero.
         """
         self.data = data
         self._cache_size = cache_size

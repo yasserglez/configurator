@@ -1,6 +1,4 @@
-"""
-Markov Decision Processes
-"""
+"""Dynamic Programming"""
 
 import os
 import types
@@ -126,7 +124,7 @@ class MDPSolver(object):
 
 
 class PolicyIteration(MDPSolver):
-    """MDP solver using (modified) policy iterantion.
+    """MDP solver using modified policy iterantion.
 
     The initial policy is the one that maximizes the expected
     immediate rewards. The algorithm terminates when the policy does
@@ -158,7 +156,7 @@ class PolicyIteration(MDPSolver):
         self._eval_max_iter = eval_max_iter
 
     def solve(self, mdp):
-        """Run the (modified) policy iteration algorithm.
+        """Run the modified policy iteration algorithm.
 
         Arguments:
             mdp: An MDP instance.

@@ -1,3 +1,1 @@
-"""
-Configurators Based on Sequences
-"""
+"""Sequence-Based Configuration Dialogs"""

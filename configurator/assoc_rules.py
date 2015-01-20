@@ -1,6 +1,4 @@
-"""
-Association Rule Mining
-"""
+"""Association Rule Mining"""
 
 from fim import apriori, fpgrowth
 

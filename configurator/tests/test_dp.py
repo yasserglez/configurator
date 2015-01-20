@@ -2,7 +2,7 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_raises
 
 from .examples import load_grid_world
-from ..mdp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
+from ..dp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 
 
 grid_world = load_grid_world()

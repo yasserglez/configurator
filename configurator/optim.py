@@ -1,3 +1,1 @@
-"""
-Optimization Methods
-"""
+"""Optimization Methods"""

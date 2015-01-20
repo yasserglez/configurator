@@ -5,9 +5,9 @@ import logging
 import numpy as np
 
 from .examples import load_email_client, load_titanic
-from .. import TrivialConfigurator
-from ..policy import MDPConfiguratorBuilder
-from ..util import (load_config_sample, simulate_configurator,
+from ..base import TrivialConfigDialog
+from ..policy import DPConfigDialogBuilder
+from ..util import (load_config_sample, simulate_dialog,
                     cross_validation, measure_scalability)
 
 
@@ -28,36 +28,36 @@ def test_load_config_sample():
         assert len(loaded_j_labels) == len(original_j_labels)
 
 
-def _test_simulate_configurator(builder_class):
+def _test_simulate_dialog(builder_class):
     print("", file=sys.stderr)  # newline before the logging output
     email_client = load_email_client()
     builder = builder_class(
         config_sample=email_client.config_sample,
         assoc_rule_min_support=email_client.min_support,
         assoc_rule_min_confidence=email_client.min_confidence)
-    configurator = builder.build_configurator()
+    dialog = builder.build_dialog()
     config = {1: "lgi", 0: "no"}
-    accuracy, questions = simulate_configurator(configurator, config)
+    accuracy, questions = simulate_dialog(dialog, config)
     assert (accuracy, questions) == (1.0, 0.5)
     config = {1: "lgi", 0: "yes"}
-    accuracy, questions = simulate_configurator(configurator, config)
+    accuracy, questions = simulate_dialog(dialog, config)
     assert (accuracy, questions) == (0.5, 0.5)
     config = {1: "smi", 0: "no"}
-    accuracy, questions = simulate_configurator(configurator, config)
+    accuracy, questions = simulate_dialog(dialog, config)
     assert (accuracy, questions) == (1.0, 1.0)
     config = {1: "smi", 0: "yes"}
-    accuracy, questions = simulate_configurator(configurator, config)
+    accuracy, questions = simulate_dialog(dialog, config)
     assert (accuracy, questions) == (1.0, 1.0)
 
 
-def test_simulate_mdp_policy_configurator():
-    _test_simulate_configurator(MDPConfiguratorBuilder)
+def test_simulate_mdp_policy_dialog():
+    _test_simulate_dialog(DPConfigDialogBuilder)
 
 
-def test_simulate_trivial_configurator():
+def test_simulate_trivial_dialog():
     email_client = load_email_client()
-    configurator = TrivialConfigurator(email_client.config_values)
-    result = simulate_configurator(configurator, email_client.config)
+    dialog = TrivialConfigDialog(email_client.config_values)
+    result = simulate_dialog(dialog, email_client.config)
     assert result == (1.0, 1.0)
 
 
@@ -66,7 +66,7 @@ def test_cross_validation():
     email_client = load_email_client()
     n_folds = 10
     random_state = 42
-    builder_class = MDPConfiguratorBuilder
+    builder_class = DPConfigDialogBuilder
     builder_kwargs = {"assoc_rule_min_support": email_client.min_support,
                       "assoc_rule_min_confidence": email_client.min_confidence}
     df = cross_validation(n_folds, random_state, builder_class,
@@ -93,12 +93,12 @@ def _test_measure_scalability(builder_class, builder_kwargs):
 
 def _test_scalability_mdp(algorithm, discard_states,
                           partial_assoc_rules, collapse_terminals):
-    builder_class = MDPConfiguratorBuilder
-    builder_kwargs = {"mdp_algorithm": algorithm,
-                      "mdp_discard_states": discard_states,
-                      "mdp_partial_assoc_rules": partial_assoc_rules,
-                      "mdp_collapse_terminals": collapse_terminals,
-                      "mdp_validate": True}
+    builder_class = DPConfigDialogBuilder
+    builder_kwargs = {"dp_algorithm": algorithm,
+                      "dp_discard_states": discard_states,
+                      "dp_partial_assoc_rules": partial_assoc_rules,
+                      "dp_collapse_terminals": collapse_terminals,
+                      "dp_validate": True}
     _test_measure_scalability(builder_class, builder_kwargs)
 
 

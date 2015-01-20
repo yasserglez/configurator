@@ -18,22 +18,23 @@ def update_version(init_py_file):
     with open(init_py_file) as f:
         init_py = f.read()
     os.unlink(init_py_file)  # might be a hard link
-    init_py = init_py.replace("version = None",
-                              'version = "{0}"'.format(version))
+    init_py = init_py.replace("version=None", 'version="{0}"'.format(version))
     with open(init_py_file, "w") as f:
         f.write(init_py)
 
 
+# Overwrite to call update_version
 class custom_sdist(sdist):
-    # Call update_version
+
     def make_release_tree(self, base_dir, files):
         sdist.make_release_tree(self, base_dir, files)
         init_py_file = os.path.join(base_dir, "configurator/__init__.py")
         update_version(init_py_file)
 
 
+# Overwrite to call update_version
 class custom_build(build):
-    # Call update_version
+
     def run(self):
         build.run(self)
         init_py_file = os.path.join(self.build_lib, "configurator/__init__.py")
@@ -42,7 +43,7 @@ class custom_build(build):
 
 setup(name="configurator",
       version=version,
-      description="Configurator",
+      description="Adaptive Configuration Dialogs",
       long_description=long_description,
       author="Yasser Gonzalez",
       author_email="yasserglez@gmail.com",
@@ -58,7 +59,7 @@ setup(name="configurator",
           "pymdptoolbox >= 4.0-b3",
       ],
       dependency_links=[
-          "http://www.borgelt.net/src/pyfim.tar.gz#egg=pyfim",
+          "http://www.borgelt.net/src/pyfim.tar.gz",
       ],
       classifiers=[
           "Programming Language :: Python :: 3 :: Only",
