@@ -108,11 +108,9 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
     builder_kwargs = builder_kwargs.copy()
     builder_kwargs["config_values"] = config_values
     # Initialize the output df and collect the statistics.
-    result = pd.DataFrame({"fold": range(1, n_folds + 1),
-                           "accuracy_mean": 0.0, "accuracy_std": 0.0,
-                           "questions_mean": 0.0, "questions_std": 0.0})
-    result = result[["fold", "accuracy_mean", "accuracy_std",
-                     "questions_mean", "questions_std"]]
+    result = pd.DataFrame(np.zeros((n_folds, 4)),
+                          columns=["accuracy_mean", "accuracy_std",
+                                   "questions_mean", "questions_std"])
     k = 0  # current fold index
     folds = KFold(config_sample.shape[0], n_folds=n_folds,
                   shuffle=True, random_state=random_state)
