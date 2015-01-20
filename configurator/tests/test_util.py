@@ -11,8 +11,7 @@ from ..util import (load_config_sample, simulate_dialog,
                     cross_validation, measure_scalability)
 
 
-logging.basicConfig(format="%(asctime)s:%(name)s:%(funcName)s:%(message)s",
-                    level=logging.DEBUG)
+logging.basicConfig(format="%(asctime)s:%(message)s", level=logging.DEBUG)
 
 
 def test_load_config_sample():

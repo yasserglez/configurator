@@ -15,6 +15,9 @@ from .freq_table import FrequencyTable
 from .assoc_rules import AssociationRuleMiner
 
 
+log = logging.getLogger(__name__)
+
+
 class ConfigDialog(object):
     """Base configuration dialog.
 
@@ -178,7 +181,6 @@ class ConfigDialogBuilder(object):
         self._assoc_rule_algorithm = assoc_rule_algorithm
         self._assoc_rule_min_support = assoc_rule_min_support
         self._assoc_rule_min_confidence = assoc_rule_min_confidence
-        self._logger = logging.getLogger(self.__class__.__name__)
 
     def build_dialog():
         """Construct a configuration dialog.
@@ -204,20 +206,17 @@ class ConfigDialogBuilder(object):
 
     def _mine_rules(self):
         # Mine the association rules.
-        self._logger.debug("mining association rules")
+        log.debug("mining association rules")
         miner = AssociationRuleMiner(self._config_sample)
         rules = miner.mine_assoc_rules(self._assoc_rule_min_support,
                                        self._assoc_rule_min_confidence,
                                        algorithm=self._assoc_rule_algorithm)
-        if self._logger.isEnabledFor(logging.DEBUG):
-            self._logger.debug("found %d rules", len(rules))
-            if rules:
-                supp = [rule.support for rule in rules]
-                self._logger.debug("support values in [%.2f,%.2f]",
-                                   min(supp), max(supp))
-                conf = [rule.confidence for rule in rules]
-                self._logger.debug("confidence values in [%.2f,%.2f]",
-                                   min(conf), max(conf))
+        log.debug("found %d rules", len(rules))
+        if rules:
+            supp = [rule.support for rule in rules]
+            log.debug("support values in [%.2f,%.2f]", min(supp), max(supp))
+            conf = [rule.confidence for rule in rules]
+            log.debug("confidence values in [%.2f,%.2f]", min(conf), max(conf))
         # Merge rules with the same lhs. If two rules have
         # contradictory rhs, the rule with the greatest confidence
         # takes precedence.
@@ -228,9 +227,8 @@ class ConfigDialogBuilder(object):
             rules_dict[lhs_key].add(rule)
         merged_rules = [reduce(self._merge_rules, grouped_rules)
                         for grouped_rules in rules_dict.values()]
-        self._logger.debug("turned into %d rules after merging",
-                           len(merged_rules))
-        self._logger.debug("finished mining association rules")
+        log.debug("turned into %d rules after merging", len(merged_rules))
+        log.debug("finished mining association rules")
         # Return the merged rules.
         return merged_rules
 

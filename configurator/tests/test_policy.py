@@ -5,8 +5,7 @@ from .examples import load_email_client
 from ..policy import DPConfigDialogBuilder
 
 
-logging.basicConfig(format="%(asctime)s:%(name)s:%(funcName)s:%(message)s",
-                    level=logging.DEBUG)
+logging.basicConfig(format="%(asctime)s:%(message)s", level=logging.DEBUG)
 
 
 EMAIL_CLIENT = load_email_client()

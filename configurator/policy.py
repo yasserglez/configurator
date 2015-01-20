@@ -1,12 +1,16 @@
 """Policy-Based Configuration Dialogs"""
 
 import itertools
+import logging
 
 import igraph
 from scipy import sparse
 
 from .base import ConfigDialog, TrivialConfigDialog, ConfigDialogBuilder
 from .dp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
+
+
+log = logging.getLogger(__name__)
 
 
 class PolicyConfigDialog(ConfigDialog):
@@ -108,7 +112,7 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
             A PolicyConfigDialog instance if at least one association
             rule is discovered, otherwise a TrivialConfigDialog instance.
         """
-        self._logger.debug("building the MDP")
+        log.debug("building the MDP")
         # Build the initial graph.
         graph = self._build_graph()
         # Update the graph using the association rules.
@@ -117,10 +121,10 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
             self._update_graph(graph, rules)
             # Transform the graph into MDP components.
             mdp = self._transform_graph_to_mdp(graph)
-            self._logger.debug("finished building the MDP")
-            self._logger.debug("solving the MDP")
+            log.debug("finished building the MDP")
+            log.debug("solving the MDP")
             policy = self._solver.solve(mdp)
-            self._logger.debug("finished solving the MDP")
+            log.debug("finished solving the MDP")
             # Create the PolicyConfigDialog instance.
             policy = {frozenset(graph.vs[s]["state"].items()): a
                       for s, a in policy.items()}
@@ -134,20 +138,20 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
         # Build the graph that is used to compute the transition and
         # reward matrices of the MDP. The initial graph built here is
         # updated later using the association rules in _update_graph.
-        self._logger.debug("building the initial graph")
+        log.debug("building the initial graph")
         graph = igraph.Graph(directed=True)
         self._add_graph_nodes(graph)
         self._add_graph_edges(graph)
-        self._logger.debug("built a graph with %d nodes and %d edges",
-                           graph.vcount(), graph.ecount())
-        self._logger.debug("finished building the initial graph")
+        log.debug("built a graph with %d nodes and %d edges",
+                  graph.vcount(), graph.ecount())
+        log.debug("finished building the initial graph")
         return graph
 
     def _transform_graph_to_mdp(self, graph):
         # Generate the transition and reward matrices from the graph.
-        self._logger.debug("transforming the graph into the MDP")
+        log.debug("transforming the graph into the MDP")
         S, A = graph.vcount(), len(self._config_values)
-        self._logger.debug("the MDP has %d states and %d actions", S, A)
+        log.debug("the MDP has %d states and %d actions", S, A)
         transitions = [sparse.lil_matrix((S, S)) for a in range(A)]
         rewards = [sparse.lil_matrix((S, S)) for a in range(A)]
         for e in graph.es:
@@ -171,12 +175,12 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
         else:
             mdp = MDP(transitions, rewards, discount_factor=1.0,
                       validate=self._dp_validate)
-        self._logger.debug("finished transforming the graph into the MDP")
+        log.debug("finished transforming the graph into the MDP")
         return mdp
 
     def _add_graph_nodes(self, graph):
         # Add one node for each possible configuration state.
-        self._logger.debug("adding nodes")
+        log.debug("adding nodes")
         config_values = [[None] + values for values in self._config_values]
         num_vars = len(self._config_values)
         for state_values in itertools.product(*config_values):
@@ -197,18 +201,18 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
             # configuration values are known. It will be the terminal
             # state in EpisodicMDP.
             graph.add_vertex(state=None, state_len=num_vars)
-        self._logger.debug("finishing adding nodes")
+        log.debug("finishing adding nodes")
 
     def _add_graph_edges(self, graph):
         # Add the initial graph edges: loop edges for the known
         # variables and one-step transitions.
-        self._logger.debug("adding edges")
+        log.debug("adding edges")
         self._add_loop_edges(graph)
         self._add_one_step_edges(graph)
-        self._logger.debug("finished adding edges")
+        log.debug("finished adding edges")
 
     def _add_loop_edges(self, graph):
-        self._logger.debug("adding loop edges")
+        log.debug("adding loop edges")
         # Add loop edges for the known variables.
         num_vars = len(self._config_values)
         edges, actions, rewards = [], [], []
@@ -234,10 +238,10 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
             graph.es[base_eid + i]["action"] = actions[i]
             graph.es[base_eid + i]["reward"] = rewards[i]
             graph.es[base_eid + i]["prob"] = 1.0
-        self._logger.debug("finished adding loop edges")
+        log.debug("finished adding loop edges")
 
     def _add_one_step_edges(self, graph):
-        self._logger.debug("adding one-step edges")
+        log.debug("adding one-step edges")
         # Add the one-step transition edges. Each edge is labelled with:
         # - the action corresponding to the variable that becomes known,
         # - the conditional probability of the variable taking the
@@ -271,7 +275,7 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
             graph.es[base_eid + i]["action"] = actions[i]
             graph.es[base_eid + i]["reward"] = 0
             graph.es[base_eid + i]["prob"] = probs[i]
-        self._logger.debug("finished adding one-step edges")
+        log.debug("finished adding one-step edges")
 
     def _is_one_step_transition(self, v, w):
         # Check v and w represent a one-step transition, i.e. from a
@@ -292,7 +296,7 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
 
     def _update_graph(self, graph, rules):
         # Update the graph using the association rules.
-        self._logger.debug("updating the graph using the association rules")
+        log.debug("updating the graph using the association rules")
         inaccessible_vertices = []
         for rule in rules:
             # It doesn't make sense to apply the rule in a terminal
@@ -320,11 +324,11 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
         # Remove the inaccesible vertices.
         if self._dp_discard_states:
             graph.delete_vertices(inaccessible_vertices)
-        self._logger.debug("found %d applications of %d rules",
-                           len(inaccessible_vertices), len(rules))
-        self._logger.debug("turned into a graph with %d nodes and %d edges",
-                           graph.vcount(), graph.ecount())
-        self._logger.debug("finished updating the graph")
+        log.debug("found %d applications of %d rules",
+                  len(inaccessible_vertices), len(rules))
+        log.debug("turned into a graph with %d nodes and %d edges",
+                  graph.vcount(), graph.ecount())
+        log.debug("finished updating the graph")
 
     def _update_graph_cond_a(self, rule, s_or_sp):
         # (a) variables in lhs have known and same options in S and S'.
