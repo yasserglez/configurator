@@ -56,7 +56,6 @@ setup(name="configurator",
           "python-igraph >= 0.7",
           "sortedcontainers >= 0.9.4",
           "pymdptoolbox >= 4.0-b3",
-          "pyfim",
       ],
       dependency_links=[
           "http://www.borgelt.net/src/pyfim.tar.gz#egg=pyfim",
