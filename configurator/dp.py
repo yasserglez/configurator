@@ -171,7 +171,7 @@ class PolicyIteration(MDPSolver):
         # discount factor of 1.0.
         with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
             pi = _PolicyIteration(P, R, gamma, max_iter=self._max_iter,
-                                  eval_type="iterative")
+                                  eval_type="iterative", skip_check=True)
         # Monkey-patch the _evalPoicyIterative method to change the
         # default values for epsilon and max_iter.
         original = pi._evalPolicyIterative
@@ -225,7 +225,8 @@ class ValueIteration(MDPSolver):
         # Prevent pymdptoolbox from printing a warning about using a
         # discount factor of 1.0.
         with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
-            vi = _ValueIteration(P, R, gamma, self._epsilon, self._max_iter)
+            vi = _ValueIteration(P, R, gamma, self._epsilon,
+                                 self._max_iter, skip_check=True)
         vi.run()
         policy = {s: a for s, a in enumerate(vi.policy)
                   if (not isinstance(mdp, EpisodicMDP) or
