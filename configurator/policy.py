@@ -249,9 +249,19 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
         # - a reward of zero (we asked one question and we got a
         #   response, no variables were automatically discovered).
         num_vars = len(self._config_values)
+        # Build an index of the states by the number of known
+        # variables to accelerate the igraph query in the nested for
+        # loop. This could be moved to the _add_graph_nodes function
+        # to make it faster.
+        state_len_index = {}
+        for v in graph.vs:
+            state_len = v["state_len"]
+            if state_len not in state_len_index:
+                state_len_index[state_len] = []
+            state_len_index[state_len].append(v.index)
         edges, actions, probs = [], [], []
         for v in graph.vs(state_len_ne=num_vars):
-            for w in graph.vs.select(state_len=v["state_len"] + 1):
+            for w in graph.vs.select(state_len_index[v["state_len"] + 1]):
                 if self._is_one_step_transition(v, w):
                     edges.append((v.index, w.index))
                     v_config = set(v["state"].keys())
