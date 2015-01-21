@@ -110,42 +110,6 @@ class ConfigDialog(object):
         return len(self.config) == len(self.config_values)
 
 
-class TrivialConfigDialog(ConfigDialog):
-    """Trivial configuration dialog.
-
-    Configuration dialog that always asks the questions in the trivial
-    sequential order.
-    """
-
-    def __init__(self, config_values):
-        """Initialize a new instance.
-
-        See ConfigDialog for more information.
-        """
-        super().__init__(config_values)
-
-    def reset(self):
-        """Reset the configurator to the initial state.
-
-        See ConfigDialog for more information.
-        """
-        super().reset()
-        self._next_question = 0
-
-    def set_answer(self, var_index, var_value):
-        """Set the value of a configuration variable.
-
-        See ConfigDialog for more information.
-        """
-        super().set_answer(var_index, var_value)
-        self._next_question += 1
-
-    def get_next_question(self):
-        """Get the question that should be asked next.
-        """
-        return self._next_question
-
-
 class ConfigDialogBuilder(object):
     """Base configuration dialog builder.
     """

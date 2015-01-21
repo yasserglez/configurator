@@ -5,7 +5,6 @@ import logging
 import numpy as np
 
 from .examples import load_email_client, load_titanic
-from ..base import TrivialConfigDialog
 from ..policy import DPConfigDialogBuilder
 from ..util import (load_config_sample, simulate_dialog,
                     cross_validation, measure_scalability)
@@ -25,13 +24,6 @@ def test_load_config_sample():
         original_j_labels = np.unique(original_sample[:, j])
         loaded_j_labels = np.unique(loaded_sample[:, j])
         assert len(loaded_j_labels) == len(original_j_labels)
-
-
-def test_simulate_trivial_dialog():
-    email_client = load_email_client()
-    dialog = TrivialConfigDialog(email_client.config_values)
-    result = simulate_dialog(dialog, email_client.config)
-    assert result == (1.0, 1.0)
 
 
 def _test_simulate_dialog(builder_class):

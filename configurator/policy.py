@@ -6,7 +6,7 @@ import logging
 import igraph
 from scipy import sparse
 
-from .base import ConfigDialog, TrivialConfigDialog, ConfigDialogBuilder
+from .base import ConfigDialog, ConfigDialogBuilder
 from .dp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 
 
@@ -109,29 +109,24 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
         """Construct a configuration dialog.
 
         Returns:
-            A PolicyConfigDialog instance if at least one association
-            rule is discovered, otherwise a TrivialConfigDialog instance.
+            A PolicyConfigDialog instance.
         """
         log.debug("building the MDP")
         # Build the initial graph.
         graph = self._build_graph()
         # Update the graph using the association rules.
         rules = self._mine_rules()
-        if rules:
-            self._update_graph(graph, rules)
-            # Transform the graph into MDP components.
-            mdp = self._transform_graph_to_mdp(graph)
-            log.debug("finished building the MDP")
-            log.debug("solving the MDP")
-            policy = self._solver.solve(mdp)
-            log.debug("finished solving the MDP")
-            # Create the PolicyConfigDialog instance.
-            policy = {frozenset(graph.vs[s]["state"].items()): a
-                      for s, a in policy.items()}
-            dialog = PolicyConfigDialog(self._config_values, rules, policy)
-        else:
-            # There are no rules. Build a trivial dialog.
-            dialog = TrivialConfigDialog(self._config_values)
+        self._update_graph(graph, rules)
+        # Transform the graph into MDP components.
+        mdp = self._transform_graph_to_mdp(graph)
+        log.debug("finished building the MDP")
+        log.debug("solving the MDP")
+        policy = self._solver.solve(mdp)
+        log.debug("finished solving the MDP")
+        # Create the PolicyConfigDialog instance.
+        policy = {frozenset(graph.vs[s]["state"].items()): a
+                  for s, a in policy.items()}
+        dialog = PolicyConfigDialog(self._config_values, rules, policy)
         return dialog
 
     def _build_graph(self):
