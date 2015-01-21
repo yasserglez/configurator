@@ -4,6 +4,7 @@ These classes are not intented to be instantiated directly, see
 configurator.policy and configurator.sequence instead.
 """
 
+import math
 import logging
 from collections import defaultdict
 from functools import reduce
@@ -136,12 +137,18 @@ class ConfigDialogBuilder(object):
             assoc_rule_min_confidence: Minimum confidence in [0,1].
         """
         super().__init__()
+        if config_values is None:
+            config_values = [list(SortedSet(config_sample[:, i]))
+                             for i in range(config_sample.shape[1])]
+        self._config_values = config_values
+        config_card = reduce(mul, map(len, self._config_values))
+        log.debug("%d possible configurations of %d variables (%d binary)",
+                  config_card, len(self._config_values),
+                  math.ceil(math.log2(config_card)))
         self._config_sample = config_sample
         self._freq_tab = FrequencyTable(self._config_sample, cache_size=1000)
-        if config_values is None:
-            config_values = [list(SortedSet(self._config_sample[:, i]))
-                             for i in range(self._config_sample.shape[1])]
-        self._config_values = config_values
+        log.debug("the configuration sample has %d observations",
+                  self._config_sample.shape[0])
         self._assoc_rule_algorithm = assoc_rule_algorithm
         self._assoc_rule_min_support = assoc_rule_min_support
         self._assoc_rule_min_confidence = assoc_rule_min_confidence
