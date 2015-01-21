@@ -27,6 +27,13 @@ def test_load_config_sample():
         assert len(loaded_j_labels) == len(original_j_labels)
 
 
+def test_simulate_trivial_dialog():
+    email_client = load_email_client()
+    dialog = TrivialConfigDialog(email_client.config_values)
+    result = simulate_dialog(dialog, email_client.config)
+    assert result == (1.0, 1.0)
+
+
 def _test_simulate_dialog(builder_class):
     print("", file=sys.stderr)  # newline before the logging output
     email_client = load_email_client()
@@ -49,15 +56,8 @@ def _test_simulate_dialog(builder_class):
     assert (accuracy, questions) == (1.0, 1.0)
 
 
-def test_simulate_mdp_policy_dialog():
+def test_simulate_dp_policy_dialog():
     _test_simulate_dialog(DPConfigDialogBuilder)
-
-
-def test_simulate_trivial_dialog():
-    email_client = load_email_client()
-    dialog = TrivialConfigDialog(email_client.config_values)
-    result = simulate_dialog(dialog, email_client.config)
-    assert result == (1.0, 1.0)
 
 
 def test_cross_validation():
