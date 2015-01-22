@@ -270,8 +270,8 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
                         # going to take her/him to the terminal state.
                         probs.append(1.0)
                     else:
-                        var_value = w["state"][var_index]
-                        prob = self._cond_prob({var_index: var_value}, v["state"])
+                        response = {var_index: w["state"][var_index]}
+                        prob = self._freq_tab.cond_prob(response, v["state"])
                         probs.append(prob)
         # This is faster than using graph.add_edge one at a time.
         base_eid = graph.ecount()

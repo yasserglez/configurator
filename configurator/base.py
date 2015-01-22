@@ -10,7 +10,7 @@ from collections import defaultdict
 from functools import reduce
 from operator import mul
 
-from sortedcontainers import SortedSet, SortedListWithKey
+from sortedcontainers import SortedListWithKey
 
 from .freq_table import FrequencyTable
 from .assoc_rules import AssociationRuleMiner
@@ -127,9 +127,8 @@ class ConfigDialogBuilder(object):
                 sample of the configuration variables.
             config_values: A list with one entry for each variable,
                 containing an enumerable with all the possible values
-                of the variable. If it is not given, it is
-                automatically computed from the columns of
-                config_sample.
+                of the variable. If it is not given, it is computed
+                from config_sample.
             assoc_rule_algorithm: Algorithm for mining the frequent
                 item sets. Possible values are: 'apriori' (default)
                 and 'fp-growth'.
@@ -137,16 +136,14 @@ class ConfigDialogBuilder(object):
             assoc_rule_min_confidence: Minimum confidence in [0,1].
         """
         super().__init__()
-        if config_values is None:
-            config_values = [list(SortedSet(config_sample[:, i]))
-                             for i in range(config_sample.shape[1])]
-        self._config_values = config_values
+        self._freq_tab = FrequencyTable(config_sample, config_values,
+                                        cache_size=1000)
+        self._config_sample = self._freq_tab.var_sample
+        self._config_values = self._freq_tab.var_values
         config_card = reduce(mul, map(len, self._config_values))
         log.debug("%d possible configurations of %d variables (%d binary)",
                   config_card, len(self._config_values),
                   math.ceil(math.log2(config_card)))
-        self._config_sample = config_sample
-        self._freq_tab = FrequencyTable(self._config_sample, cache_size=1000)
         log.debug("the configuration sample has %d observations",
                   self._config_sample.shape[0])
         self._assoc_rule_algorithm = assoc_rule_algorithm
@@ -160,20 +157,6 @@ class ConfigDialogBuilder(object):
             An instance of a ConfigDialog subclass.
         """
         raise NotImplementedError()
-
-    def _cond_prob(self, x, y, add_one_smoothing=True):
-        # Conditional probability distributionn of x given y in the
-        # sample of the configuration variables. By default the
-        # frequencies are computed using add-one (Laplace) smoothing.
-        z = dict(x.items() | y.items())
-        num = self._freq_tab.count_freq(z)
-        den = self._freq_tab.count_freq(y)
-        if add_one_smoothing:
-            num += 1
-            x_card = [len(self._config_values[i]) for i in x.keys()]
-            den += reduce(mul, x_card)
-        prob = num / den
-        return prob
 
     def _mine_rules(self):
         # Mine the association rules.
