@@ -150,7 +150,7 @@ class ConfigDialogBuilder(object):
         self._assoc_rule_min_support = assoc_rule_min_support
         self._assoc_rule_min_confidence = assoc_rule_min_confidence
 
-    def build_dialog():
+    def build_dialog(self):
         """Construct a configuration dialog.
 
         Returns:
