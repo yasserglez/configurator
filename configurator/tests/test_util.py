@@ -10,7 +10,9 @@ from ..util import (load_config_sample, simulate_dialog,
                     cross_validation, measure_scalability)
 
 
-logging.basicConfig(format="%(asctime)s:%(message)s", level=logging.DEBUG)
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+logger.handlers[0].setFormatter(logging.Formatter("%(asctime)s:%(message)s"))
 
 
 def test_load_config_sample():
