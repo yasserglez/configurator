@@ -3,10 +3,14 @@ from collections import namedtuple
 
 import numpy as np
 
+from ..util import load_config_sample
+
+
+TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
+
 
 def _load_csv(csv_file):
-    tests_dir = os.path.abspath(os.path.dirname(__file__))
-    return np.genfromtxt(os.path.join(tests_dir, csv_file), delimiter=",",
+    return np.genfromtxt(os.path.join(TESTS_DIR, csv_file), delimiter=",",
                          skip_header=True, dtype=np.dtype(str))
 
 
@@ -99,7 +103,7 @@ def load_grid_world():
     return grid_world
 
 
-def load_email_client():
+def load_email_client(as_integers=False):
     # Small example of the configuration of an email client presented in:
     # Saeideh Hamidi. Automating Software Customization via
     # Crowdsourcing using Association Rule Mining and Markov Decision
@@ -108,8 +112,15 @@ def load_email_client():
     # Table 2 - Contingency Table of preferences in Email Client Example.
     # (The entry {disp=no,ico=lgi} was incorrectly labelled as 540
     # instead of 560 in the thesis. It was corrected in the CSV file.)
-    config_sample = _load_csv("email_client.csv")
-    config_values = [["yes", "no"], ["smi", "lgi"]]
+    csv_file = "email_client.csv"
+    if as_integers:
+        config_sample = load_config_sample(os.path.join(TESTS_DIR, csv_file))
+        config_values = [[0, 1], [0, 1]]
+        config = {0: 1, 1: 1}
+    else:
+        config_sample = _load_csv(csv_file)
+        config_values = [["yes", "no"], ["smi", "lgi"]]
+        config = {0: "no", 1: "lgi"}
 
     # Only one rule obtained with confidence 0.9 (page 46).
     min_supp, min_conf = 0.5, 0.9
@@ -118,7 +129,6 @@ def load_email_client():
     # answers ico=lgi it is possible to use the discovered association
     # rule to predict disp=no and only one question is needed.
     questions = [1]
-    config = {0: "no", 1: "lgi"}
 
     field_names = ["config_sample", "config_values", "min_support",
                    "min_confidence", "questions", "config"]
