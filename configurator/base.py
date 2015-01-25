@@ -5,6 +5,7 @@ configurator.policy and configurator.sequence instead.
 """
 
 import math
+import pprint
 import logging
 from collections import defaultdict
 from functools import reduce
@@ -165,12 +166,18 @@ class ConfigDialogBuilder(object):
         rules = miner.mine_assoc_rules(self._assoc_rule_min_support,
                                        self._assoc_rule_min_confidence,
                                        algorithm=self._assoc_rule_algorithm)
-        log.debug("found %d rules", len(rules))
-        if rules:
-            supp = [rule.support for rule in rules]
-            log.debug("support values in [%.2f,%.2f]", min(supp), max(supp))
-            conf = [rule.confidence for rule in rules]
-            log.debug("confidence values in [%.2f,%.2f]", min(conf), max(conf))
+        if log.isEnabledFor(logging.DEBUG):
+            if rules:
+                log.debug("found %d rule(s):\n%s",
+                          len(rules), pprint.pformat(rules))
+                supp = [rule.support for rule in rules]
+                log.debug("support values in [%.2f,%.2f]",
+                          min(supp), max(supp))
+                conf = [rule.confidence for rule in rules]
+                log.debug("confidence values in [%.2f,%.2f]",
+                          min(conf), max(conf))
+            else:
+                log.debug("no rules were found")
         # Merge rules with the same lhs. If two rules have
         # contradictory rhs, the rule with the greatest confidence
         # takes precedence.
