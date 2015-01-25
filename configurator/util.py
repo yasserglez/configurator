@@ -8,7 +8,6 @@ from operator import mul
 
 import numpy as np
 import pandas as pd
-from sortedcontainers import SortedSet
 from sklearn.cross_validation import KFold
 from sklearn.utils import check_random_state
 
@@ -118,7 +117,7 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
         (normalized by the total number of questions).
     """
     if config_values is None:
-        config_values = [list(SortedSet(config_sample[:, i]))
+        config_values = [list(set(config_sample[:, i]))
                          for i in range(config_sample.shape[1])]
     # Copy builder_kwargs to avoid inserting config_sample and
     # config_values into the original dict.
@@ -186,7 +185,7 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
         possible configurations.
     """
     if config_values is None:
-        config_values = [list(SortedSet(config_sample[:, i]))
+        config_values = [list(set(config_sample[:, i]))
                          for i in range(config_sample.shape[1])]
     # Copy builder_kwargs to avoid inserting config_sample and
     # config_values into the original dict.

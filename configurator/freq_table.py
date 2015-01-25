@@ -5,7 +5,6 @@ from operator import mul
 
 import numpy as np
 import pylru
-from sortedcontainers import SortedSet
 
 
 class FrequencyTable(object):
@@ -37,7 +36,7 @@ class FrequencyTable(object):
         """
         self.var_sample = var_sample
         if var_values is None:
-            var_values = [list(SortedSet(self.var_sample[:, i]))
+            var_values = [list(set(self.var_sample[:, i]))
                           for i in range(self.var_sample.shape[1])]
         self.var_values = var_values
         self._cache_size = cache_size
