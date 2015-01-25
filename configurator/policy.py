@@ -1,11 +1,11 @@
 """Policy-Based Configuration Dialogs"""
 
-import itertools
 import logging
 
 import igraph
 from scipy import sparse
 
+from .util import iter_config_states
 from .base import ConfigDialog, ConfigDialogBuilder
 from .dp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 from .rl import (ConfigDiagEnvironment, ConfigDiagTask,
@@ -179,15 +179,10 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
     def _add_graph_nodes(self, graph):
         # Add one node for each possible configuration state.
         log.debug("adding nodes")
-        config_values = [[None] + values for values in self._config_values]
         num_vars = len(self._config_values)
-        for state_values in itertools.product(*config_values):
-            # Since None goes first in config_values, the first state
-            # will have all the variables set to None (empty dict).
-            # It will be the initial state in EpisodicMDP.
-            state = {var_index: var_value
-                     for var_index, var_value in enumerate(state_values)
-                     if var_value is not None}
+        for state in iter_config_states(self._config_values):
+            # The first state will be an empty dict. It will be the
+            # initial state in EpisodicMDP.
             state_len = len(state)  # cached to be used in igraph's queries
             if state_len != num_vars or not self._dp_collapse_terminals:
                 # If it's a terminal state the vertex is added only if
@@ -469,15 +464,9 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
         V = table.params.reshape(env.num_states, env.num_actions)
         policy_array = V.argmax(1)
         policy_dict = {}
-        state_index = 0
-        all_config = [[None] + values for values in self._config_values]
-        for state_values in itertools.product(*all_config):
-            state = {var_index: var_value
-                     for var_index, var_value in enumerate(state_values)
-                     if var_value is not None}
-            if len(state) != len(self._config_values):
-                state_key = frozenset(state.items())
-                policy_dict[state_key] = int(policy_array[state_index])
-                state_index += 1
+        non_terminals = iter_config_states(self._config_values, True)
+        for i, state in enumerate(non_terminals):
+            state_key = frozenset(state.items())
+            policy_dict[state_key] = int(policy_array[i])
         dialog = PolicyConfigDialog(self._config_values, rules, policy_dict)
         return dialog

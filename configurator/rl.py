@@ -2,7 +2,6 @@
 
 import logging
 import pprint
-import itertools
 from functools import reduce
 from operator import mul
 
@@ -14,6 +13,8 @@ from pybrain.rl.learners.valuebased import ActionValueTable  # noqa
 from pybrain.rl.explorers.discrete.egreedy import EpsilonGreedyExplorer  # noqa
 from pybrain.rl.agents import LearningAgent  # noqa
 from pybrain.rl.experiments import EpisodicExperiment  # noqa
+
+from .util import iter_config_states
 
 
 log = logging.getLogger(__name__)
@@ -112,30 +113,24 @@ class ConfigDiagTask(EpisodicTask):
 
     def getObservation(self):
         log.debug("computing the observation in the task")
-        config = self.env.getSensors()
+        state = self.env.getSensors()
         # Compute the state index.
-        if len(config) == 0:
+        if len(state) == 0:
             # The initial state has the first index.
             state_index = 0
-        elif len(config) == len(self.env.config_values):
+        elif len(state) == len(self.env.config_values):
             # The collapsed terminal state has the last index.
             state_index = self.env.num_states - 1
         else:
             # Find the position of the state amongst all the possible
             # configuration states. This is not efficient, but the
             # tabular version won't work for many variables anyway.
-            config_key = hash(frozenset(config.items()))
-            all_config = [[None] + values for values in self.env.config_values]
-            i = 0
-            for state_values in itertools.product(*all_config):
-                state = {var_index: var_value
-                         for var_index, var_value in enumerate(state_values)
-                         if var_value is not None}
-                if config_key == hash(frozenset(state.items())):
+            state_key = hash(frozenset(state.items()))
+            non_terminals = iter_config_states(self.env.config_values, True)
+            for i, state in enumerate(non_terminals):
+                if state_key == hash(frozenset(state.items())):
                     state_index = i
                     break
-                if len(state) != len(self.env.config_values):
-                    i += 1
         obs = [state_index]
         log.debug("observation in the task:\n%s", pprint.pformat(obs))
         return obs

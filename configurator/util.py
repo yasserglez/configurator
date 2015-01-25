@@ -2,6 +2,7 @@
 
 import math
 import time
+import itertools
 from functools import reduce
 from operator import mul
 
@@ -32,6 +33,25 @@ def load_config_sample(csv_file, dtype=np.uint8):
         df[column] = df[column].astype("category")
         config_sample[:, j] = df[column].cat.codes
     return config_sample
+
+
+def iter_config_states(config_values, exclude_terminals=False):
+    """Iterate through all configuration states.
+
+    Arguments:
+        config_values: A list with one entry for each variable,
+            containing an enumerable with all the possible values of
+            the variable.
+        exclude_terminals: Exclude states where all the variables are
+            known (default: False).
+    """
+    extended_values = [[None] + values for values in config_values]
+    for state_values in itertools.product(*extended_values):
+        state = {var_index: var_value
+                 for var_index, var_value in enumerate(state_values)
+                 if var_value is not None}
+        if len(state) != len(config_values) or not exclude_terminals:
+            yield state
 
 
 def simulate_dialog(dialog, config):
