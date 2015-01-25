@@ -2,10 +2,18 @@
 
 import logging
 import pprint
+import itertools
+from functools import reduce
+from operator import mul
 
 from scipy import stats
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
+from pybrain.rl.learners import Q as Q_, SARSA as SARSA_
+from pybrain.rl.learners.valuebased import ActionValueTable  # noqa
+from pybrain.rl.explorers.discrete.egreedy import EpsilonGreedyExplorer  # noqa
+from pybrain.rl.agents import LearningAgent  # noqa
+from pybrain.rl.experiments import EpisodicExperiment  # noqa
 
 
 log = logging.getLogger(__name__)
@@ -22,52 +30,66 @@ class ConfigDiagEnvironment(Environment):
     configuration state is updated (including variables discovered due
     to the association rules). The current configuration state is
     returned by getSensors.
+
+    Attributes:
+        num_states: The number of configuration states. All the
+            terminal states (i.e. where all the variables are known)
+            are represented by a single state.
+        num_actions: The number of actions, i.e. the number of variables.
     """
 
-    def __init__(self, config_values, freq_tab, rules):
+    def __init__(self, freq_tab, rules):
         """Initialize a new instance.
 
         Arguments:
-            config_values: A list with one entry for each variable,
-                containing an enumerable with all the possible values of
-                the variable.
             freq_tab: A FrequencyTable instance.
             rules: A list of AssociationRule instances.
         """
         super().__init__()
-        self.config_values = config_values
         self._freq_tab = freq_tab
         self._rules = rules
-        self.reset()
+        self.config_values = freq_tab.var_values
+        # One is added for the unknown value.
+        all_states = reduce(mul, map(lambda x: len(x) + 1, self.config_values))
+        terminal_states = reduce(mul, map(len, self.config_values))
+        self.num_states = all_states - terminal_states + 1
+        self.num_actions = len(self.config_values)
+        log.debug("the environment has %d states and %d actions",
+                  self.num_states, self.num_actions)
 
     def reset(self):
-        log.debug("configuration state reset")
+        log.debug("the configuration was reset in the environment")
         self.config = {}
 
     def getSensors(self):
-        log.debug("returning the configuration state in the environment:\n%s",
-                  pprint.pformat(self.config, width=60))
+        log.debug("configuration in the environment:\n%s",
+                  pprint.pformat(self.config))
         return self.config
 
     def performAction(self, action):
         log.debug("performing action %d in the environment", action)
-        # Simulate a user response.
-        var_index = action
-        values = []
-        for var_value in self.config_values[var_index]:
-            response = {var_index: var_value}
-            var_prob = self._freq_tab.cond_prob(response, self.config)
-            values.append((var_value, var_prob))
-        var_value = stats.rv_discrete(values=values).rvs()
-        log.debug("simulated user response %d", var_value)
-        # Update the configuration state with the new variable and
-        # apply the association rules.
-        self.config[var_index] = var_value
-        for rule in self._rules:
-            if rule.is_applicable(self.config):
-                rule.apply_rule(self.config)
-        log.debug("the new configuration state is:\n%s",
-                  pprint.pformat(self.config, width=60))
+        var_index = int(action)
+        if var_index in self.config:
+            # There's nothing to be done, the configuration state won't change.
+            log.debug("the variable is already known")
+        else:
+            # Simulate the user response.
+            values = []
+            for var_value in self.config_values[var_index]:
+                response = {var_index: var_value}
+                var_prob = self._freq_tab.cond_prob(response, self.config)
+                values.append((var_value, var_prob))
+            var_value = stats.rv_discrete(values=values).rvs()
+            log.debug("simulated user response %d", var_value)
+            # Update the configuration state with the new variable and
+            # apply the association rules.
+            self.config[var_index] = var_value
+            for rule in self._rules:
+                if rule.is_applicable(self.config):
+                    rule.apply_rule(self.config)
+            log.debug("the new configuration is:\n%s",
+                      pprint.pformat(self.config))
+        log.debug("finished performing action %d in the environment", action)
 
 
 class ConfigDiagTask(EpisodicTask):
@@ -81,44 +103,106 @@ class ConfigDiagTask(EpisodicTask):
             env: A ConfigDiagEnvironment instance.
         """
         super().__init__(env)
-        self._last_action_reward = None
+        self.lastreward = None
 
     def reset(self):
         super().reset()
-        self._last_action_reward = None
+        self.lastreward = None
         log.debug("the task was reset")
 
     def getObservation(self):
-        # TODO: What's the expected return value?
+        log.debug("computing the observation in the task")
         config = self.env.getSensors()
-        log.debug("returning the observation in the task")
-        return config
+        # Compute the state index.
+        if len(config) == 0:
+            # The initial state has the first index.
+            state_index = 0
+        elif len(config) == len(self.env.config_values):
+            # The collapsed terminal state has the last index.
+            state_index = self.env.num_states - 1
+        else:
+            # Find the position of the state amongst all the possible
+            # configuration states. This is not efficient, but the
+            # tabular version won't work for many variables anyway.
+            config_key = hash(frozenset(config.items()))
+            all_config = [[None] + values for values in self.env.config_values]
+            i = 0
+            for state_values in itertools.product(*all_config):
+                state = {var_index: var_value
+                         for var_index, var_value in enumerate(state_values)
+                         if var_value is not None}
+                if config_key == hash(frozenset(state.items())):
+                    state_index = i
+                    break
+                if len(state) != len(self.env.config_values):
+                    i += 1
+        obs = [state_index]
+        log.debug("observation in the task:\n%s", pprint.pformat(obs))
+        return obs
 
     def performAction(self, action):
         log.debug("performing action %d in the task", action)
-        var_index = action
-        if var_index in self.env.config:
-            log.debug("the question %d has already been answered", var_index)
-            # Asked one question but acquired no new information, so
-            # the reward is -1. This call isn't passed to the
-            # environment because it would sample a new answer for the
-            # question, moving the agent to a different state.
-            self._last_action_reward = -1
-        else:
-            vars_known_before = len(self.env.config)
-            self.env.performAction(action)
-            vars_known_after = len(self.env.config)
-            # The reward is the number of automatically discovered variables.
-            self._last_action_reward = (vars_known_after -
-                                        vars_known_before) - 1
+        num_known_vars_before = len(self.env.config)
+        self.env.performAction(action)
+        num_known_vars_after = len(self.env.config)
+        # The reward is the number of variables that were set minus
+        # the cost of asking the question.
+        self.lastreward = (num_known_vars_after - num_known_vars_before) - 1
+        self.cumreward += self.lastreward
+        self.samples += 1
+        log.debug("the computed reward is %d", self.lastreward)
+        log.debug("finished performing action %d in the task", action)
+
+    def addReward(self):
+        # The reward is added in performAction, overwriting and
+        # raising an exception to make sure this method is not called
+        # anywhere else in PyBrain.
+        raise NotImplementedError()
 
     def getReward(self):
-        log.debug("the reward for the last action is %d",
-                  self._last_action_reward)
-        return self._last_action_reward
+        log.debug("the reward for the last action is %d", self.lastreward)
+        return self.lastreward
 
     def isFinished(self):
         is_finished = len(self.env.config) == len(self.env.config_values)
         if is_finished:
-            log.debug("the current episode has finished")
+            log.debug("the episode has finished (total reward %d)",
+                      self.cumreward)
         return is_finished
+
+
+class _LearnFromLastMixin(object):
+
+    def learn(self):
+        # We need to process the reward for entering the terminal
+        # state. Let Q and SARSA process the complete episode first,
+        # and then process the last observation. We assume Q is zero
+        # for the terminal state.
+        super().learn()
+        if self.batchMode:
+            # This will only work if episodes are processed one by
+            # one, so ensure there's only one sequence.
+            assert self.dataset.getNumSequences() == 1
+            seq = next(iter(self.dataset))  # get the one and only
+            for laststate, lastaction, lastreward in seq:
+                # Skip all the way to the last.
+                pass
+            laststate = int(laststate)
+            lastaction = int(lastaction)
+            qvalue = self.module.getValue(laststate, lastaction)
+            new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
+            self.module.updateValue(laststate, lastaction, new_qvalue)
+
+
+class Q(_LearnFromLastMixin, Q_):
+    """Q-Learning."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class SARSA(_LearnFromLastMixin, SARSA_):
+    """SARSA."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)

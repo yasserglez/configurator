@@ -8,6 +8,9 @@ from scipy import sparse
 
 from .base import ConfigDialog, ConfigDialogBuilder
 from .dp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
+from .rl import (ConfigDiagEnvironment, ConfigDiagTask,
+                 ActionValueTable, Q, SARSA, EpsilonGreedyExplorer,
+                 LearningAgent, EpisodicExperiment)
 
 
 log = logging.getLogger(__name__)
@@ -283,11 +286,11 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
         log.debug("finished adding one-step edges")
 
     def _is_one_step_transition(self, v, w):
-        # Check v and w represent a one-step transition, i.e. from a
-        # state in which k-1 variables are known to a state where k
-        # variables are known (checked before the function is called).
-        # Also, v and w have to differ only in one variable (the one
-        # that becomes known after the question is asked).
+        # Check that v and w represent a one-step transition, i.e.
+        # from a state in which k-1 variables are known to a state
+        # where k variables are known (checked before the function is
+        # called). Also, v and w have to differ only in one variable
+        # (the one that becomes known after the question is asked).
         w_state = w["state"]
         if w_state is None:
             # Collapsed terminal state.
@@ -411,3 +414,70 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
             rewired_edges.append(e.index)
         # Remove the edges that were rewired.
         graph.delete_edges(rewired_edges)
+
+
+class RLConfigDialogBuilder(ConfigDialogBuilder):
+    """Build a configuration dialog using reinforcement learning.
+    """
+
+    def __init__(self, rl_algorithm="q-learning",
+                 rl_episodes=None,
+                 **kwargs):
+        """Initialize a new instance.
+
+        Arguments:
+            rl_algorithm: Reinforcement learning algorithm. Possible
+                values are: 'q-learning' (default) and 'sarsa'.
+            rl_episodes: Number of simulated episodes.
+
+        See ConfigDialogBuilder for the remaining arguments.
+        """
+        super().__init__(**kwargs)
+        if rl_algorithm in ("q-learning", "sarsa"):
+            self._rl_algorithm = rl_algorithm
+        else:
+            raise ValueError("Invalid rl_algorithm value")
+        self._rl_episodes = rl_episodes
+
+    def build_dialog(self):
+        """Construct a configuration dialog.
+
+        Returns:
+            An instance of a ConfigDialog subclass.
+        """
+        rules = self._mine_rules()
+        log.debug("running the RL algorithm")
+        env = ConfigDiagEnvironment(self._freq_tab, rules)
+        task = ConfigDiagTask(env)
+        table = ActionValueTable(env.num_states, env.num_actions)
+        table.initialize(-1.0)  # pessimistic initialization
+        # TODO: set the parameters of Q-learning and SARSA.
+        if self._rl_algorithm == "q-learning":
+            learner = Q(gamma=1.0)
+        elif self._rl_algorithm == "sarsa":
+            learner = SARSA(gamma=1.0)
+        # TODO: set the parameters of EpsilonGreedyExplorer.
+        learner.explorer = EpsilonGreedyExplorer()
+        agent = LearningAgent(table, learner)
+        exp = EpisodicExperiment(task, agent)
+        for i in range(self._rl_episodes):
+            exp.doEpisodes(number=1)
+            agent.learn()
+            agent.reset()
+        log.debug("finished running the RL algorithm")
+        # Create the PolicyConfigDialog instance.
+        V = table.params.reshape(env.num_states, env.num_actions)
+        policy_array = V.argmax(1)
+        policy_dict = {}
+        state_index = 0
+        all_config = [[None] + values for values in self._config_values]
+        for state_values in itertools.product(*all_config):
+            state = {var_index: var_value
+                     for var_index, var_value in enumerate(state_values)
+                     if var_value is not None}
+            if len(state) != len(self._config_values):
+                state_key = frozenset(state.items())
+                policy_dict[state_key] = int(policy_array[state_index])
+                state_index += 1
+        dialog = PolicyConfigDialog(self._config_values, rules, policy_dict)
+        return dialog
