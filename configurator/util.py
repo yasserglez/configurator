@@ -53,6 +53,22 @@ def iter_config_states(config_values, exclude_terminals=False):
             yield state
 
 
+def get_config_values(config_sample):
+    """Get the possible configuration values from the sample.
+
+    Arguments:
+        config_sample: A 2-dimensional numpy array containing a sample
+            of the configuration variables.
+
+    Returns:
+        A list with one entry for each variable, containing a list
+        with all the possible values of the variable.
+    """
+    config_values = [list(set(config_sample[:, i]))
+                     for i in range(config_sample.shape[1])]
+    return config_values
+
+
 def simulate_dialog(dialog, config):
     """Simulate a configuration dialog.
 
@@ -117,8 +133,7 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
         (normalized by the total number of questions).
     """
     if config_values is None:
-        config_values = [list(set(config_sample[:, i]))
-                         for i in range(config_sample.shape[1])]
+        config_values = get_config_values(config_sample)
     # Copy builder_kwargs to avoid inserting config_sample and
     # config_values into the original dict.
     builder_kwargs = builder_kwargs.copy()
@@ -185,8 +200,7 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
         possible configurations.
     """
     if config_values is None:
-        config_values = [list(set(config_sample[:, i]))
-                         for i in range(config_sample.shape[1])]
+        config_values = get_config_values(config_sample)
     # Copy builder_kwargs to avoid inserting config_sample and
     # config_values into the original dict.
     builder_kwargs = builder_kwargs.copy()

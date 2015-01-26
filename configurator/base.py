@@ -13,6 +13,7 @@ from operator import mul
 
 from sortedcontainers import SortedListWithKey
 
+from .util import get_config_values
 from .freq_table import FrequencyTable
 from .assoc_rules import AssociationRuleMiner
 
@@ -137,10 +138,13 @@ class ConfigDialogBuilder(object):
             assoc_rule_min_confidence: Minimum confidence in [0,1].
         """
         super().__init__()
-        self._freq_tab = FrequencyTable(config_sample, config_values,
+        self._config_sample = config_sample
+        if config_values is None:
+            config_values = get_config_values(config_sample)
+        self._config_values = config_values
+        self._freq_tab = FrequencyTable(self._config_sample,
+                                        self._config_values,
                                         cache_size=1000)
-        self._config_sample = self._freq_tab.var_sample
-        self._config_values = self._freq_tab.var_values
         config_card = reduce(mul, map(len, self._config_values))
         log.debug("%d possible configurations of %d variables (%d binary)",
                   config_card, len(self._config_values),

@@ -22,22 +22,18 @@ class FrequencyTable(object):
             the variable.
     """
 
-    def __init__(self, var_sample, var_values=None, cache_size=0):
+    def __init__(self, var_sample, var_values, cache_size=0):
         """Initialize a new instance.
 
         Arguments:
             var_sample: A 2-dimensional numpy array.
             var_values: A list with one entry for each variable,
                 containing an enumerable with all the possible values
-                of the variable. If it is not given, it is computed
-                from var_sample.
+                of the variable.
             cache_size: Size of the LRU cache for the frequencies.
                 It is disabled by default, i.e. set to zero.
         """
         self.var_sample = var_sample
-        if var_values is None:
-            var_values = [list(set(self.var_sample[:, i]))
-                          for i in range(self.var_sample.shape[1])]
         self.var_values = var_values
         self._cache_size = cache_size
         if self._cache_size > 0:
