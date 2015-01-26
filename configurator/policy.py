@@ -4,6 +4,7 @@ import logging
 
 import igraph
 from scipy import sparse
+from mdptoolbox.util import getSpan
 
 from .util import iter_config_states
 from .base import ConfigDialog, ConfigDialogBuilder
@@ -416,7 +417,8 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
     """
 
     def __init__(self, rl_algorithm="q-learning",
-                 rl_episodes=None,
+                 rl_episodes=100,
+                 rl_epsilon=0.001,
                  **kwargs):
         """Initialize a new instance.
 
@@ -433,6 +435,7 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
         else:
             raise ValueError("Invalid rl_algorithm value")
         self._rl_episodes = rl_episodes
+        self._rl_epsilon = rl_epsilon
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -445,7 +448,11 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
         env = ConfigDiagEnvironment(self._freq_tab, rules)
         task = ConfigDiagTask(env)
         table = ActionValueTable(env.num_states, env.num_actions)
-        table.initialize(0)
+        # Can't be initilized to anything greater than zero without
+        # changing PyBrain's internals. ActionValueTable chooses
+        # randomly among actions with the same Q value and it would
+        # choose many invalid actions.
+        table.initialize(-1)
         # TODO: set the parameters of Q-learning and SARSA.
         if self._rl_algorithm == "q-learning":
             learner = Q(gamma=1.0)
@@ -454,14 +461,20 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
         agent = ConfigDiagLearningAgent(env.num_states, env.num_actions,
                                         table, learner)
         exp = EpisodicExperiment(task, agent)
+        Vprev = table.params.reshape(env.num_states, env.num_actions).max(1)
         for i in range(self._rl_episodes):
             exp.doEpisodes(number=1)
             agent.learn(episodes=1)
             agent.reset()
+            # Check the stopping criterion.
+            V = table.params.reshape(env.num_states, env.num_actions).max(1)
+            Verror = getSpan(V - Vprev)
+            if Verror < self._rl_epsilon:
+                break
+            Vprev = V
         log.debug("finished running the RL algorithm")
         # Create the PolicyConfigDialog instance.
-        V = table.params.reshape(env.num_states, env.num_actions)
-        policy_array = V.argmax(1)
+        policy_array = table.params.reshape(env.num_states, env.num_actions).argmax(1)
         policy_dict = {}
         non_terminals = iter_config_states(self._config_values, True)
         for i, state in enumerate(non_terminals):

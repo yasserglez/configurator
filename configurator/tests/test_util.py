@@ -59,7 +59,7 @@ def test_simulate_dp_policy_dialog():
 
 
 def test_simulate_rl_policy_dialog():
-    builder_kwargs = {"rl_episodes": 10}
+    builder_kwargs = {}
     _test_simulate_dialog(RLConfigDialogBuilder, builder_kwargs)
 
 
@@ -122,8 +122,7 @@ def test_scalability_policy_iteration_with_optim():
 
 def _test_scalability_rl(algorithm):
     builder_class = RLConfigDialogBuilder
-    builder_kwargs = {"rl_algorithm": algorithm,
-                      "rl_episodes": 10}
+    builder_kwargs = {"rl_algorithm": algorithm}
     _test_measure_scalability(builder_class, builder_kwargs)
 
 
