@@ -83,7 +83,7 @@ def test_cross_validation():
 def _test_measure_scalability(builder_class, builder_kwargs):
     print("", file=sys.stderr)  # newline before the logging output
     random_state = 42; random.seed(random_state); np.random.seed(random_state)
-    config_sample = load_titanic()
+    config_sample = load_titanic(as_integers=True)
     builder_kwargs.update({"assoc_rule_min_support": 0.5,
                            "assoc_rule_min_confidence": 0.9})
     df = measure_scalability(random_state, builder_class,
@@ -93,8 +93,8 @@ def _test_measure_scalability(builder_class, builder_kwargs):
     assert (df["cpu_time"] > 0).all()
 
 
-def _test_scalability_mdp(algorithm, discard_states,
-                          partial_assoc_rules, collapse_terminals):
+def _test_scalability_dp(algorithm, discard_states,
+                         partial_assoc_rules, collapse_terminals):
     builder_class = DPConfigDialogBuilder
     builder_kwargs = {"dp_algorithm": algorithm,
                       "dp_discard_states": discard_states,
@@ -105,16 +105,31 @@ def _test_scalability_mdp(algorithm, discard_states,
 
 
 def test_scalability_value_iteration_without_optim():
-    _test_scalability_mdp("value-iteration", False, False, False)
+    _test_scalability_dp("value-iteration", False, False, False)
 
 
 def test_scalability_policy_iteration_without_optim():
-    _test_scalability_mdp("policy-iteration", False, False, False)
+    _test_scalability_dp("policy-iteration", False, False, False)
 
 
 def test_scalability_value_iteration_with_optim():
-    _test_scalability_mdp("value-iteration", True, True, True)
+    _test_scalability_dp("value-iteration", True, True, True)
 
 
 def test_scalability_policy_iteration_with_optim():
-    _test_scalability_mdp("policy-iteration", True, True, True)
+    _test_scalability_dp("policy-iteration", True, True, True)
+
+
+def _test_scalability_rl(algorithm):
+    builder_class = RLConfigDialogBuilder
+    builder_kwargs = {"rl_algorithm": algorithm,
+                      "rl_episodes": 10}
+    _test_measure_scalability(builder_class, builder_kwargs)
+
+
+def test_scalability_qlearning():
+    _test_scalability_rl("q-learning")
+
+
+def test_scalability_sarsa():
+    _test_scalability_rl("sarsa")
