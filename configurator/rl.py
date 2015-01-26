@@ -5,13 +5,16 @@ import pprint
 from functools import reduce
 from operator import mul
 
+import numpy as np
 from scipy import stats
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
+from pybrain.rl.agents import LearningAgent
 from pybrain.rl.learners import Q as Q_, SARSA as SARSA_
+from pybrain.rl.explorers.discrete.egreedy import \
+    EpsilonGreedyExplorer as EpsilonGreedyExplorer_
 from pybrain.rl.learners.valuebased import ActionValueTable  # noqa
-from pybrain.rl.explorers.discrete.egreedy import EpsilonGreedyExplorer  # noqa
-from pybrain.rl.agents import LearningAgent  # noqa
+
 from pybrain.rl.experiments import EpisodicExperiment  # noqa
 
 from .util import iter_config_states
@@ -71,8 +74,7 @@ class ConfigDiagEnvironment(Environment):
         log.debug("performing action %d in the environment", action)
         var_index = int(action)
         if var_index in self.config:
-            # There's nothing to be done, the configuration state won't change.
-            log.debug("the variable is already known")
+            raise ValueError("variable {0} is already known".format(var_index))
         else:
             # Simulate the user response.
             values = ([], [])
@@ -116,10 +118,7 @@ class ConfigDiagTask(EpisodicTask):
         log.debug("computing the observation in the task")
         state = self.env.getSensors()
         # Compute the state index.
-        if len(state) == 0:
-            # The initial state has the first index.
-            state_index = 0
-        elif len(state) == len(self.env.config_values):
+        if len(state) == len(self.env.config_values):
             # The collapsed terminal state has the last index.
             state_index = self.env.num_states - 1
         else:
@@ -132,7 +131,7 @@ class ConfigDiagTask(EpisodicTask):
                 if state_key == hash(frozenset(state.items())):
                     state_index = i
                     break
-        obs = [state_index]
+        obs = (state_index, state)
         log.debug("observation in the task:\n%s", pprint.pformat(obs))
         return obs
 
@@ -150,9 +149,8 @@ class ConfigDiagTask(EpisodicTask):
         log.debug("finished performing action %d in the task", action)
 
     def addReward(self):
-        # The reward is added in performAction, overwriting and
-        # raising an exception to make sure this method is not called
-        # anywhere else in PyBrain.
+        # The reward is added in performAction, overriding and raising
+        # an exception to make sure this method isn't called by PyBrain.
         raise NotImplementedError()
 
     def getReward(self):
@@ -167,22 +165,62 @@ class ConfigDiagTask(EpisodicTask):
         return is_finished
 
 
+class ConfigDiagLearningAgent(LearningAgent):
+
+    def __init__(self, num_states, num_actions, table, learner,
+                 epsilon=0.3, epsilon_decay=1.0):
+        self.num_states = num_states
+        self.num_actions = num_actions
+        super().__init__(table, learner)
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+
+    def integrateObservation(self, obs):
+        state_index, state = obs
+        self.lastindex = np.array([state_index])
+        self.laststate = state
+        super().integrateObservation(self.lastindex)
+
+    def getAction(self):
+        assert self.lastobs is not None
+        assert self.lastaction is None
+        assert self.lastreward is None
+        # self.lastaction is initialized to the greedy action.
+        self.lastaction = self.module.activate(self.lastobs)
+        if int(self.lastaction) in self.laststate:
+            # Pick the first valid action if ActionValueTable gave us an
+            # invalid action (ActionValueTable.getMaxAction chooses
+            # randomly when two or more actions have the same Q value).
+            self.lastaction[:] = next(iter((i for i in range(self.num_actions)
+                                            if i not in self.laststate)))
+        if self.learning:
+            # Epsilon-greedy exploration. Check if the greedy action
+            # should be replaced by a randomly chosen action. Didn't
+            # use EpsilonGreedyExplorer because I couldn't find a way
+            # to easily restrict the sampling to the valid actions.
+            if np.random.uniform() < self.epsilon:
+                valid_actions = [i for i in range(self.num_actions)
+                                 if i not in self.laststate]
+                self.lastaction = np.random.choice(valid_actions)
+            self.epsilon *= self.epsilon_decay
+        return self.lastaction
+
+
 class _LearnFromLastMixin(object):
 
     def learn(self):
-        # We need to process the reward for entering the terminal
-        # state. Let Q and SARSA process the complete episode first,
-        # and then process the last observation. We assume Q is zero
-        # for the terminal state.
+        # We need to process the reward for entering the terminal state
+        # but Q.learn and SARSA.learn don't do it. Let Q and SARSA process
+        # the complete episode first, and then process the last observation.
+        # We assume Q is zero for the terminal state.
         super().learn()
         if self.batchMode:
             # This will only work if episodes are processed one by
-            # one, so ensure there's only one sequence.
+            # one, so ensure there's only one sequence in the dataset.
             assert self.dataset.getNumSequences() == 1
-            seq = next(iter(self.dataset))  # get the one and only
+            seq = next(iter(self.dataset))
             for laststate, lastaction, lastreward in seq:
-                # Skip all the way to the last.
-                pass
+                pass  # skip all the way to the last
             laststate = int(laststate)
             lastaction = int(lastaction)
             qvalue = self.module.getValue(laststate, lastaction)

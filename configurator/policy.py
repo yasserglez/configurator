@@ -9,8 +9,8 @@ from .util import iter_config_states
 from .base import ConfigDialog, ConfigDialogBuilder
 from .dp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 from .rl import (ConfigDiagEnvironment, ConfigDiagTask,
-                 ActionValueTable, Q, SARSA, EpsilonGreedyExplorer,
-                 LearningAgent, EpisodicExperiment)
+                 ConfigDiagLearningAgent, ActionValueTable, Q, SARSA,
+                 EpisodicExperiment)
 
 
 log = logging.getLogger(__name__)
@@ -445,19 +445,18 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
         env = ConfigDiagEnvironment(self._freq_tab, rules)
         task = ConfigDiagTask(env)
         table = ActionValueTable(env.num_states, env.num_actions)
-        table.initialize(-1.0)  # pessimistic initialization
+        table.initialize(0)
         # TODO: set the parameters of Q-learning and SARSA.
         if self._rl_algorithm == "q-learning":
             learner = Q(gamma=1.0)
         elif self._rl_algorithm == "sarsa":
             learner = SARSA(gamma=1.0)
-        # TODO: set the parameters of EpsilonGreedyExplorer.
-        learner.explorer = EpsilonGreedyExplorer()
-        agent = LearningAgent(table, learner)
+        agent = ConfigDiagLearningAgent(env.num_states, env.num_actions,
+                                        table, learner)
         exp = EpisodicExperiment(task, agent)
         for i in range(self._rl_episodes):
             exp.doEpisodes(number=1)
-            agent.learn()
+            agent.learn(episodes=1)
             agent.reset()
         log.debug("finished running the RL algorithm")
         # Create the PolicyConfigDialog instance.
