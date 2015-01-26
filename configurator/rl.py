@@ -75,11 +75,12 @@ class ConfigDiagEnvironment(Environment):
             log.debug("the variable is already known")
         else:
             # Simulate the user response.
-            values = []
+            values = ([], [])
             for var_value in self.config_values[var_index]:
                 response = {var_index: var_value}
                 var_prob = self._freq_tab.cond_prob(response, self.config)
-                values.append((var_value, var_prob))
+                values[0].append(var_value)
+                values[1].append(var_prob)
             var_value = stats.rv_discrete(values=values).rvs()
             log.debug("simulated user response %d", var_value)
             # Update the configuration state with the new variable and
