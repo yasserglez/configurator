@@ -14,10 +14,14 @@ def _load_csv(csv_file):
                          skip_header=True, dtype=np.dtype(str))
 
 
-def load_titanic():
+def load_titanic(as_integers=False):
     # R's Titanic dataset. Contingency table expanded into explicit
     # form using epitools' expand.table function.
-    return _load_csv("titanic.csv")
+    csv_file = "titanic.csv"
+    if as_integers:
+        return load_config_sample(os.path.join(TESTS_DIR, csv_file))
+    else:
+        return _load_csv(csv_file)
 
 
 def load_grid_world():

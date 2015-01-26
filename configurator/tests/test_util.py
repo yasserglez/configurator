@@ -31,7 +31,7 @@ def test_load_config_sample():
 
 def _test_simulate_dialog(builder_class, builder_kwargs):
     print("", file=sys.stderr)  # newline before the logging output
-    seed = 42; random.seed(seed); np.random.seed(seed)
+    random_state = 42; random.seed(random_state); np.random.seed(random_state)
     email_client = load_email_client(as_integers=True)
     builder = builder_class(
         config_sample=email_client.config_sample,
@@ -82,7 +82,7 @@ def test_cross_validation():
 
 def _test_measure_scalability(builder_class, builder_kwargs):
     print("", file=sys.stderr)  # newline before the logging output
-    random_state = 42
+    random_state = 42; random.seed(random_state); np.random.seed(random_state)
     config_sample = load_titanic()
     builder_kwargs.update({"assoc_rule_min_support": 0.5,
                            "assoc_rule_min_confidence": 0.9})
