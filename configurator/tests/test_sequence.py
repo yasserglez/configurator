@@ -4,7 +4,7 @@ import random
 from ..sequence import SequenceConfigDialog
 
 
-def test_sequencec_onfig_dialog():
+def test_sequence_config_dialog():
     random.seed(42)
     num_vars = 10
     config = {i: i % 2 for i in range(num_vars)}

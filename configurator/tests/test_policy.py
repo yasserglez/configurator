@@ -71,7 +71,7 @@ class TestRLConfigDialogBuilder(object):
             assoc_rule_min_support=self._email_client.min_support,
             assoc_rule_min_confidence=self._email_client.min_confidence,
             rl_algorithm=algorithm,
-            rl_episodes=100)
+            rl_episodes=10)
         dialog = builder.build_dialog()
         for var_index in self._email_client.questions:
             assert dialog.get_next_question() == var_index

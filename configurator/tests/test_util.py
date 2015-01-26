@@ -1,11 +1,12 @@
 import os
 import sys
 import logging
+import random
 
 import numpy as np
 
 from .examples import load_email_client, load_titanic
-from ..policy import DPConfigDialogBuilder
+from ..policy import DPConfigDialogBuilder, RLConfigDialogBuilder
 from ..util import (load_config_sample, simulate_dialog,
                     cross_validation, measure_scalability)
 
@@ -28,30 +29,38 @@ def test_load_config_sample():
         assert len(loaded_j_labels) == len(original_j_labels)
 
 
-def _test_simulate_dialog(builder_class):
+def _test_simulate_dialog(builder_class, builder_kwargs):
     print("", file=sys.stderr)  # newline before the logging output
-    email_client = load_email_client()
+    seed = 42; random.seed(seed); np.random.seed(seed)
+    email_client = load_email_client(as_integers=True)
     builder = builder_class(
         config_sample=email_client.config_sample,
         assoc_rule_min_support=email_client.min_support,
-        assoc_rule_min_confidence=email_client.min_confidence)
+        assoc_rule_min_confidence=email_client.min_confidence,
+        **builder_kwargs)
     dialog = builder.build_dialog()
-    config = {1: "lgi", 0: "no"}
+    # {yes = 1, no = 0}, {smi = 1, lgi = 0}
+    config = {1: 0, 0: 0}
     accuracy, questions = simulate_dialog(dialog, config)
     assert (accuracy, questions) == (1.0, 0.5)
-    config = {1: "lgi", 0: "yes"}
+    config = {1: 0, 0: 1}
     accuracy, questions = simulate_dialog(dialog, config)
     assert (accuracy, questions) == (0.5, 0.5)
-    config = {1: "smi", 0: "no"}
+    config = {1: 1, 0: 0}
     accuracy, questions = simulate_dialog(dialog, config)
     assert (accuracy, questions) == (1.0, 1.0)
-    config = {1: "smi", 0: "yes"}
+    config = {1: 1, 0: 1}
     accuracy, questions = simulate_dialog(dialog, config)
     assert (accuracy, questions) == (1.0, 1.0)
 
 
 def test_simulate_dp_policy_dialog():
-    _test_simulate_dialog(DPConfigDialogBuilder)
+    _test_simulate_dialog(DPConfigDialogBuilder, {})
+
+
+def test_simulate_rl_policy_dialog():
+    builder_kwargs = {"rl_episodes": 10}
+    _test_simulate_dialog(RLConfigDialogBuilder, builder_kwargs)
 
 
 def test_cross_validation():

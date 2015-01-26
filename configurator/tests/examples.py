@@ -115,6 +115,7 @@ def load_email_client(as_integers=False):
     csv_file = "email_client.csv"
     if as_integers:
         config_sample = load_config_sample(os.path.join(TESTS_DIR, csv_file))
+        # {yes = 1, no = 0}, {smi = 1, lgi = 0}
         config_values = [[1, 0], [1, 0]]
         config = {0: 0, 1: 0}
     else:
