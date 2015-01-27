@@ -130,13 +130,24 @@ class DPDialogBuilder(DialogBuilder):
         mdp = self._transform_graph_to_mdp(graph)
         log.debug("finished building the MDP")
         log.debug("solving the MDP")
-        policy = self._solver.solve(mdp)
+        policy_tuple = self._solver.solve(mdp)
         log.debug("finished solving the MDP")
         # Create the PolicyDialog instance.
-        policy = {frozenset(graph.vs[s]["state"].items()): policy[s]
-                  for s in range(len(policy))
-                  if graph.vs[s]["state_len"] != len(self._config_values)}
-        dialog = PolicyDialog(self._config_values, rules, policy,
+        num_vars = len(self._config_values)
+        policy_dict = {}
+        for s in range(len(policy_tuple)):
+            if graph.vs[s]["state_len"] == num_vars:
+                continue
+            state = graph.vs[s]["state"]
+            action = policy_tuple[s]
+            if action in state:
+                # Ensure that the policy doesn't suggest questions
+                # that have been already answered.
+                action = next(iter((a for a in range(num_vars)
+                                    if a not in state)))
+            state_key = frozenset(state.items())
+            policy_dict[state_key] = action
+        dialog = PolicyDialog(self._config_values, rules, policy_dict,
                               validate=self._validate)
         return dialog
 
@@ -499,8 +510,14 @@ class RLDialogBuilder(DialogBuilder):
         policy_dict = {}
         non_terminals = iter_config_states(self._config_values, True)
         for i, state in enumerate(non_terminals):
+            action = int(policy_array[i])
+            if action in state:
+                # Ensure that the policy doesn't suggest questions
+                # that have been already answered.
+                action = next(iter((a for a in range(env.num_actions)
+                                    if a not in state)))
             state_key = frozenset(state.items())
-            policy_dict[state_key] = int(policy_array[i])
+            policy_dict[state_key] = action
         dialog = PolicyDialog(self._config_values, rules, policy_dict,
                               validate=self._validate)
         return dialog
