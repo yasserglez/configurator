@@ -11,8 +11,6 @@ from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.learners import Q as Q_, SARSA as SARSA_
-from pybrain.rl.explorers.discrete.egreedy import \
-    EpsilonGreedyExplorer as EpsilonGreedyExplorer_
 from pybrain.rl.learners.valuebased import ActionValueTable  # noqa
 
 from pybrain.rl.experiments import EpisodicExperiment  # noqa
@@ -167,13 +165,9 @@ class ConfigDiagTask(EpisodicTask):
 
 class ConfigDiagLearningAgent(LearningAgent):
 
-    def __init__(self, num_states, num_actions, table, learner,
-                 epsilon=0.3, epsilon_decay=1.0):
-        self.num_states = num_states
-        self.num_actions = num_actions
+    def __init__(self, table, learner, epsilon):
         super().__init__(table, learner)
         self.epsilon = epsilon
-        self.epsilon_decay = epsilon_decay
 
     def integrateObservation(self, obs):
         state_index, state = obs
@@ -182,27 +176,23 @@ class ConfigDiagLearningAgent(LearningAgent):
         super().integrateObservation(self.lastindex)
 
     def getAction(self):
-        assert self.lastobs is not None
-        assert self.lastaction is None
-        assert self.lastreward is None
-        # self.lastaction is initialized to the greedy action.
-        self.lastaction = self.module.activate(self.lastobs)
-        if int(self.lastaction) in self.laststate:
-            # Pick the first valid action if ActionValueTable gave us an
-            # invalid action (ActionValueTable.getMaxAction chooses
+        num_actions = self.module.numActions
+        # self.module.activate returns the greedy action.
+        self.lastaction = int(self.module.activate(self.lastobs))
+        if self.lastaction in self.laststate:
+            # Pick the first valid action if ActionValueTable returned
+            # an invalid action (ActionValueTable.getMaxAction chooses
             # randomly when two or more actions have the same Q value).
-            self.lastaction[:] = next(iter((i for i in range(self.num_actions)
-                                            if i not in self.laststate)))
-        if self.learning:
-            # Epsilon-greedy exploration. Check if the greedy action
-            # should be replaced by a randomly chosen action. Didn't
-            # use EpsilonGreedyExplorer because I couldn't find a way
-            # to easily restrict the sampling to the valid actions.
-            if np.random.uniform() < self.epsilon:
-                valid_actions = [i for i in range(self.num_actions)
-                                 if i not in self.laststate]
-                self.lastaction = np.random.choice(valid_actions)
-            self.epsilon *= self.epsilon_decay
+            self.lastaction = next(iter((i for i in range(num_actions)
+                                         if i not in self.laststate)))
+        # Epsilon-greedy exploration. Check if the greedy action
+        # should be replaced by a randomly chosen action. Didn't
+        # use EpsilonGreedyExplorer because I couldn't find a way
+        # to easily restrict the sampling to the valid actions.
+        if np.random.uniform() < self.epsilon:
+            valid_actions = [i for i in range(num_actions)
+                             if i not in self.laststate]
+            self.lastaction = np.random.choice(valid_actions)
         return self.lastaction
 
 

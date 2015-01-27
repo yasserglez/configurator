@@ -417,15 +417,23 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
     """
 
     def __init__(self, rl_algorithm="q-learning",
-                 rl_episodes=100,
-                 rl_epsilon=0.001,
+                 rl_learning_rate=0.5,
+                 rl_epsilon=0.3,
+                 rl_epsilon_decay=1.0,
+                 rl_max_episodes=1000,
                  **kwargs):
         """Initialize a new instance.
 
         Arguments:
             rl_algorithm: Reinforcement learning algorithm. Possible
                 values are: 'q-learning' (default) and 'sarsa'.
-            rl_episodes: Number of simulated episodes.
+            rl_learning_rate: Q-learning and SARSA learning rate
+                (default: 0.5).
+            rl_epsilon: Initial epsilon value for the epsilon-greedy
+                exploration strategy (default: 0.3).
+            rl_epsilon_decay: Epsilon decay rate (default: 1.0).
+                The epsilon value is decayed after every episode.
+            rl_max_episodes: Maximum number of simulated episodes.
 
         See ConfigDialogBuilder for the remaining arguments.
         """
@@ -434,8 +442,11 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
             self._rl_algorithm = rl_algorithm
         else:
             raise ValueError("Invalid rl_algorithm value")
-        self._rl_episodes = rl_episodes
+        self._rl_learning_rate = rl_learning_rate
         self._rl_epsilon = rl_epsilon
+        self._rl_epsilon_decay = rl_epsilon_decay
+        self._rl_max_episodes = rl_max_episodes
+        self._Verror_threshold = 0.001
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -448,33 +459,35 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
         env = ConfigDiagEnvironment(self._freq_tab, rules)
         task = ConfigDiagTask(env)
         table = ActionValueTable(env.num_states, env.num_actions)
-        # Can't be initilized to anything greater than zero without
+        # Can't be initilized to a value greater than zero without
         # changing PyBrain's internals. ActionValueTable chooses
         # randomly among actions with the same Q value and it would
         # choose many invalid actions.
         table.initialize(-1)
-        # TODO: set the parameters of Q-learning and SARSA.
         if self._rl_algorithm == "q-learning":
-            learner = Q(gamma=1.0)
+            learner = Q(alpha=self._rl_learning_rate, gamma=1.0)
         elif self._rl_algorithm == "sarsa":
-            learner = SARSA(gamma=1.0)
-        agent = ConfigDiagLearningAgent(env.num_states, env.num_actions,
-                                        table, learner)
+            learner = SARSA(alpha=self._rl_learning_rate, gamma=1.0)
+        agent = ConfigDiagLearningAgent(table, learner, self._rl_epsilon)
         exp = EpisodicExperiment(task, agent)
-        Vprev = table.params.reshape(env.num_states, env.num_actions).max(1)
-        for i in range(self._rl_episodes):
+        Qvalues = table.params.reshape(env.num_states, env.num_actions)
+        Vprev = Qvalues.max(1)
+        for curr_episode in range(self._rl_max_episodes):
+            log.debug("the epsilon value is %.2f", agent.epsilon)
             exp.doEpisodes(number=1)
             agent.learn(episodes=1)
             agent.reset()
+            agent.epsilon *= self._rl_epsilon_decay
             # Check the stopping criterion.
-            V = table.params.reshape(env.num_states, env.num_actions).max(1)
+            V = Qvalues.max(1)
             Verror = getSpan(V - Vprev)
-            if Verror < self._rl_epsilon:
-                break
             Vprev = V
+            if Verror < self._Verror_threshold:
+                break
+        log.debug("terminated after %d episodes", curr_episode + 1)
         log.debug("finished running the RL algorithm")
         # Create the PolicyConfigDialog instance.
-        policy_array = table.params.reshape(env.num_states, env.num_actions).argmax(1)
+        policy_array = Qvalues.argmax(1)
         policy_dict = {}
         non_terminals = iter_config_states(self._config_values, True)
         for i, state in enumerate(non_terminals):
