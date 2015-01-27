@@ -75,7 +75,7 @@ def simulate_dialog(dialog, config):
     Simulate the use of the dialog to predict the given configuration.
 
     Arguments:
-        dialog: An instance of a ConfigDialog subclass.
+        dialog: An instance of a Dialog subclass.
         config: A complete configuration, i.e. a dict mapping variable
             indices to their values.
 
@@ -114,7 +114,7 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
         random_state: Pseudo-random number generator state (int or
             numpy.random.RandomState) used for random sampling. If
             None, use default numpy RNG for shuffling.
-        builder_class: A ConfigDialogBuilder subclass.
+        builder_class: A DialogBuilder subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
             when a new instance is created (except config_sample and
             config_values).
@@ -181,7 +181,7 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
         random_state: Pseudo-random number generator state (int or
             numpy.random.RandomState) used for random sampling. If
             None, use default numpy RNG for shuffling.
-        builder_class: A ConfigDialogBuilder subclass.
+        builder_class: A DialogBuilder subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
             when a new instance is created (except config_sample and
             config_values).

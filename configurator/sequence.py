@@ -1,16 +1,16 @@
 """Sequence-Based Configuration Dialogs"""
 
-from .base import ConfigDialog
+from .base import Dialog
 
 
-class SequenceConfigDialog(ConfigDialog):
-    """Configuration dialog based on a sequene of the variables.
+class SequenceDialog(Dialog):
+    """Configuration dialog based on a permutation of the variables.
 
     Attributes:
         rules: A list of AssociationRule instances.
-        var_seq: An list containing a permutation of the variables.
+        var_seq: A list containing a permutation of the variables.
 
-    See ConfigDialog for other attributes.
+    See Dialog for other attributes.
     """
 
     def __init__(self, config_values, rules, var_seq):
@@ -18,9 +18,9 @@ class SequenceConfigDialog(ConfigDialog):
 
         Arguments:
             rules: A list of AssociationRule instances.
-            var_seq: An list containing a permutation of the variables.
+            var_seq: A list containing a permutation of the variables.
 
-        See ConfigDialog for the remaining arguments.
+        See Dialog for the remaining arguments.
         """
         super().__init__(config_values)
         self.rules = rules
@@ -29,7 +29,7 @@ class SequenceConfigDialog(ConfigDialog):
     def reset(self):
         """Reset the configurator to the initial state.
 
-        See ConfigDialog for more information.
+        See Dialog for more information.
         """
         super().reset()
         self._curr_var_index = 0
@@ -37,7 +37,7 @@ class SequenceConfigDialog(ConfigDialog):
     def set_answer(self, var_index, var_value):
         """Set the value of a configuration variable.
 
-        See ConfigDialog for more information.
+        See Dialog for more information.
         """
         super().set_answer(var_index, var_value)
         for rule in self.rules:

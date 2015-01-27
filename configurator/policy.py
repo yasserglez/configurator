@@ -7,17 +7,16 @@ from scipy import sparse
 from mdptoolbox.util import getSpan
 
 from .util import iter_config_states
-from .base import ConfigDialog, ConfigDialogBuilder
+from .base import Dialog, DialogBuilder
 from .dp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
-from .rl import (ConfigDiagEnvironment, ConfigDiagTask,
-                 ConfigDiagLearningAgent, ActionValueTable, Q, SARSA,
-                 EpisodicExperiment)
+from .rl import (DialogEnvironment, DialogTask, DialogLearningAgent,
+                 ActionValueTable, Q, SARSA, EpisodicExperiment)
 
 
 log = logging.getLogger(__name__)
 
 
-class PolicyConfigDialog(ConfigDialog):
+class PolicyDialog(Dialog):
     """Configuration dialog based on a policy.
 
     Attributes:
@@ -25,7 +24,7 @@ class PolicyConfigDialog(ConfigDialog):
         policy: The MDP policy, i.e. a dict mapping every possible
             configuration state to a variable index.
 
-    See ConfigDialog for other attributes.
+    See Dialog for other attributes.
     """
 
     def __init__(self, config_values, rules, policy):
@@ -38,7 +37,7 @@ class PolicyConfigDialog(ConfigDialog):
                 are represented as frozensets of (index, value) tuples
                 for each variable.
 
-        See ConfigDialog for the remaining arguments.
+        See Dialog for the remaining arguments.
         """
         super().__init__(config_values)
         self.rules = rules
@@ -47,7 +46,7 @@ class PolicyConfigDialog(ConfigDialog):
     def set_answer(self, var_index, var_value):
         """Set the value of a configuration variable.
 
-        See ConfigDialog for more information.
+        See Dialog for more information.
         """
         super().set_answer(var_index, var_value)
         for rule in self.rules:
@@ -61,7 +60,7 @@ class PolicyConfigDialog(ConfigDialog):
         return next_var_index
 
 
-class DPConfigDialogBuilder(ConfigDialogBuilder):
+class DPDialogBuilder(DialogBuilder):
     """Build a configuration dialog using dynamic programming.
     """
 
@@ -95,7 +94,7 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
                 transition and reward matrices should be validated
                 (default: False).
 
-        See ConfigDialogBuilder for the remaining arguments.
+        See DialogBuilder for the remaining arguments.
         """
         super().__init__(**kwargs)
         if dp_algorithm == "policy-iteration":
@@ -113,7 +112,7 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
         """Construct a configuration dialog.
 
         Returns:
-            A PolicyConfigDialog instance.
+            A PolicyDialog instance.
         """
         log.debug("building the MDP")
         # Build the initial graph.
@@ -127,10 +126,10 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
         log.debug("solving the MDP")
         policy = self._solver.solve(mdp)
         log.debug("finished solving the MDP")
-        # Create the PolicyConfigDialog instance.
+        # Create the PolicyDialog instance.
         policy = {frozenset(graph.vs[s]["state"].items()): a
                   for s, a in policy.items()}
-        dialog = PolicyConfigDialog(self._config_values, rules, policy)
+        dialog = PolicyDialog(self._config_values, rules, policy)
         return dialog
 
     def _build_graph(self):
@@ -412,7 +411,7 @@ class DPConfigDialogBuilder(ConfigDialogBuilder):
         graph.delete_edges(rewired_edges)
 
 
-class RLConfigDialogBuilder(ConfigDialogBuilder):
+class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
     """
 
@@ -433,9 +432,10 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
                 exploration strategy (default: 0.3).
             rl_epsilon_decay: Epsilon decay rate (default: 1.0).
                 The epsilon value is decayed after every episode.
-            rl_max_episodes: Maximum number of simulated episodes.
+            rl_max_episodes: Maximum number of simulated episodes
+                (default: 1000).
 
-        See ConfigDialogBuilder for the remaining arguments.
+        See DialogBuilder for the remaining arguments.
         """
         super().__init__(**kwargs)
         if rl_algorithm in ("q-learning", "sarsa"):
@@ -452,12 +452,12 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
         """Construct a configuration dialog.
 
         Returns:
-            An instance of a ConfigDialog subclass.
+            An instance of a Dialog subclass.
         """
         rules = self._mine_rules()
         log.debug("running the RL algorithm")
-        env = ConfigDiagEnvironment(self._freq_tab, rules)
-        task = ConfigDiagTask(env)
+        env = DialogEnvironment(self._freq_tab, rules)
+        task = DialogTask(env)
         table = ActionValueTable(env.num_states, env.num_actions)
         # Can't be initilized to a value greater than zero without
         # changing PyBrain's internals. ActionValueTable chooses
@@ -468,7 +468,7 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
             learner = Q(alpha=self._rl_learning_rate, gamma=1.0)
         elif self._rl_algorithm == "sarsa":
             learner = SARSA(alpha=self._rl_learning_rate, gamma=1.0)
-        agent = ConfigDiagLearningAgent(table, learner, self._rl_epsilon)
+        agent = DialogLearningAgent(table, learner, self._rl_epsilon)
         exp = EpisodicExperiment(task, agent)
         Qvalues = table.params.reshape(env.num_states, env.num_actions)
         Vprev = Qvalues.max(1)
@@ -486,12 +486,12 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
                 break
         log.debug("terminated after %d episodes", curr_episode + 1)
         log.debug("finished running the RL algorithm")
-        # Create the PolicyConfigDialog instance.
+        # Create the PolicyDialog instance.
         policy_array = Qvalues.argmax(1)
         policy_dict = {}
         non_terminals = iter_config_states(self._config_values, True)
         for i, state in enumerate(non_terminals):
             state_key = frozenset(state.items())
             policy_dict[state_key] = int(policy_array[i])
-        dialog = PolicyConfigDialog(self._config_values, rules, policy_dict)
+        dialog = PolicyDialog(self._config_values, rules, policy_dict)
         return dialog

@@ -6,7 +6,7 @@ import random
 import numpy as np
 
 from .examples import load_email_client, load_titanic
-from ..policy import DPConfigDialogBuilder, RLConfigDialogBuilder
+from ..policy import DPDialogBuilder, RLDialogBuilder
 from ..util import (load_config_sample, simulate_dialog,
                     cross_validation, measure_scalability)
 
@@ -55,12 +55,12 @@ def _test_simulate_dialog(builder_class, builder_kwargs):
 
 
 def test_simulate_dp_policy_dialog():
-    _test_simulate_dialog(DPConfigDialogBuilder, {})
+    _test_simulate_dialog(DPDialogBuilder, {})
 
 
 def test_simulate_rl_policy_dialog():
     builder_kwargs = {}
-    _test_simulate_dialog(RLConfigDialogBuilder, builder_kwargs)
+    _test_simulate_dialog(RLDialogBuilder, builder_kwargs)
 
 
 def test_cross_validation():
@@ -68,7 +68,7 @@ def test_cross_validation():
     email_client = load_email_client()
     n_folds = 10
     random_state = 42
-    builder_class = DPConfigDialogBuilder
+    builder_class = DPDialogBuilder
     builder_kwargs = {"assoc_rule_min_support": email_client.min_support,
                       "assoc_rule_min_confidence": email_client.min_confidence}
     df = cross_validation(n_folds, random_state, builder_class,
@@ -95,7 +95,7 @@ def _test_measure_scalability(builder_class, builder_kwargs):
 
 def _test_scalability_dp(algorithm, discard_states,
                          partial_assoc_rules, collapse_terminals):
-    builder_class = DPConfigDialogBuilder
+    builder_class = DPDialogBuilder
     builder_kwargs = {"dp_algorithm": algorithm,
                       "dp_discard_states": discard_states,
                       "dp_partial_assoc_rules": partial_assoc_rules,
@@ -121,7 +121,7 @@ def test_scalability_policy_iteration_with_optim():
 
 
 def _test_scalability_rl(algorithm):
-    builder_class = RLConfigDialogBuilder
+    builder_class = RLDialogBuilder
     builder_kwargs = {"rl_algorithm": algorithm}
     _test_measure_scalability(builder_class, builder_kwargs)
 

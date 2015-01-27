@@ -5,7 +5,7 @@ import logging
 import numpy as np
 
 from .examples import load_email_client
-from ..policy import DPConfigDialogBuilder, RLConfigDialogBuilder
+from ..policy import DPDialogBuilder, RLDialogBuilder
 
 
 logger = logging.getLogger()
@@ -13,7 +13,7 @@ logger.setLevel(logging.DEBUG)
 logger.handlers[0].setFormatter(logging.Formatter("%(asctime)s:%(message)s"))
 
 
-class TestDPConfigDialogBuilder(object):
+class TestDPDialogBuilder(object):
 
     def setup(self):
         print("", file=sys.stderr)  # newline before the logging output
@@ -21,7 +21,7 @@ class TestDPConfigDialogBuilder(object):
 
     def _test_builder(self, algorithm, discard_states,
                       partial_assoc_rules, collapse_terminals):
-        builder = DPConfigDialogBuilder(
+        builder = DPDialogBuilder(
             config_sample=self._email_client.config_sample,
             assoc_rule_algorithm="apriori",
             assoc_rule_min_support=self._email_client.min_support,
@@ -57,7 +57,7 @@ class TestDPConfigDialogBuilder(object):
         self._test_builder_with_optim("policy-iteration")
 
 
-class TestRLConfigDialogBuilder(object):
+class TestRLDialogBuilder(object):
 
     def setup(self):
         print("", file=sys.stderr)  # newline before the logging output
@@ -65,7 +65,7 @@ class TestRLConfigDialogBuilder(object):
         seed = 42; random.seed(seed); np.random.seed(seed)
 
     def _test_builder(self, algorithm):
-        builder = RLConfigDialogBuilder(
+        builder = RLDialogBuilder(
             config_sample=self._email_client.config_sample,
             assoc_rule_algorithm="apriori",
             assoc_rule_min_support=self._email_client.min_support,

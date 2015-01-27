@@ -12,7 +12,6 @@ from pybrain.rl.environments.episodic import EpisodicTask
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.learners import Q as Q_, SARSA as SARSA_
 from pybrain.rl.learners.valuebased import ActionValueTable  # noqa
-
 from pybrain.rl.experiments import EpisodicExperiment  # noqa
 
 from .util import iter_config_states
@@ -21,7 +20,7 @@ from .util import iter_config_states
 log = logging.getLogger(__name__)
 
 
-class ConfigDiagEnvironment(Environment):
+class DialogEnvironment(Environment):
     """Represents the use of a configuration dialog in PyBrain's RL model.
 
     The environment keeps track of the configuration state. It starts
@@ -94,7 +93,7 @@ class ConfigDiagEnvironment(Environment):
         log.debug("finished performing action %d in the environment", action)
 
 
-class ConfigDiagTask(EpisodicTask):
+class DialogTask(EpisodicTask):
     """Represents the configuration goal in PyBrain's RL model.
     """
 
@@ -102,7 +101,7 @@ class ConfigDiagTask(EpisodicTask):
         """Initialize a new instance.
 
         Arguments:
-            env: A ConfigDiagEnvironment instance.
+            env: A DialogEnvironment instance.
         """
         super().__init__(env)
         self.lastreward = None
@@ -163,7 +162,7 @@ class ConfigDiagTask(EpisodicTask):
         return is_finished
 
 
-class ConfigDiagLearningAgent(LearningAgent):
+class DialogLearningAgent(LearningAgent):
 
     def __init__(self, table, learner, epsilon):
         super().__init__(table, learner)

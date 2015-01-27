@@ -1,7 +1,6 @@
-
 import random
 
-from ..sequence import SequenceConfigDialog
+from ..sequence import SequenceDialog
 
 
 def test_sequence_config_dialog():
@@ -11,7 +10,7 @@ def test_sequence_config_dialog():
     config_values = {i: [True, False] for i in range(num_vars)}
     var_seq = list(range(num_vars))
     random.shuffle(var_seq)
-    dialog = SequenceConfigDialog(config_values, [], var_seq)
+    dialog = SequenceDialog(config_values, [], var_seq)
     dialog.reset()
     i = 0
     while not dialog.is_complete():

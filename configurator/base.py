@@ -21,13 +21,13 @@ from .assoc_rules import AssociationRuleMiner
 log = logging.getLogger(__name__)
 
 
-class ConfigDialog(object):
+class Dialog(object):
     """Base configuration dialog.
 
     This is the base class of all the configuration dialogs defined in
     the package (not intented to be instantiated directly). It defines
     a common interface followed by the dialogs generated using the
-    different ConfigDialog subclasses.
+    different Dialog subclasses.
 
     The interaction with all subclasses must be as follows. First, the
     reset method should be called to begin at a state where all the
@@ -113,7 +113,7 @@ class ConfigDialog(object):
         return len(self.config) == len(self.config_values)
 
 
-class ConfigDialogBuilder(object):
+class DialogBuilder(object):
     """Base configuration dialog builder.
     """
 
@@ -159,7 +159,7 @@ class ConfigDialogBuilder(object):
         """Construct a configuration dialog.
 
         Returns:
-            An instance of a ConfigDialog subclass.
+            An instance of a Dialog subclass.
         """
         raise NotImplementedError()
 
