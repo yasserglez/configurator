@@ -446,7 +446,7 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
         self._rl_epsilon = rl_epsilon
         self._rl_epsilon_decay = rl_epsilon_decay
         self._rl_max_episodes = rl_max_episodes
-        self._Verror_threshold = 0.001
+        self._Vspan_threshold = 0.001
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -482,7 +482,7 @@ class RLConfigDialogBuilder(ConfigDialogBuilder):
             V = Qvalues.max(1)
             Verror = getSpan(V - Vprev)
             Vprev = V
-            if Verror < self._Verror_threshold:
+            if Verror < self._Vspan_threshold:
                 break
         log.debug("terminated after %d episodes", curr_episode + 1)
         log.debug("finished running the RL algorithm")
