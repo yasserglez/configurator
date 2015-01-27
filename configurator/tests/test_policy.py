@@ -29,8 +29,7 @@ class TestDPDialogBuilder(object):
             dp_algorithm=algorithm,
             dp_discard_states=discard_states,
             dp_partial_assoc_rules=partial_assoc_rules,
-            dp_collapse_terminals=collapse_terminals,
-            dp_validate=True)
+            dp_collapse_terminals=collapse_terminals)
         dialog = builder.build_dialog()
         for var_index in self._email_client.questions:
             assert dialog.get_next_question() == var_index

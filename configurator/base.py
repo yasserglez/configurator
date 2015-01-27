@@ -51,7 +51,7 @@ class Dialog(object):
             variable indices to their values.
     """
 
-    def __init__(self, config_values, validate=True):
+    def __init__(self, config_values, validate=False):
         """Initialize a new instance.
 
         Arguments:
@@ -59,9 +59,9 @@ class Dialog(object):
                 containing an enumerable with all the possible values
                 of the variable.
             validate: Indicates whether the dialog initialization
-                should be validated or not (default: True). A
-                ValueError exception will be raised if any error is
-                found.
+                should be validated or not (default: False).
+                A ValueError exception will be raised if any error
+                is found.
         """
         super().__init__()
         self.config_values = config_values
@@ -127,6 +127,7 @@ class DialogBuilder(object):
 
     def __init__(self, config_sample=None,
                  config_values=None,
+                 validate=False,
                  assoc_rule_algorithm="apriori",
                  assoc_rule_min_support=None,
                  assoc_rule_min_confidence=None):
@@ -139,6 +140,9 @@ class DialogBuilder(object):
                 containing an enumerable with all the possible values
                 of the variable. If it is not given, it is computed
                 from config_sample.
+            validate: Whether or not to run some (generally costly)
+                checks on the generated model and the resulting Dialog
+                instance (default: False). Mostly for debugging purposes.
             assoc_rule_algorithm: Algorithm for mining the frequent
                 item sets. Possible values are: 'apriori' (default)
                 and 'fp-growth'.
@@ -159,6 +163,7 @@ class DialogBuilder(object):
                   math.ceil(math.log2(config_card)))
         log.debug("the configuration sample has %d observations",
                   self._config_sample.shape[0])
+        self._validate = validate
         self._assoc_rule_algorithm = assoc_rule_algorithm
         self._assoc_rule_min_support = assoc_rule_min_support
         self._assoc_rule_min_confidence = assoc_rule_min_confidence

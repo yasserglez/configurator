@@ -13,7 +13,7 @@ class SequenceDialog(Dialog):
     See Dialog for other attributes.
     """
 
-    def __init__(self, config_values, rules, var_seq, validate=True):
+    def __init__(self, config_values, rules, var_seq, validate=False):
         """Initialize a new instance.
 
         Arguments:

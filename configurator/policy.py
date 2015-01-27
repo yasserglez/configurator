@@ -27,7 +27,7 @@ class PolicyDialog(Dialog):
     See Dialog for other attributes.
     """
 
-    def __init__(self, config_values, rules, policy, validate=True):
+    def __init__(self, config_values, rules, policy, validate=False):
         """Initialize a new instance.
 
         Arguments:
@@ -41,7 +41,7 @@ class PolicyDialog(Dialog):
         """
         self.rules = rules
         self.policy = policy
-        super().__init__(config_values)
+        super().__init__(config_values, validate=validate)
 
     def _validate(self):
         num_states = 0
@@ -82,7 +82,6 @@ class DPDialogBuilder(DialogBuilder):
                  dp_discard_states=True,
                  dp_partial_assoc_rules=True,
                  dp_collapse_terminals=True,
-                 dp_validate=False,
                  **kwargs):
         """Initialize a new instance.
 
@@ -103,9 +102,6 @@ class DPDialogBuilder(DialogBuilder):
             dp_collapse_terminals: Indicates whether all terminal
                 states should be collapsed into a single state
                 (default: True).
-            dp_validate: Indicates whether the resulting MDP
-                transition and reward matrices should be validated
-                (default: False).
 
         See DialogBuilder for the remaining arguments.
         """
@@ -119,7 +115,6 @@ class DPDialogBuilder(DialogBuilder):
         self._dp_discard_states = dp_discard_states
         self._dp_partial_assoc_rules = dp_partial_assoc_rules
         self._dp_collapse_terminals = dp_collapse_terminals
-        self._dp_validate = dp_validate
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -142,7 +137,8 @@ class DPDialogBuilder(DialogBuilder):
         # Create the PolicyDialog instance.
         policy = {frozenset(graph.vs[s]["state"].items()): a
                   for s, a in policy.items()}
-        dialog = PolicyDialog(self._config_values, rules, policy)
+        dialog = PolicyDialog(self._config_values, rules, policy,
+                              validate=self._validate)
         return dialog
 
     def _build_graph(self):
@@ -182,10 +178,10 @@ class DPDialogBuilder(DialogBuilder):
                               discount_factor=1.0,
                               initial_state=initial_state,
                               terminal_state=terminal_state,
-                              validate=self._dp_validate)
+                              validate=self._validate)
         else:
             mdp = MDP(transitions, rewards, discount_factor=1.0,
-                      validate=self._dp_validate)
+                      validate=self._validate)
         log.debug("finished transforming the graph into the MDP")
         return mdp
 
@@ -506,5 +502,6 @@ class RLDialogBuilder(DialogBuilder):
         for i, state in enumerate(non_terminals):
             state_key = frozenset(state.items())
             policy_dict[state_key] = int(policy_array[i])
-        dialog = PolicyDialog(self._config_values, rules, policy_dict)
+        dialog = PolicyDialog(self._config_values, rules, policy_dict,
+                              validate=self._validate)
         return dialog
