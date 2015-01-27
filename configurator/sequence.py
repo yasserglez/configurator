@@ -13,7 +13,7 @@ class SequenceDialog(Dialog):
     See Dialog for other attributes.
     """
 
-    def __init__(self, config_values, rules, var_seq):
+    def __init__(self, config_values, rules, var_seq, validate=True):
         """Initialize a new instance.
 
         Arguments:
@@ -22,9 +22,13 @@ class SequenceDialog(Dialog):
 
         See Dialog for the remaining arguments.
         """
-        super().__init__(config_values)
         self.rules = rules
         self.var_seq = var_seq
+        super().__init__(config_values, validate=validate)
+
+    def _validate(self):
+        if len(set(self.var_seq)) != len(self.var_seq):
+            raise ValueError("Invalid var_seq value")
 
     def reset(self):
         """Reset the configurator to the initial state.
