@@ -40,9 +40,8 @@ class Dialog(object):
     get_next_question will act accordingly.
 
     The config attribute can be used at any time to retrieve the
-    configuration values collected so far. Additionally, the method
-    is_complete can be used to check whether all the variables has
-    been set.
+    configuration values collected so far. The is_complete method can
+    be used to check whether all the variables has been set.
 
     Attributes:
         config_values: A list with one entry for each variable,
@@ -52,17 +51,26 @@ class Dialog(object):
             variable indices to their values.
     """
 
-    def __init__(self, config_values):
+    def __init__(self, config_values, validate=True):
         """Initialize a new instance.
 
         Arguments:
             config_values: A list with one entry for each variable,
                 containing an enumerable with all the possible values
                 of the variable.
+            validate: Indicates whether the dialog initialization
+                should be validated or not (default: True). A
+                ValueError exception will be raised if any error is
+                found.
         """
         super().__init__()
         self.config_values = config_values
         self.reset()
+        if validate:
+            self._validate()
+
+    def _validate(self):
+        pass
 
     def reset(self):
         """Reset the configurator to the initial state.
