@@ -185,8 +185,6 @@ class DialogBuilder(object):
                                        algorithm=self._assoc_rule_algorithm)
         if log.isEnabledFor(logging.DEBUG):
             if rules:
-                log.debug("found %d rule(s):\n%s",
-                          len(rules), pprint.pformat(rules))
                 supp = [rule.support for rule in rules]
                 log.debug("support values in [%.2f,%.2f]",
                           min(supp), max(supp))
@@ -205,7 +203,9 @@ class DialogBuilder(object):
             rules_dict[lhs_key].add(rule)
         merged_rules = [reduce(self._merge_rules, grouped_rules)
                         for grouped_rules in rules_dict.values()]
-        log.debug("turned into %d rules after merging", len(merged_rules))
+        if merged_rules:
+            log.debug("turned into %d rules after merging:\n%s",
+                      len(merged_rules), pprint.pformat(merged_rules))
         log.debug("finished mining association rules")
         # Return the merged rules.
         return merged_rules
