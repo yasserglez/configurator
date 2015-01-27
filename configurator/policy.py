@@ -27,7 +27,7 @@ class PolicyDialog(Dialog):
     See Dialog for other attributes.
     """
 
-    def __init__(self, config_values, rules, policy):
+    def __init__(self, config_values, rules, policy, validate=True):
         """Initialize a new instance.
 
         Arguments:
@@ -39,9 +39,22 @@ class PolicyDialog(Dialog):
 
         See Dialog for the remaining arguments.
         """
-        super().__init__(config_values)
         self.rules = rules
         self.policy = policy
+        super().__init__(config_values)
+
+    def _validate(self):
+        num_states = 0
+        for state in iter_config_states(self.config_values, True):
+            state_key = frozenset(state.items())
+            try:
+                if self.policy[state_key] in state:
+                    raise ValueError("The policy has invalid actions")
+            except KeyError:
+                raise ValueError("The policy has missing states")
+            num_states += 1
+        if len(self.policy) != num_states:
+            raise ValueError("The policy has an invalid number of states")
 
     def set_answer(self, var_index, var_value):
         """Set the value of a configuration variable.
