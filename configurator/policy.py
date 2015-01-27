@@ -133,8 +133,9 @@ class DPDialogBuilder(DialogBuilder):
         policy = self._solver.solve(mdp)
         log.debug("finished solving the MDP")
         # Create the PolicyDialog instance.
-        policy = {frozenset(graph.vs[s]["state"].items()): a
-                  for s, a in policy.items()}
+        policy = {frozenset(graph.vs[s]["state"].items()): policy[s]
+                  for s in range(len(policy))
+                  if graph.vs[s]["state_len"] != len(self._config_values)}
         dialog = PolicyDialog(self._config_values, rules, policy,
                               validate=self._validate)
         return dialog
