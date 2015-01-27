@@ -23,6 +23,7 @@ class TestDPDialogBuilder(object):
                       partial_assoc_rules, collapse_terminals):
         builder = DPDialogBuilder(
             config_sample=self._email_client.config_sample,
+            validate=True,
             assoc_rule_algorithm="apriori",
             assoc_rule_min_support=self._email_client.min_support,
             assoc_rule_min_confidence=self._email_client.min_confidence,
@@ -66,6 +67,7 @@ class TestRLDialogBuilder(object):
     def _test_builder(self, algorithm):
         builder = RLDialogBuilder(
             config_sample=self._email_client.config_sample,
+            validate=True,
             assoc_rule_algorithm="apriori",
             assoc_rule_min_support=self._email_client.min_support,
             assoc_rule_min_confidence=self._email_client.min_confidence,

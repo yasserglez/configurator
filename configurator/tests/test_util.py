@@ -35,6 +35,7 @@ def _test_simulate_dialog(builder_class, builder_kwargs):
     email_client = load_email_client(as_integers=True)
     builder = builder_class(
         config_sample=email_client.config_sample,
+        validate=True,
         assoc_rule_min_support=email_client.min_support,
         assoc_rule_min_confidence=email_client.min_confidence,
         **builder_kwargs)
@@ -69,7 +70,8 @@ def test_cross_validation():
     n_folds = 10
     random_state = 42
     builder_class = DPDialogBuilder
-    builder_kwargs = {"assoc_rule_min_support": email_client.min_support,
+    builder_kwargs = {"validate": True,
+                      "assoc_rule_min_support": email_client.min_support,
                       "assoc_rule_min_confidence": email_client.min_confidence}
     df = cross_validation(n_folds, random_state, builder_class,
                           builder_kwargs, email_client.config_sample)
@@ -84,7 +86,8 @@ def _test_measure_scalability(builder_class, builder_kwargs):
     print("", file=sys.stderr)  # newline before the logging output
     random_state = 42; random.seed(random_state); np.random.seed(random_state)
     config_sample = load_titanic(as_integers=True)
-    builder_kwargs.update({"assoc_rule_min_support": 0.5,
+    builder_kwargs.update({"validate": True,
+                           "assoc_rule_min_support": 0.5,
                            "assoc_rule_min_confidence": 0.9})
     df = measure_scalability(random_state, builder_class,
                              builder_kwargs, config_sample)
