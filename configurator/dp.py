@@ -118,7 +118,8 @@ class MDPSolver(object):
             mdp: An MDP instance.
 
         Returns:
-            A policy, i.e. a dict mapping state indices to action indices.
+            A policy, i.e. a numpy array mapping state indices to
+            action indices.
         """
         raise NotImplementedError()
 
@@ -162,7 +163,8 @@ class PolicyIteration(MDPSolver):
             mdp: An MDP instance.
 
         Returns:
-            A policy, i.e. a dict mapping state indices to action indices.
+            A policy, i.e. a numpy array mapping state indices to
+            action indices.
         """
         P = mdp.transitions
         R = mdp.rewards
@@ -181,10 +183,7 @@ class PolicyIteration(MDPSolver):
             original(V0, epsilon, max_iter)
         pi._evalPolicyIterative = types.MethodType(patched, pi)
         pi.run()
-        policy = {s: a for s, a in enumerate(pi.policy)
-                  if (not isinstance(mdp, EpisodicMDP) or
-                      s != mdp.terminal_state)}
-        return policy
+        return pi.policy
 
 
 class ValueIteration(MDPSolver):
@@ -217,7 +216,8 @@ class ValueIteration(MDPSolver):
             mdp: An MDP instance.
 
         Returns:
-            A policy, i.e. a dict mapping state indices to action indices.
+            A policy, i.e. a numpy array mapping state indices to
+            action indices.
         """
         P = mdp.transitions
         R = mdp.rewards
@@ -228,7 +228,4 @@ class ValueIteration(MDPSolver):
             vi = _ValueIteration(P, R, gamma, self._epsilon,
                                  self._max_iter, skip_check=True)
         vi.run()
-        policy = {s: a for s, a in enumerate(vi.policy)
-                  if (not isinstance(mdp, EpisodicMDP) or
-                      s != mdp.terminal_state)}
-        return policy
+        return vi.policy

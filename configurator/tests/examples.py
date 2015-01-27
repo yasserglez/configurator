@@ -39,6 +39,7 @@ def load_grid_world():
 
     # Grid transitions.
     grid_transitions = {
+        # from_state: ((action, to_state), ...)
         1: ((down, 5), (right, 2), (left, 15)),
         2: ((down, 6), (right, 3), (left, 1)),
         3: ((down, 7), (left, 2)),
@@ -79,22 +80,10 @@ def load_grid_world():
     gamma = 1.0
 
     # Optimal policy.
-    policy = {
-        1: left,
-        2: left,
-        3: down,
-        4: up,
-        5: up,
-        6: up,
-        7: down,
-        8: up,
-        9: up,
-        10: down,
-        11: down,
-        12: up,
-        13: right,
-        14: right
-    }
+    policy = (left, left, down,
+              up, up, up, down,
+              up, up, down, down,
+              up, right, right)
 
     field_names = ["num_states", "num_actions", "transitions",
                    "rewards", "initial_state", "terminal_state",

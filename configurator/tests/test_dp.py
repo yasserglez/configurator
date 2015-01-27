@@ -6,10 +6,8 @@ from ..dp import MDP, EpisodicMDP, PolicyIteration, ValueIteration
 
 
 grid_world = load_grid_world()
-S = grid_world.num_states
-INITIAL_STATE = grid_world.initial_state
-TERMINAL_STATE = grid_world.terminal_state
-A = grid_world.num_actions
+S, A = grid_world.num_states, grid_world.num_actions
+S0, Sn = grid_world.initial_state, grid_world.terminal_state
 P = grid_world.transitions
 R = grid_world.rewards
 GAMMA = grid_world.discount_factor
@@ -44,18 +42,18 @@ class TestEpisodicMDP(TestMDP):
     mdp_class = EpisodicMDP
 
     def test_init_attributes(self):
-        mdp = self.mdp_class(P, R, GAMMA, INITIAL_STATE, TERMINAL_STATE)
-        assert mdp.initial_state == INITIAL_STATE
-        assert mdp.terminal_state == TERMINAL_STATE
+        mdp = self.mdp_class(P, R, GAMMA, S0, Sn)
+        assert mdp.initial_state == S0
+        assert mdp.terminal_state == Sn
 
     def test_init_validation(self):
         super().test_init_validation()
         invalid_P = np.random.rand(A, S, S)
         assert_raises(ValueError, self.mdp_class,
-                      invalid_P, R, GAMMA, INITIAL_STATE, TERMINAL_STATE)
+                      invalid_P, R, GAMMA, S0, Sn)
         invalid_R = np.random.rand(A, S, S)
         assert_raises(ValueError, self.mdp_class,
-                      P, invalid_R, GAMMA, INITIAL_STATE, TERMINAL_STATE)
+                      P, invalid_R, GAMMA, S0, Sn)
 
 
 class BaseTestMDPSolver(object):
@@ -68,7 +66,7 @@ class BaseTestMDPSolver(object):
     def test_solve(self):
         mdp = EpisodicMDP(P, R, GAMMA)
         policy = self.solver.solve(mdp)
-        assert policy == {s - 1: a for s, a in POLICY.items()}
+        assert all([policy[i] == POLICY[i] for i in range(len(POLICY))])
 
 
 class TestPolicyIteration(BaseTestMDPSolver):
