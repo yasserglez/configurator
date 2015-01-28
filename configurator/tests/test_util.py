@@ -6,7 +6,8 @@ import random
 import numpy as np
 
 from .examples import load_email_client, load_titanic
-from ..policy import DPDialogBuilder, RLDialogBuilder
+from ..dp import DPDialogBuilder
+from ..rl import RLDialogBuilder
 from ..util import (load_config_sample, simulate_dialog,
                     cross_validation, measure_scalability)
 

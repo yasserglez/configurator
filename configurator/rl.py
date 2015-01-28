@@ -1,4 +1,4 @@
-"""Reinforcement Learning"""
+"""Configuration Dialogs based on Reinforcement Learning"""
 
 import logging
 import pprint
@@ -7,6 +7,7 @@ from operator import mul
 
 import numpy as np
 from scipy import stats
+from mdptoolbox.util import getSpan
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
 from pybrain.rl.agents import LearningAgent
@@ -14,10 +15,159 @@ from pybrain.rl.learners import Q as Q_, SARSA as SARSA_
 from pybrain.rl.learners.valuebased import ActionValueTable  # noqa
 from pybrain.rl.experiments import EpisodicExperiment  # noqa
 
+from .base import Dialog, DialogBuilder
 from .util import iter_config_states
 
 
 log = logging.getLogger(__name__)
+
+
+class RLDialog(Dialog):
+    """Configuration dialog generated using reinforcement learning.
+
+    Attributes:
+        rules: A list of AssociationRule instances.
+        policy: The MDP policy, i.e. a dict mapping every possible
+            configuration state to a variable index.
+
+    See Dialog for other attributes.
+    """
+
+    def __init__(self, config_values, rules, policy, validate=False):
+        """Initialize a new instance.
+
+        Arguments:
+            rules: A list of AssociationRule instances.
+            policy: The MDP policy, i.e. a dict mapping configuration
+                states to variable indices. The configuration states
+                are represented as frozensets of (index, value) tuples
+                for each variable.
+
+        See Dialog for the remaining arguments.
+        """
+        self.rules = rules
+        self.policy = policy
+        super().__init__(config_values, validate=validate)
+
+    def _validate(self):
+        for state in iter_config_states(self.config_values, True):
+            state_key = frozenset(state.items())
+            try:
+                if self.policy[state_key] in state:
+                    raise ValueError("The policy has invalid actions")
+            except KeyError:
+                # States that can be skipped using the association
+                # rules won't appear on the policy.
+                pass
+
+    def set_answer(self, var_index, var_value):
+        """Set the value of a configuration variable.
+
+        See Dialog for more information.
+        """
+        super().set_answer(var_index, var_value)
+        for rule in self.rules:
+            if rule.is_applicable(self.config):
+                rule.apply_rule(self.config)
+
+    def get_next_question(self):
+        """Get the question that should be asked next.
+        """
+        next_var_index = self.policy[frozenset(self.config.items())]
+        return next_var_index
+
+
+class RLDialogBuilder(DialogBuilder):
+    """Build a configuration dialog using reinforcement learning.
+    """
+
+    def __init__(self, rl_algorithm="q-learning",
+                 rl_learning_rate=0.5,
+                 rl_epsilon=0.3,
+                 rl_epsilon_decay=1.0,
+                 rl_max_episodes=1000,
+                 **kwargs):
+        """Initialize a new instance.
+
+        Arguments:
+            rl_algorithm: Reinforcement learning algorithm. Possible
+                values are: 'q-learning' (default) and 'sarsa'.
+            rl_learning_rate: Q-learning and SARSA learning rate
+                (default: 0.5).
+            rl_epsilon: Initial epsilon value for the epsilon-greedy
+                exploration strategy (default: 0.3).
+            rl_epsilon_decay: Epsilon decay rate (default: 1.0).
+                The epsilon value is decayed after every episode.
+            rl_max_episodes: Maximum number of simulated episodes
+                (default: 1000).
+
+        See DialogBuilder for the remaining arguments.
+        """
+        super().__init__(**kwargs)
+        if rl_algorithm in ("q-learning", "sarsa"):
+            self._rl_algorithm = rl_algorithm
+        else:
+            raise ValueError("Invalid rl_algorithm value")
+        self._rl_learning_rate = rl_learning_rate
+        self._rl_epsilon = rl_epsilon
+        self._rl_epsilon_decay = rl_epsilon_decay
+        self._rl_max_episodes = rl_max_episodes
+        self._Vspan_threshold = 0.001
+
+    def build_dialog(self):
+        """Construct a configuration dialog.
+
+        Returns:
+            An instance of a Dialog subclass.
+        """
+        rules = self._mine_rules()
+        log.debug("running the RL algorithm")
+        env = DialogEnvironment(self._freq_tab, rules)
+        task = DialogTask(env)
+        table = ActionValueTable(env.num_states, env.num_actions)
+        # Can't be initilized to a value greater than zero without
+        # changing PyBrain's internals. ActionValueTable chooses
+        # randomly among actions with the same Q value and it would
+        # choose many invalid actions.
+        table.initialize(-1)
+        if self._rl_algorithm == "q-learning":
+            learner = Q(alpha=self._rl_learning_rate, gamma=1.0)
+        elif self._rl_algorithm == "sarsa":
+            learner = SARSA(alpha=self._rl_learning_rate, gamma=1.0)
+        agent = DialogLearningAgent(table, learner, self._rl_epsilon)
+        exp = EpisodicExperiment(task, agent)
+        Qvalues = table.params.reshape(env.num_states, env.num_actions)
+        Vprev = Qvalues.max(1)
+        for curr_episode in range(self._rl_max_episodes):
+            log.debug("the epsilon value is %.2f", agent.epsilon)
+            exp.doEpisodes(number=1)
+            agent.learn(episodes=1)
+            agent.reset()
+            agent.epsilon *= self._rl_epsilon_decay
+            # Check the stopping criterion.
+            V = Qvalues.max(1)
+            Verror = getSpan(V - Vprev)
+            Vprev = V
+            if Verror < self._Vspan_threshold:
+                break
+        log.debug("terminated after %d episodes", curr_episode + 1)
+        log.debug("finished running the RL algorithm")
+        # Create the RLDialog instance.
+        policy_array = Qvalues.argmax(1)
+        policy_dict = {}
+        non_terminals = iter_config_states(self._config_values, True)
+        for i, state in enumerate(non_terminals):
+            action = int(policy_array[i])
+            if action in state:
+                # Ensure that the policy doesn't suggest questions
+                # that have been already answered.
+                action = next(iter((a for a in range(env.num_actions)
+                                    if a not in state)))
+            state_key = frozenset(state.items())
+            policy_dict[state_key] = action
+        dialog = RLDialog(self._config_values, rules, policy_dict,
+                          validate=self._validate)
+        return dialog
 
 
 class DialogEnvironment(Environment):
