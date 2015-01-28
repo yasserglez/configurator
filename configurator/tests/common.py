@@ -1,4 +1,7 @@
 import os
+import sys
+import random
+import logging
 from collections import namedtuple
 
 import numpy as np
@@ -7,6 +10,25 @@ from ..util import load_config_sample
 
 
 TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
+
+
+class BaseTest(object):
+
+    random_seed = 42
+
+    @classmethod
+    def setup(cls):
+        logger = logging.getLogger("configurator")
+        logger.propagate = False
+        logger.setLevel(logging.DEBUG)
+        if not logger.handlers:
+            formatter = logging.Formatter("%(asctime)s:%(message)s")
+            handler = logging.StreamHandler(sys.stderr)
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        print("", file=sys.stderr)  # newline before the logging output
+        random.seed(cls.random_seed)
+        np.random.seed(cls.random_seed)
 
 
 def _load_csv(csv_file):

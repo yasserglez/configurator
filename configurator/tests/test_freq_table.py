@@ -1,8 +1,9 @@
 from numpy.testing import assert_array_equal, assert_almost_equal
 
-from .examples import load_titanic
 from ..util import get_config_values
 from ..freq_table import FrequencyTable
+
+from .common import load_titanic
 
 
 class TestFrequencyTable(object):

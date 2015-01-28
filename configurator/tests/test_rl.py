@@ -1,24 +1,13 @@
-import sys
-import random
-import logging
-
-import numpy as np
-
-from .examples import load_email_client
 from ..rl import RLDialogBuilder
 
-
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-logger.handlers[0].setFormatter(logging.Formatter("%(asctime)s:%(message)s"))
+from .common import BaseTest, load_email_client
 
 
-class TestRLDialogBuilder(object):
+class TestRLDialogBuilder(BaseTest):
 
     def setup(self):
-        print("", file=sys.stderr)  # newline before the logging output
+        super().setup()
         self._email_client = load_email_client(as_integers=True)
-        seed = 42; random.seed(seed); np.random.seed(seed)
 
     def _test_builder(self, algorithm):
         builder = RLDialogBuilder(

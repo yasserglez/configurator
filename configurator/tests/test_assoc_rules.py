@@ -1,8 +1,9 @@
 from numpy.testing import (assert_raises, assert_array_equal,
                            assert_almost_equal)
 
-from .examples import load_titanic
 from ..assoc_rules import AssociationRule, AssociationRuleMiner
+
+from .common import load_titanic
 
 
 class TestAssociationRule(object):

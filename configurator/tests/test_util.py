@@ -1,23 +1,18 @@
 import os
 import sys
-import logging
-import random
 
 import numpy as np
 
-from .examples import load_email_client, load_titanic
 from ..dp import DPDialogBuilder
 from ..rl import RLDialogBuilder
 from ..util import (load_config_sample, simulate_dialog,
                     cross_validation, measure_scalability)
 
-
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-logger.handlers[0].setFormatter(logging.Formatter("%(asctime)s:%(message)s"))
+from .common import BaseTest, load_email_client, load_titanic
 
 
 def test_load_config_sample():
+    BaseTest.setup()
     original_sample = load_titanic()
     tests_dir = os.path.abspath(os.path.dirname(__file__))
     csv_file = os.path.join(tests_dir, "titanic.csv")
@@ -31,8 +26,7 @@ def test_load_config_sample():
 
 
 def _test_simulate_dialog(builder_class, builder_kwargs):
-    print("", file=sys.stderr)  # newline before the logging output
-    random_state = 42; random.seed(random_state); np.random.seed(random_state)
+    BaseTest.setup()
     email_client = load_email_client(as_integers=True)
     builder = builder_class(
         config_sample=email_client.config_sample,
@@ -66,7 +60,7 @@ def test_simulate_rl_policy_dialog():
 
 
 def test_cross_validation():
-    print("", file=sys.stderr)  # newline before the logging output
+    BaseTest.setup()
     email_client = load_email_client()
     n_folds = 10
     random_state = 42
@@ -84,13 +78,12 @@ def test_cross_validation():
 
 
 def _test_measure_scalability(builder_class, builder_kwargs):
-    print("", file=sys.stderr)  # newline before the logging output
-    random_state = 42; random.seed(random_state); np.random.seed(random_state)
+    BaseTest.setup()
     config_sample = load_titanic(as_integers=True)
     builder_kwargs.update({"validate": True,
                            "assoc_rule_min_support": 0.5,
                            "assoc_rule_min_confidence": 0.9})
-    df = measure_scalability(random_state, builder_class,
+    df = measure_scalability(BaseTest.random_seed, builder_class,
                              builder_kwargs, config_sample)
     assert df.shape == (config_sample.shape[1] - 1, 2)
     assert (df["bin_vars"] > 0).all()

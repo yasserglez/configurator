@@ -1,27 +1,16 @@
-import sys
-import logging
-
 import numpy as np
 from numpy.testing import assert_array_equal, assert_raises
 
-from .examples import load_email_client, load_grid_world
 from ..dp import (DPDialogBuilder, MDP, EpisodicMDP,
                   PolicyIteration, ValueIteration)
 
-
-logger = logging.getLogger("configurator")
-logger.propagate = False
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s:%(message)s")
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+from .common import BaseTest, load_email_client, load_grid_world
 
 
-class TestDPDialogBuilder(object):
+class TestDPDialogBuilder(BaseTest):
 
     def setup(self):
-        print("", file=sys.stderr)  # newline before the logging output
+        super().setup()
         self._email_client = load_email_client()
 
     def _test_builder(self, algorithm, discard_states,
@@ -72,12 +61,12 @@ POLICY = grid_world.policy
 del grid_world
 
 
-class TestMDP(object):
+class TestMDP(BaseTest):
 
     mdp_class = MDP
 
     def setup(self):
-        np.random.seed(42)
+        super().setup()
 
     def test_init_attributes(self):
         mdp = self.mdp_class(P, R, GAMMA)
@@ -113,11 +102,12 @@ class TestEpisodicMDP(TestMDP):
                       P, invalid_R, GAMMA, S0, Sn)
 
 
-class BaseTestMDPSolver(object):
+class BaseTestMDPSolver(BaseTest):
 
     solver_class = None
 
     def setup(self):
+        super().setup()
         self.solver = self.solver_class()
 
     def test_solve(self):

@@ -2,9 +2,11 @@ import random
 
 from ..sequence import SequenceDialog
 
+from .common import BaseTest
+
 
 def test_sequence_config_dialog():
-    random.seed(42)
+    BaseTest.setup()
     num_vars = 10
     config = {i: i % 2 for i in range(num_vars)}
     config_values = {i: [True, False] for i in range(num_vars)}
