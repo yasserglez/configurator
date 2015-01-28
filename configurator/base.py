@@ -91,7 +91,7 @@ class Dialog(object):
         Returns:
             An integer, the variable index.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def set_answer(self, var_index, var_value):
         """Set the value of a configuration variable.
@@ -174,7 +174,7 @@ class DialogBuilder(object):
         Returns:
             An instance of a Dialog subclass.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def _mine_rules(self):
         # Mine the association rules.

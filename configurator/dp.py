@@ -544,7 +544,7 @@ class MDPSolver(object):
             A policy, i.e. a numpy array mapping state indices to
             action indices.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 class PolicyIteration(MDPSolver):

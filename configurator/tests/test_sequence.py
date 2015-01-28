@@ -12,7 +12,7 @@ def test_sequence_config_dialog():
     config_values = {i: [True, False] for i in range(num_vars)}
     var_seq = list(range(num_vars))
     random.shuffle(var_seq)
-    dialog = SequenceDialog(config_values, [], var_seq)
+    dialog = SequenceDialog(config_values, [], var_seq, validate=True)
     dialog.reset()
     i = 0
     while not dialog.is_complete():

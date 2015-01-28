@@ -264,20 +264,15 @@ class DialogTask(EpisodicTask):
     def getObservation(self):
         log.debug("computing the observation in the task")
         state = self.env.getSensors()
-        # Compute the state index.
-        if len(state) == len(self.env.config_values):
-            # The collapsed terminal state has the last index.
-            state_index = self.env.num_states - 1
-        else:
-            # Find the position of the state amongst all the possible
-            # configuration states. This is not efficient, but the
-            # tabular version won't work for many variables anyway.
-            state_key = hash(frozenset(state.items()))
-            non_terminals = iter_config_states(self.env.config_values, True)
-            for i, state in enumerate(non_terminals):
-                if state_key == hash(frozenset(state.items())):
-                    state_index = i
-                    break
+        # Find the position of the state amongst all the possible
+        # configuration states. This is not efficient, but the
+        # tabular version won't work for many variables anyway.
+        state_key = hash(frozenset(state.items()))
+        non_terminals = iter_config_states(self.env.config_values, True)
+        for i, state in enumerate(non_terminals):
+            if state_key == hash(frozenset(state.items())):
+                state_index = i
+                break
         obs = (state_index, state)
         log.debug("observation in the task:\n%s", pprint.pformat(obs))
         return obs
@@ -298,7 +293,7 @@ class DialogTask(EpisodicTask):
     def addReward(self):
         # The reward is added in performAction, overriding and raising
         # an exception to make sure this method isn't called by PyBrain.
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def getReward(self):
         log.debug("the reward for the last action is %d", self.lastreward)
