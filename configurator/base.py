@@ -185,6 +185,7 @@ class DialogBuilder(object):
                                        algorithm=self._assoc_rule_algorithm)
         if log.isEnabledFor(logging.DEBUG):
             if rules:
+                log.debug("found %d rules", len(rules))
                 supp = [rule.support for rule in rules]
                 log.debug("support values in [%.2f,%.2f]",
                           min(supp), max(supp))
