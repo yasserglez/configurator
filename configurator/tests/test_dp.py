@@ -14,7 +14,7 @@ class TestDPDialogBuilder(BaseTest):
         self._email_client = load_email_client()
 
     def _test_builder(self, algorithm, discard_states,
-                      partial_assoc_rules, collapse_terminals):
+                      partial_assoc_rules, aggregate_terminals):
         builder = DPDialogBuilder(
             config_sample=self._email_client.config_sample,
             validate=True,
@@ -24,7 +24,7 @@ class TestDPDialogBuilder(BaseTest):
             dp_algorithm=algorithm,
             dp_discard_states=discard_states,
             dp_partial_assoc_rules=partial_assoc_rules,
-            dp_collapse_terminals=collapse_terminals)
+            dp_aggregate_terminals=aggregate_terminals)
         dialog = builder.build_dialog()
         for var_index in self._email_client.questions:
             assert dialog.get_next_question() == var_index

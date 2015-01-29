@@ -64,7 +64,7 @@ class DPDialogBuilder(DialogBuilder):
                  dp_max_iter=1000,
                  dp_discard_states=True,
                  dp_partial_assoc_rules=True,
-                 dp_collapse_terminals=True,
+                 dp_aggregate_terminals=True,
                  **kwargs):
         """Initialize a new instance.
 
@@ -82,8 +82,8 @@ class DPDialogBuilder(DialogBuilder):
                 right-hand-side are already set to the correct values.
                 (the opposite is to require that all variables in the
                 left-hand-side are unknown) (default: True).
-            dp_collapse_terminals: Indicates whether all terminal
-                states should be collapsed into a single state
+            dp_aggregate_terminals: Indicates whether all terminal
+                states should be aggregated into a single state
                 (default: True).
 
         See DialogBuilder for the remaining arguments.
@@ -97,7 +97,7 @@ class DPDialogBuilder(DialogBuilder):
             raise ValueError("Invalid dp_algorithm value")
         self._dp_discard_states = dp_discard_states
         self._dp_partial_assoc_rules = dp_partial_assoc_rules
-        self._dp_collapse_terminals = dp_collapse_terminals
+        self._dp_aggregate_terminals = dp_aggregate_terminals
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -166,7 +166,7 @@ class DPDialogBuilder(DialogBuilder):
         # lil_matrix matrices can be built faster.
         transitions = list(map(lambda m: m.tocsr(), transitions))
         rewards = list(map(lambda m: m.tocsr(), rewards))
-        if self._dp_collapse_terminals:
+        if self._dp_aggregate_terminals:
             initial_state = 0
             terminal_state = S - 1
             mdp = EpisodicMDP(transitions, rewards,
@@ -188,12 +188,12 @@ class DPDialogBuilder(DialogBuilder):
             # The first state will be an empty dict. It will be the
             # initial state in EpisodicMDP.
             state_len = len(state)  # cached to be used in igraph's queries
-            if state_len != num_vars or not self._dp_collapse_terminals:
+            if state_len != num_vars or not self._dp_aggregate_terminals:
                 # If it's a terminal state the vertex is added only if
-                # terminal states shouldn't be collapsed.
+                # terminal states shouldn't be aggregated.
                 graph.add_vertex(state=state, state_len=state_len)
-        if self._dp_collapse_terminals:
-            # If the terminal states were collapsed, add a single
+        if self._dp_aggregate_terminals:
+            # If the terminal states were aggregated, add a single
             # state (with the state dict set to None) where all the
             # configuration values are known. It will be the terminal
             # state in EpisodicMDP.
@@ -267,7 +267,7 @@ class DPDialogBuilder(DialogBuilder):
                     var_index = next(iter(w_config - v_config))
                     actions.append(var_index)
                     if w["state"] is None:
-                        # w is a collapsed terminal state. Add an edge with
+                        # w is a aggregated terminal state. Add an edge with
                         # probability one, whatever the user answers is
                         # going to take her/him to the terminal state.
                         probs.append(1.0)
@@ -292,7 +292,7 @@ class DPDialogBuilder(DialogBuilder):
         # (the one that becomes known after the question is asked).
         w_state = w["state"]
         if w_state is None:
-            # Collapsed terminal state.
+            # Aggregated terminal state.
             return True
         else:
             for var_index, var_value in v["state"].items():
@@ -339,13 +339,13 @@ class DPDialogBuilder(DialogBuilder):
 
     def _update_graph_cond_a(self, rule, s_or_sp):
         # (a) variables in lhs have known and same options in S and S'.
-        # When called with S', it could be a collapsed terminal state
+        # When called with S', it could be a aggregated terminal state
         # which will satisfy any rule.
         return (s_or_sp is None or rule.is_lhs_compatible(s_or_sp))
 
     def _update_graph_cond_bi(self, rule, sp):
         # (b-i) variables in the rhs appear with all values exactly
-        # the same as in the rule in S'. The collapsed terminal state
+        # the same as in the rule in S'. The aggregated terminal state
         # satisfies any rule.
         if sp is not None:
             for var_index, var_value in rule.rhs.items():
@@ -370,7 +370,7 @@ class DPDialogBuilder(DialogBuilder):
         all_vars = set(range(len(self._config_values)))
         mentioned_vars = set(rule.lhs.keys()) | set(rule.rhs.keys())
         if sp is None:
-            # S' is a collapsed terminal state and it has all the
+            # S' is a aggregated terminal state and it has all the
             # variable combinations. We only need to check for S.
             for var_index in (all_vars - mentioned_vars):
                 if var_index not in s:
@@ -393,7 +393,7 @@ class DPDialogBuilder(DialogBuilder):
             # variables that are automaticallly discovered).
             reward = e["reward"] + (v_sp["state_len"] - v_s["state_len"])
             if v_sp["state"] is None:
-                # Eliminate multi-edges pointing to the collapsed
+                # Eliminate multi-edges pointing to the aggregated
                 # terminal state by combining them into a single edge.
                 try:
                     # If the edge already exists, just add the probabilities.
@@ -406,7 +406,7 @@ class DPDialogBuilder(DialogBuilder):
                                    prob=e["prob"], reward=reward)
             else:
                 # Edge pointing to an intermediate state or an individual
-                # terminal state when they are not collapsed.
+                # terminal state when they are not aggregated.
                 graph.add_edge(e.source, target=v_sp, action=e["action"],
                                prob=e["prob"], reward=reward)
             # The edge was rewired, add it to a list of edges to be removed.
