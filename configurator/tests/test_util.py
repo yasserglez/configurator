@@ -116,15 +116,24 @@ def test_scalability_policy_iteration_with_optim():
     _test_scalability_dp("policy-iteration", True, True, True)
 
 
-def _test_scalability_rl(algorithm):
+def _test_scalability_rl(algorithm, table):
     builder_class = RLDialogBuilder
-    builder_kwargs = {"rl_algorithm": algorithm}
+    builder_kwargs = {"rl_algorithm": algorithm,
+                      "rl_table": table}
     _test_measure_scalability(builder_class, builder_kwargs)
 
 
-def test_scalability_qlearning():
-    _test_scalability_rl("q-learning")
+def test_scalability_qlearning_exact():
+    _test_scalability_rl("q-learning", "exact")
 
 
-def test_scalability_sarsa():
-    _test_scalability_rl("sarsa")
+def test_scalability_qlearning_approx():
+    _test_scalability_rl("q-learning", "approx")
+
+
+def test_scalability_sarsa_exact():
+    _test_scalability_rl("sarsa", "exact")
+
+
+def test_scalability_sarsa_approx():
+    _test_scalability_rl("sarsa", "approx")

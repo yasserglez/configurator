@@ -51,6 +51,7 @@ class RLDialogBuilder(DialogBuilder):
     """
 
     def __init__(self, rl_algorithm="q-learning",
+                 rl_table="exact",
                  rl_learning_rate=0.5,
                  rl_epsilon=0.3,
                  rl_epsilon_decay=1.0,
@@ -77,6 +78,10 @@ class RLDialogBuilder(DialogBuilder):
             self._rl_algorithm = rl_algorithm
         else:
             raise ValueError("Invalid rl_algorithm value")
+        if rl_table in ("exact", "approx"):
+            self._rl_table = rl_table
+        else:
+            raise ValueError("Invalid rl_table value")
         self._rl_learning_rate = rl_learning_rate
         self._rl_epsilon = rl_epsilon
         self._rl_epsilon_decay = rl_epsilon_decay
@@ -93,7 +98,10 @@ class RLDialogBuilder(DialogBuilder):
         dialog = Dialog(self._config_values, rules)
         env = DialogEnvironment(dialog, self._freq_tab)
         task = DialogTask(env)
-        table = DialogQTable(self._config_values)
+        if self._rl_table == "exact":
+            table = DialogQTable(self._config_values)
+        elif self._rl_table == "approx":
+            table = ApproxDialogQTable(self._config_values)
         if self._rl_algorithm == "q-learning":
             learner = QLearning(alpha=self._rl_learning_rate, gamma=1.0)
         elif self._rl_algorithm == "sarsa":
@@ -171,6 +179,28 @@ class DialogQTable(ActionValueTable):
         # to return the first one.
         action = self.Q[state, :].argmax()
         return action
+
+
+class ApproxDialogQTable(DialogQTable):
+    """Approxximate action-value table using state aggregation."""
+
+    def __init__(self, config_values):
+        """Initialize a new instance.
+
+        See DialogQTable for information about the arguments.
+        """
+        super().__init__(config_values)
+
+    def _get_num_states(self):
+        # All the states in which the same number of variables are
+        # known are aggregated into a single state.
+        num_states = len(self._config_values) + 1
+        return num_states
+
+    def get_state_index(self, config):
+        state_index = len(config)
+        log.debug("the aggregated state index is %d", state_index)
+        return state_index
 
 
 class DialogEnvironment(Environment):
