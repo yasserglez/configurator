@@ -21,19 +21,13 @@ log = logging.getLogger(__name__)
 class DPDialog(Dialog):
     """Configuration dialog generated using dynamic programming.
 
-    Attributes:
-        rules: A list of AssociationRule instances.
-        policy: The MDP policy, i.e. a dict mapping every possible
-            configuration state to a variable index.
-
-    See Dialog for other attributes.
+    See Dialog for information about the attributes and methods.
     """
 
     def __init__(self, config_values, rules, policy, validate=False):
         """Initialize a new instance.
 
         Arguments:
-            rules: A list of AssociationRule instances.
             policy: The MDP policy, i.e. a dict mapping configuration
                 states to variable indices. The configuration states
                 are represented as frozensets of (index, value) tuples
@@ -41,35 +35,24 @@ class DPDialog(Dialog):
 
         See Dialog for the remaining arguments.
         """
-        self.rules = rules
-        self.policy = policy
-        super().__init__(config_values, validate=validate)
+        self._policy = policy
+        super().__init__(config_values, rules, validate=validate)
 
     def _validate(self):
         for state in iter_config_states(self.config_values, True):
             state_key = frozenset(state.items())
             try:
-                if self.policy[state_key] in state:
+                if self._policy[state_key] in state:
                     raise ValueError("The policy has invalid actions")
             except KeyError:
                 # States that can be skipped using the association
                 # rules won't appear on the policy.
                 pass
 
-    def set_answer(self, var_index, var_value):
-        """Set the value of a configuration variable.
-
-        See Dialog for more information.
-        """
-        super().set_answer(var_index, var_value)
-        for rule in self.rules:
-            if rule.is_applicable(self.config):
-                rule.apply_rule(self.config)
-
     def get_next_question(self):
         """Get the question that should be asked next.
         """
-        next_var_index = self.policy[frozenset(self.config.items())]
+        next_var_index = self._policy[frozenset(self.config.items())]
         return next_var_index
 
 

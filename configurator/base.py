@@ -34,7 +34,7 @@ class Dialog(object):
     configuration variables are unknown. Next, a call to the method
     get_next_question will suggest a question, which can be posed to
     the user and the answer should be given as feedback to the dialog
-    using the method set_answer. It is possible to ignore the
+    using the set_answer method. It is possible to ignore the
     suggestion given by the dialog and answer the questions in any
     order. In this case, simply call set_answer and future calls to
     get_next_question will act accordingly.
@@ -51,13 +51,14 @@ class Dialog(object):
             variable indices to their values.
     """
 
-    def __init__(self, config_values, validate=False):
+    def __init__(self, config_values, rules, validate=False):
         """Initialize a new instance.
 
         Arguments:
             config_values: A list with one entry for each variable,
                 containing an enumerable with all the possible values
                 of the variable.
+            rules: A list of AssociationRule instances.
             validate: Indicates whether the dialog initialization
                 should be validated or not (default: False).
                 A ValueError exception will be raised if any error
@@ -65,6 +66,7 @@ class Dialog(object):
         """
         super().__init__()
         self.config_values = config_values
+        self._rules = rules
         self.reset()
         if validate:
             self._validate()
@@ -110,6 +112,9 @@ class Dialog(object):
             raise ValueError("Variable {0} is already set".format(var_index))
         else:
             self.config[var_index] = var_value
+            for rule in self._rules:
+                if rule.is_applicable(self.config):
+                    rule.apply_rule(self.config)
 
     def is_complete(self):
         """Check if the configuration is complete.
