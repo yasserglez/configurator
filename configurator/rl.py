@@ -6,14 +6,15 @@ from functools import reduce
 from operator import mul
 
 import numpy as np
+import numpy.ma as ma
 from scipy import stats
 from mdptoolbox.util import getSpan
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.learners import Q as Q_, SARSA as SARSA_
-from pybrain.rl.learners.valuebased import ActionValueTable  # noqa
-from pybrain.rl.experiments import EpisodicExperiment  # noqa
+from pybrain.rl.learners.valuebased import ActionValueTable
+from pybrain.rl.experiments import EpisodicExperiment
 
 from .base import Dialog, DialogBuilder
 from .util import iter_config_states
@@ -28,36 +29,21 @@ class RLDialog(Dialog):
     See Dialog for information about the attributes and methods.
     """
 
-    def __init__(self, config_values, rules, policy, validate=False):
+    def __init__(self, config_values, rules, table, validate=False):
         """Initialize a new instance.
 
         Arguments:
-            policy: The MDP policy, i.e. a dict mapping configuration
-                states to variable indices. The configuration states
-                are represented as frozensets of (index, value) tuples
-                for each variable.
+            table: A DialogQTable instance.
 
         See Dialog for the remaining arguments.
         """
-        self._policy = policy
+        self._table = table
         super().__init__(config_values, rules, validate=validate)
-
-    def _validate(self):
-        for state in iter_config_states(self.config_values, True):
-            state_key = frozenset(state.items())
-            try:
-                if self._policy[state_key] in state:
-                    raise ValueError("The policy has invalid actions")
-            except KeyError:
-                # States that can be skipped using the association
-                # rules won't appear on the policy.
-                pass
 
     def get_next_question(self):
         """Get the question that should be asked next.
         """
-        next_var_index = self._policy[frozenset(self.config.items())]
-        return next_var_index
+        return self._table.get_next_question(self.config)
 
 
 class RLDialogBuilder(DialogBuilder):
@@ -104,31 +90,25 @@ class RLDialogBuilder(DialogBuilder):
             An instance of a Dialog subclass.
         """
         rules = self._mine_rules()
-        log.debug("running the RL algorithm")
-        env = DialogEnvironment(self._freq_tab, rules)
+        dialog = Dialog(self._config_values, rules)
+        env = DialogEnvironment(dialog, self._freq_tab)
         task = DialogTask(env)
-        table = ActionValueTable(env.num_states, env.num_actions)
-        # Can't be initilized to a value greater than zero without
-        # changing PyBrain's internals. ActionValueTable chooses
-        # randomly among actions with the same Q value and it would
-        # choose many invalid actions.
-        table.initialize(-1)
+        table = DialogQTable(self._config_values)
         if self._rl_algorithm == "q-learning":
-            learner = Q(alpha=self._rl_learning_rate, gamma=1.0)
+            learner = QLearning(alpha=self._rl_learning_rate, gamma=1.0)
         elif self._rl_algorithm == "sarsa":
             learner = SARSA(alpha=self._rl_learning_rate, gamma=1.0)
-        agent = DialogLearningAgent(table, learner, self._rl_epsilon)
+        agent = DialogAgent(table, learner, self._rl_epsilon,
+                            self._rl_epsilon_decay)
         exp = EpisodicExperiment(task, agent)
-        Qvalues = table.params.reshape(env.num_states, env.num_actions)
-        Vprev = Qvalues.max(1)
+        log.debug("running the RL algorithm")
+        Vprev = table.Q.max(1)
         for curr_episode in range(self._rl_max_episodes):
-            log.debug("the epsilon value is %.2f", agent.epsilon)
             exp.doEpisodes(number=1)
             agent.learn(episodes=1)
             agent.reset()
-            agent.epsilon *= self._rl_epsilon_decay
             # Check the stopping criterion.
-            V = Qvalues.max(1)
+            V = table.Q.max(1)
             Verror = getSpan(V - Vprev)
             Vprev = V
             if Verror < self._Vspan_threshold:
@@ -136,21 +116,61 @@ class RLDialogBuilder(DialogBuilder):
         log.debug("terminated after %d episodes", curr_episode + 1)
         log.debug("finished running the RL algorithm")
         # Create the RLDialog instance.
-        policy_array = Qvalues.argmax(1)
-        policy_dict = {}
-        non_terminals = iter_config_states(self._config_values, True)
-        for i, state in enumerate(non_terminals):
-            action = int(policy_array[i])
-            if action in state:
-                # Ensure that the policy doesn't suggest questions
-                # that have been already answered.
-                action = next(iter((a for a in range(env.num_actions)
-                                    if a not in state)))
-            state_key = frozenset(state.items())
-            policy_dict[state_key] = action
-        dialog = RLDialog(self._config_values, rules, policy_dict,
+        dialog = RLDialog(self._config_values, rules, table,
                           validate=self._validate)
         return dialog
+
+
+class DialogQTable(ActionValueTable):
+    """An action-value table."""
+
+    def __init__(self, config_values):
+        """Initialize a new instance.
+
+        Arguments:
+            config_values: A list with one entry for each variable,
+                containing an enumerable with all the possible values
+                of the variable.
+        """
+        self._config_values = config_values
+        num_states = self._get_num_states()
+        num_actions = len(self._config_values)
+        log.debug("the action-value table has %d states and %d actions",
+                  num_states, num_actions)
+        super().__init__(num_states, num_actions)
+        self.initialize(-1)  # pessimistic initialization
+        self.Q = self.params.reshape(num_states, num_actions)
+
+    def _get_num_states(self):
+        # One variable value is added for the unknown value.
+        all_states = reduce(mul, map(lambda x: len(x) + 1, self._config_values))
+        terminal_states = reduce(mul, map(len, self._config_values))
+        num_states = (all_states - terminal_states) + 1
+        return num_states
+
+    def get_state_index(self, config):
+        # Find the position of the state among all the possible
+        # configuration states. This is not efficient, but the
+        # tabular version won't work for many variables anyway.
+        state_key = hash(frozenset(config.items()))
+        non_terminals = iter_config_states(self._config_values, True)
+        for state_index, state in enumerate(non_terminals):
+            if state_key == hash(frozenset(state.items())):
+                return state_index
+
+    def get_next_question(self, config):
+        # Get the question that should be asked at the given state.
+        state = self.get_state_index(config)
+        invalid_actions = [a in config for a in range(self.numActions)]
+        action = ma.array(self.Q[state, :], mask=invalid_actions).argmax()
+        return action
+
+    def getMaxAction(self, state):
+        # superclass method uses random.choice to choose among
+        # multiple actions with the same maximum value, we just want
+        # to return the first one.
+        action = self.Q[state, :].argmax()
+        return action
 
 
 class DialogEnvironment(Environment):
@@ -166,63 +186,44 @@ class DialogEnvironment(Environment):
     returned by getSensors.
 
     Attributes:
-        num_states: The number of configuration states. All the
-            terminal states (i.e. where all the variables are known)
-            are represented by a single state.
-        num_actions: The number of actions, i.e. the number of variables.
+        dialog: A Dialog instance.
     """
 
-    def __init__(self, freq_tab, rules):
+    def __init__(self, dialog, freq_tab):
         """Initialize a new instance.
 
         Arguments:
+            dialog: A Dialog instance.
             freq_tab: A FrequencyTable instance.
-            rules: A list of AssociationRule instances.
         """
         super().__init__()
+        self.dialog = dialog
         self._freq_tab = freq_tab
-        self._rules = rules
-        self.config_values = freq_tab.var_values
-        # One is added for the unknown value.
-        all_states = reduce(mul, map(lambda x: len(x) + 1, self.config_values))
-        terminal_states = reduce(mul, map(len, self.config_values))
-        self.num_states = all_states - terminal_states + 1
-        self.num_actions = len(self.config_values)
-        log.debug("the environment has %d states and %d actions",
-                  self.num_states, self.num_actions)
 
     def reset(self):
-        log.debug("the configuration was reset in the environment")
-        self.config = {}
+        log.debug("configuration reset in the environment")
+        self.dialog.reset()
 
     def getSensors(self):
-        log.debug("configuration in the environment:\n%s",
-                  pprint.pformat(self.config))
-        return self.config
+        log.debug("current configuration in the environment:\n%s",
+                  pprint.pformat(self.dialog.config))
+        return self.dialog.config
 
     def performAction(self, action):
         log.debug("performing action %d in the environment", action)
         var_index = int(action)
-        if var_index in self.config:
-            raise ValueError("variable {0} is already known".format(var_index))
-        else:
-            # Simulate the user response.
-            values = ([], [])
-            for var_value in self.config_values[var_index]:
-                response = {var_index: var_value}
-                var_prob = self._freq_tab.cond_prob(response, self.config)
-                values[0].append(var_value)
-                values[1].append(var_prob)
-            var_value = stats.rv_discrete(values=values).rvs()
-            log.debug("simulated user response %d", var_value)
-            # Update the configuration state with the new variable and
-            # apply the association rules.
-            self.config[var_index] = var_value
-            for rule in self._rules:
-                if rule.is_applicable(self.config):
-                    rule.apply_rule(self.config)
-            log.debug("the new configuration is:\n%s",
-                      pprint.pformat(self.config))
+        # Simulate the user response.
+        values = ([], [])
+        for var_value in self._freq_tab.var_values[var_index]:
+            response = {var_index: var_value}
+            var_prob = self._freq_tab.cond_prob(response, self.dialog.config)
+            values[0].append(var_value)
+            values[1].append(var_prob)
+        var_value = stats.rv_discrete(values=values).rvs()
+        log.debug("simulated user response %d", var_value)
+        self.dialog.set_answer(var_index, var_value)
+        log.debug("new configuration in the environment:\n%s",
+                  pprint.pformat(self.dialog.config))
         log.debug("finished performing action %d in the environment", action)
 
 
@@ -246,28 +247,17 @@ class DialogTask(EpisodicTask):
 
     def getObservation(self):
         log.debug("computing the observation in the task")
-        state = self.env.getSensors()
-        # Find the position of the state amongst all the possible
-        # configuration states. This is not efficient, but the
-        # tabular version won't work for many variables anyway.
-        state_key = hash(frozenset(state.items()))
-        non_terminals = iter_config_states(self.env.config_values, True)
-        for i, state in enumerate(non_terminals):
-            if state_key == hash(frozenset(state.items())):
-                state_index = i
-                break
-        obs = (state_index, state)
-        log.debug("observation in the task:\n%s", pprint.pformat(obs))
-        return obs
+        config = self.env.getSensors()
+        return config
 
     def performAction(self, action):
         log.debug("performing action %d in the task", action)
-        num_known_vars_before = len(self.env.config)
+        config_len_before = len(self.env.dialog.config)
         self.env.performAction(action)
-        num_known_vars_after = len(self.env.config)
+        config_len_after = len(self.env.dialog.config)
         # The reward is the number of variables that were set minus
         # the cost of asking the question.
-        self.lastreward = (num_known_vars_after - num_known_vars_before) - 1
+        self.lastreward = (config_len_after - config_len_before) - 1
         self.cumreward += self.lastreward
         self.samples += 1
         log.debug("the computed reward is %d", self.lastreward)
@@ -283,43 +273,54 @@ class DialogTask(EpisodicTask):
         return self.lastreward
 
     def isFinished(self):
-        is_finished = len(self.env.config) == len(self.env.config_values)
+        is_finished = self.env.dialog.is_complete()
         if is_finished:
-            log.debug("the episode has finished (total reward %d)",
-                      self.cumreward)
+            log.debug("episode finished, total reward %d", self.cumreward)
         return is_finished
 
 
-class DialogLearningAgent(LearningAgent):
+class DialogAgent(LearningAgent):
 
-    def __init__(self, table, learner, epsilon):
-        super().__init__(table, learner)
-        self.epsilon = epsilon
+    def __init__(self, table, learner, epsilon, epsilon_decay):
+        """Initialize a new instance.
+
+        Arguments:
+
+            table: A DialogQTable instance.
+            learner: A Q or SARSA instance.
+            epsilon: Initial epsilon value for the epsilon-greedy
+                exploration strategy.
+            epsilon_decay: Epsilon decay rate. The epsilon value is
+                decayed after every episode.
+        """
+        super().__init__(table, learner)  # self.module = table
+        self._epsilon = epsilon * (1 / epsilon_decay)
+        self._epsilon_decay = epsilon_decay
+
+    def newEpisode(self):
+        log.debug("new episode in the agent")
+        super().newEpisode()
+        self._epsilon *= self._epsilon_decay
+        log.debug("the epsilon value is %g", self._epsilon)
 
     def integrateObservation(self, obs):
-        state_index, state = obs
-        self.lastindex = np.array([state_index])
-        self.laststate = state
-        super().integrateObservation(self.lastindex)
+        self.lastconfig = obs
+        state_index = self.module.get_state_index(self.lastconfig)
+        super().integrateObservation(state_index)  # self.lastobs = state_index
 
     def getAction(self):
-        num_actions = self.module.numActions
-        # self.module.activate returns the greedy action.
-        self.lastaction = int(self.module.activate(self.lastobs))
-        if self.lastaction in self.laststate:
-            # Pick the first valid action if ActionValueTable returned
-            # an invalid action (ActionValueTable.getMaxAction chooses
-            # randomly when two or more actions have the same Q value).
-            self.lastaction = next(iter((i for i in range(num_actions)
-                                         if i not in self.laststate)))
-        # Epsilon-greedy exploration. Check if the greedy action
-        # should be replaced by a randomly chosen action. Didn't
-        # use EpsilonGreedyExplorer because I couldn't find a way
-        # to easily restrict the sampling to the valid actions.
-        if np.random.uniform() < self.epsilon:
-            valid_actions = [i for i in range(num_actions)
-                             if i not in self.laststate]
-            self.lastaction = np.random.choice(valid_actions)
+        log.debug("getting an action from the agent")
+        self.lastaction = self.module.get_next_question(self.lastconfig)
+        log.debug("the greedy action is %d", self.lastaction)
+        # Epsilon-greedy exploration, i.e. check if the greedy action
+        # should be replaced by a randomly chosen action. Not using
+        # EpsilonGreedyExplorer because we want to restrict the
+        # sampling to the valid actions.
+        if np.random.uniform() < self._epsilon:
+            invalid_actions = [i for i in range(self.module.numActions)
+                             if i not in self.lastconfig]
+            self.lastaction = np.random.choice(invalid_actions)
+            log.debug("performing random action %d instead", self.lastaction)
         return self.lastaction
 
 
@@ -331,21 +332,20 @@ class _LearnFromLastMixin(object):
         # the complete episode first, and then process the last observation.
         # We assume Q is zero for the terminal state.
         super().learn()
-        if self.batchMode:
-            # This will only work if episodes are processed one by
-            # one, so ensure there's only one sequence in the dataset.
-            assert self.dataset.getNumSequences() == 1
-            seq = next(iter(self.dataset))
-            for laststate, lastaction, lastreward in seq:
-                pass  # skip all the way to the last
-            laststate = int(laststate)
-            lastaction = int(lastaction)
-            qvalue = self.module.getValue(laststate, lastaction)
-            new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
-            self.module.updateValue(laststate, lastaction, new_qvalue)
+        # This will only work if episodes are processed one by
+        # one, so ensure there's only one sequence in the dataset.
+        assert self.batchMode and self.dataset.getNumSequences() == 1
+        seq = next(iter(self.dataset))
+        for laststate, lastaction, lastreward in seq:
+            pass  # skip all the way to the last
+        laststate = int(laststate)
+        lastaction = int(lastaction)
+        qvalue = self.module.getValue(laststate, lastaction)
+        new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
+        self.module.updateValue(laststate, lastaction, new_qvalue)
 
 
-class Q(_LearnFromLastMixin, Q_):
+class QLearning(_LearnFromLastMixin, Q_):
     """Q-Learning."""
 
     def __init__(self, *args, **kwargs):

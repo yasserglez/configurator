@@ -108,13 +108,12 @@ class Dialog(object):
                 the possible values of the variable in the
                 config_values instance attribute.
         """
-        if var_index in self.config:
-            raise ValueError("Variable {0} is already set".format(var_index))
-        else:
-            self.config[var_index] = var_value
-            for rule in self._rules:
-                if rule.is_applicable(self.config):
-                    rule.apply_rule(self.config)
+        assert var_index not in self.config, \
+            "Variable {0} is already set".format(var_index)
+        self.config[var_index] = var_value
+        for rule in self._rules:
+            if rule.is_applicable(self.config):
+                rule.apply_rule(self.config)
 
     def is_complete(self):
         """Check if the configuration is complete.
