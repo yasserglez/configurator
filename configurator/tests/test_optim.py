@@ -1,23 +1,23 @@
 import random
 
-from ..sequence import SequenceDialog
+from ..optim import PermutationDialog
 
 from .common import BaseTest
 
 
-def test_sequence_config_dialog():
+def test_permutation_dialog():
     BaseTest.setup()
     num_vars = 10
     config = {i: i % 2 for i in range(num_vars)}
     config_values = {i: [True, False] for i in range(num_vars)}
-    var_seq = list(range(num_vars))
-    random.shuffle(var_seq)
-    dialog = SequenceDialog(config_values, [], var_seq, validate=True)
+    var_perm = list(range(num_vars))
+    random.shuffle(var_perm)
+    dialog = PermutationDialog(config_values, [], var_perm, validate=True)
     dialog.reset()
     i = 0
     while not dialog.is_complete():
         var_index = dialog.get_next_question()
-        assert var_index == var_seq[i]
+        assert var_index == var_perm[i]
         dialog.set_answer(var_index, config[var_index])
         i += 1
     assert dialog.config == config
