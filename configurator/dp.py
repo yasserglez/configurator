@@ -105,18 +105,18 @@ class DPDialogBuilder(DialogBuilder):
         Returns:
             A DPDialog instance.
         """
-        log.debug("building the MDP")
+        rules = self._mine_rules()
+        log.info("building the MDP")
         # Build the initial graph.
         graph = self._build_graph()
         # Update the graph using the association rules.
-        rules = self._mine_rules()
         self._update_graph(graph, rules)
         # Transform the graph into MDP components.
         mdp = self._transform_graph_to_mdp(graph)
-        log.debug("finished building the MDP")
-        log.debug("solving the MDP")
+        log.info("finished building the MDP")
+        log.info("solving the MDP")
         policy_tuple = self._solver.solve(mdp)
-        log.debug("finished solving the MDP")
+        log.info("finished solving the MDP")
         # Create the DPDialog instance.
         num_vars = len(self._config_values)
         policy_dict = {}
@@ -153,7 +153,7 @@ class DPDialogBuilder(DialogBuilder):
         # Generate the transition and reward matrices from the graph.
         log.debug("transforming the graph into the MDP")
         S, A = graph.vcount(), len(self._config_values)
-        log.debug("the MDP has %d states and %d actions", S, A)
+        log.info("the MDP has %d states and %d actions", S, A)
         transitions = [sparse.lil_matrix((S, S)) for a in range(A)]
         rewards = [sparse.lil_matrix((S, S)) for a in range(A)]
         for e in graph.es:

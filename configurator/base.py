@@ -11,6 +11,7 @@ from collections import defaultdict
 from functools import reduce
 from operator import mul
 
+import numpy as np
 from sortedcontainers import SortedListWithKey
 
 from .util import get_config_values
@@ -163,11 +164,12 @@ class DialogBuilder(object):
                                         self._config_values,
                                         cache_size=1000)
         config_card = reduce(mul, map(len, self._config_values))
-        log.debug("%d possible configurations of %d variables (%d binary)",
-                  config_card, len(self._config_values),
-                  math.ceil(math.log2(config_card)))
-        log.debug("the configuration sample has %d observations",
-                  self._config_sample.shape[0])
+        log.info("there are %d possible configurations of %d variables",
+                 config_card, len(self._config_values))
+        log.info("it is equivalent to %d binary variables",
+                 math.ceil(math.log2(config_card)))
+        log.info("the configuration sample has %d observations",
+                 self._config_sample.shape[0])
         self._validate = validate
         self._assoc_rule_algorithm = assoc_rule_algorithm
         self._assoc_rule_min_support = assoc_rule_min_support
@@ -183,22 +185,21 @@ class DialogBuilder(object):
 
     def _mine_rules(self):
         # Mine the association rules.
-        log.debug("mining association rules")
+        log.info("mining association rules")
         miner = AssociationRuleMiner(self._config_sample)
         rules = miner.mine_assoc_rules(self._assoc_rule_min_support,
                                        self._assoc_rule_min_confidence,
                                        algorithm=self._assoc_rule_algorithm)
-        if log.isEnabledFor(logging.DEBUG):
-            if rules:
-                log.debug("found %d rules", len(rules))
-                supp = [rule.support for rule in rules]
-                log.debug("support values in [%.2f,%.2f]",
-                          min(supp), max(supp))
-                conf = [rule.confidence for rule in rules]
-                log.debug("confidence values in [%.2f,%.2f]",
-                          min(conf), max(conf))
-            else:
-                log.debug("no rules were found")
+        if rules:
+            log.info("found %d rules", len(rules))
+            supp = [rule.support for rule in rules]
+            log.info("support five-number summary:\n%s",
+                     np.array_str(np.percentile(supp, [0, 25, 50, 75, 100])))
+            conf = [rule.confidence for rule in rules]
+            log.info("confidence five-number summary:\n%s",
+                     np.array_str(np.percentile(conf, [0, 25, 50, 75, 100])))
+        else:
+            log.info("no rules were found")
         # Merge rules with the same lhs. If two rules have
         # contradictory rhs, the rule with the greatest confidence
         # takes precedence.
@@ -210,9 +211,9 @@ class DialogBuilder(object):
         merged_rules = [reduce(self._merge_rules, grouped_rules)
                         for grouped_rules in rules_dict.values()]
         if merged_rules:
-            log.debug("turned into %d rules after merging:\n%s",
-                      len(merged_rules), pprint.pformat(merged_rules))
-        log.debug("finished mining association rules")
+            log.info("turned into %d rules after merging", len(merged_rules))
+            log.debug("merged rules:\n%s", pprint.pformat(merged_rules))
+        log.info("finished mining association rules")
         # Return the merged rules.
         return merged_rules
 

@@ -109,7 +109,7 @@ class RLDialogBuilder(DialogBuilder):
         agent = DialogAgent(table, learner, self._rl_epsilon,
                             self._rl_epsilon_decay)
         exp = EpisodicExperiment(task, agent)
-        log.debug("running the RL algorithm")
+        log.info("running the RL algorithm")
         Vprev = table.Q.max(1)
         for curr_episode in range(self._rl_max_episodes):
             exp.doEpisodes(number=1)
@@ -121,8 +121,8 @@ class RLDialogBuilder(DialogBuilder):
             Vprev = V
             if Verror < self._Vspan_threshold:
                 break
-        log.debug("terminated after %d episodes", curr_episode + 1)
-        log.debug("finished running the RL algorithm")
+        log.info("terminated after %d episodes", curr_episode + 1)
+        log.info("finished running the RL algorithm")
         # Create the RLDialog instance.
         dialog = RLDialog(self._config_values, rules, table,
                           validate=self._validate)
@@ -143,8 +143,8 @@ class DialogQTable(ActionValueTable):
         self._config_values = config_values
         num_states = self._get_num_states()
         num_actions = len(self._config_values)
-        log.debug("the action-value table has %d states and %d actions",
-                  num_states, num_actions)
+        log.info("the action-value table has %d states and %d actions",
+                 num_states, num_actions)
         super().__init__(num_states, num_actions)
         self.initialize(-1)  # pessimistic initialization
         self.Q = self.params.reshape(num_states, num_actions)
@@ -305,7 +305,7 @@ class DialogTask(EpisodicTask):
     def isFinished(self):
         is_finished = self.env.dialog.is_complete()
         if is_finished:
-            log.debug("episode finished, total reward %d", self.cumreward)
+            log.debug("an episode finished, total reward %d", self.cumreward)
         return is_finished
 
 
@@ -348,7 +348,7 @@ class DialogAgent(LearningAgent):
         # sampling to the valid actions.
         if np.random.uniform() < self._epsilon:
             invalid_actions = [i for i in range(self.module.numActions)
-                             if i not in self.lastconfig]
+                               if i not in self.lastconfig]
             self.lastaction = np.random.choice(invalid_actions)
             log.debug("performing random action %d instead", self.lastaction)
         return self.lastaction
