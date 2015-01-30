@@ -1,12 +1,9 @@
 import random
 
-from ..optim import PermutationDialog
-
-from .common import BaseTest
+from configurator.optim import PermutationDialog
 
 
 def test_permutation_dialog():
-    BaseTest.setup()
     num_vars = 10
     config = {i: i % 2 for i in range(num_vars)}
     config_values = {i: [True, False] for i in range(num_vars)}

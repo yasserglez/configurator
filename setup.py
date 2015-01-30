@@ -1,7 +1,7 @@
 import os
 from distutils.command.sdist import sdist
 from distutils.command.build import build
-from setuptools import setup, find_packages
+from setuptools import setup
 
 import configurator
 
@@ -47,7 +47,7 @@ setup(name="configurator",
       long_description=long_description,
       author="Yasser Gonzalez",
       author_email="yasserglez@gmail.com",
-      packages=find_packages(exclude=["*.tests"]),
+      packages=["configurator"],
       install_requires=[
           "numpy >= 1.9.1",
           "scipy >= 0.14.0",

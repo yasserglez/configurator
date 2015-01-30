@@ -1,9 +1,7 @@
-from numpy.testing import (assert_raises, assert_array_equal,
-                           assert_almost_equal)
+import pytest
+from numpy.testing import assert_array_equal, assert_almost_equal
 
-from ..assoc_rules import AssociationRule, AssociationRuleMiner
-
-from .common import load_titanic
+from configurator.assoc_rules import AssociationRule, AssociationRuleMiner
 
 
 class TestAssociationRule(object):
@@ -36,17 +34,18 @@ class TestAssociationRule(object):
         assert observation == {1: "a", 2: "b", 3: "c", 4: "d"}
 
 
+@pytest.fixture(scope="module")
+def miner(titanic_data):
+    miner = AssociationRuleMiner(titanic_data)
+    return miner
+
+
 class TestAssociationRuleMiner(object):
 
-    data = load_titanic()
-
-    def test_init(self):
-        miner = AssociationRuleMiner(self.data)
-        assert_array_equal(miner.data, self.data)
-
-    def _test_mine_assoc_rlues(self, algorithm):
-        miner = AssociationRuleMiner(self.data)
-        rules = miner.mine_assoc_rules(min_support=0.5, min_confidence=0.95,
+    def _test_mine_assoc_rlues(self, algorithm, titanic_data):
+        miner = AssociationRuleMiner(titanic_data)
+        rules = miner.mine_assoc_rules(min_support=0.5,
+                                       min_confidence=0.95,
                                        algorithm=algorithm)
         assert len(rules) == 3
         rules.sort(key=lambda rule: rule.confidence, reverse=True)
@@ -66,13 +65,8 @@ class TestAssociationRuleMiner(object):
         assert_almost_equal(rules[2].support, 0.7573830)
         assert_almost_equal(rules[2].confidence, 0.9630272)
 
-    def test_mine_assoc_rules_apriori(self):
-        self._test_mine_assoc_rlues('apriori')
+    def test_mine_assoc_rules_apriori(self, titanic_data):
+        self._test_mine_assoc_rlues("apriori", titanic_data)
 
-    def test_mine_assoc_rules_fpgrowth(self):
-        self._test_mine_assoc_rlues('fp-growth')
-
-    def test_mine_assoc_rules_invalid(self):
-        miner = AssociationRuleMiner(self.data)
-        assert_raises(ValueError, miner.mine_assoc_rules,
-                      algorithm='invalid')
+    def test_mine_assoc_rules_fpgrowth(self, titanic_data):
+        self._test_mine_assoc_rlues("fp-growth", titanic_data)
