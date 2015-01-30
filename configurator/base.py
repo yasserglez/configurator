@@ -44,11 +44,12 @@ class Dialog(object):
     be used to check whether all the variables has been set.
 
     Attributes:
+        config: The current configuration state, i.e. a dict mapping
+            variable indices to their values.
         config_values: A list with one entry for each variable,
             containing an enumerable with all the possible values of
             the variable.
-        config: The current configuration state, i.e. a dict mapping
-            variable indices to their values.
+        rules: A list of AssociationRule instances.
     """
 
     def __init__(self, config_values, rules, validate=False):
@@ -66,7 +67,7 @@ class Dialog(object):
         """
         super().__init__()
         self.config_values = config_values
-        self._rules = rules
+        self.rules = rules
         self.reset()
         if validate:
             self._validate()
@@ -111,7 +112,7 @@ class Dialog(object):
         assert var_index not in self.config, \
             "Variable {0} is already set".format(var_index)
         self.config[var_index] = var_value
-        for rule in self._rules:
+        for rule in self.rules:
             if rule.is_applicable(self.config):
                 rule.apply_rule(self.config)
 
