@@ -304,21 +304,24 @@ class DPDialogBuilder(DialogBuilder):
     def _update_graph(self, graph, rules):
         # Update the graph using the association rules.
         log.debug("updating the graph using the association rules")
-        inaccessible_vertices = []
+        num_vars = len(self._config_values)
+        inaccessible_vertices = set()
         for rule in rules:
-            # It doesn't make sense to apply the rule in a terminal
-            # state, so the S selection is restricted to non-terminals.
-            for v_s in graph.vs.select(state_len_ne=len(self._config_values)):
-                s = v_s["state"]  # S
-                if not (v_s.index not in inaccessible_vertices and
-                        self._update_graph_cond_a(rule, s) and
-                        self._update_graph_cond_bii(rule, s)):
+            # Condition (b-i) allows skipping more states than (b-ii),
+            # therefore the outer loop iterates thorugh S'.
+            for v_sp in graph.vs:
+                sp = v_sp["state"]  # S'
+                if not (v_sp.index not in inaccessible_vertices and
+                        self._update_graph_cond_a(rule, sp) and
+                        self._update_graph_cond_bi(rule, sp)):
                     continue  # skip this vertex
-                for v_sp in graph.vs:
-                    sp = v_sp["state"]  # S'
-                    if not (v_sp.index not in inaccessible_vertices and
-                            self._update_graph_cond_a(rule, sp) and
-                            self._update_graph_cond_bi(rule, sp) and
+                # It doesn't make sense to apply the rule in a terminal
+                # state, so the S selection is restricted to non-terminals.
+                for v_s in graph.vs.select(state_len_ne=num_vars):
+                    s = v_s["state"]  # S
+                    if not (v_s.index not in inaccessible_vertices and
+                            self._update_graph_cond_a(rule, s) and
+                            self._update_graph_cond_bii(rule, s) and
                             self._update_graph_cond_c(rule, s, sp)):
                         continue  # skip this vertex
                     # If we've reached this far, the rule can be used to
@@ -326,7 +329,7 @@ class DPDialogBuilder(DialogBuilder):
                     # S becomes inaccessible and it's added to a list of
                     # vertices to be deleted at the end.
                     self._update_graph_shortcut(graph, v_s, v_sp)
-                    inaccessible_vertices.append(v_s.index)
+                    inaccessible_vertices.add(v_s.index)
                     break  # a match for S was found, don't keep looking
         # Remove the inaccesible vertices.
         if self._dp_discard_states:
