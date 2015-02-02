@@ -603,11 +603,11 @@ class ValueIteration(MDPSolver):
     after a maximum number of iterations.
     """
 
-    def __init__(self, epsilon=0.001, max_iter=1000):
+    def __init__(self, epsilon=0.01, max_iter=1000):
         """Initialize a new instance.
 
         Parameters:
-            epsilon: Stopping criterion (default: 0.001). For discounted
+            epsilon: Stopping criterion (default: 0.01). For discounted
                 MDPs it defines the epsilon value used to compute the
                 threshold for the maximum change in the value function
                 between two subsequent iterations. For undiscounted
