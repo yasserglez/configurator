@@ -135,7 +135,7 @@ class AssociationRuleMiner(object):
                               for i in range(self.data.shape[0]))
 
     def mine_assoc_rules(self, min_support=0.1, min_confidence=0.8,
-                         min_len=2, max_len=None, algorithm="apriori"):
+                         min_len=2, max_len=None, algorithm="fp-growth"):
         """
         Arguments:
             min_support: Minimum rule support in [0,1] (default: 0.1).
@@ -144,7 +144,7 @@ class AssociationRuleMiner(object):
             min_len: Minimum number of items per item set (default: 2).
             max_len: Maximum number of items per item set (default: no limit).
             algorithm: Algorithm for mining the frequent item sets.
-                Possible values are: 'apriori' (default) and 'fp-growth'.
+                Possible values are: 'apriori' and 'fp-growth' (default).
 
         Returns:
             A list of AssociationRule instances.
@@ -154,7 +154,7 @@ class AssociationRuleMiner(object):
         max_len = -1 if max_len is None else max_len
         min_support = 100 * min_support
         min_confidence = 100 * min_confidence
-        algorithm = fpgrowth if algorithm == "fp-growth" else apriori
+        algorithm = apriori if algorithm == "apriori" else fpgrowth
         result = algorithm(self._transactions, target="r",
                            zmin=min_len, zmax=max_len,
                            supp=min_support, conf=min_confidence,

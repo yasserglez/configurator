@@ -134,7 +134,7 @@ class DialogBuilder(object):
     def __init__(self, config_sample=None,
                  config_values=None,
                  validate=False,
-                 assoc_rule_algorithm="apriori",
+                 assoc_rule_algorithm="fp-growth",
                  assoc_rule_min_support=None,
                  assoc_rule_min_confidence=None):
         """Initialize a new instance.
@@ -150,8 +150,8 @@ class DialogBuilder(object):
                 checks on the generated model and the resulting Dialog
                 instance (default: False). Mostly for debugging purposes.
             assoc_rule_algorithm: Algorithm for mining the frequent
-                item sets. Possible values are: 'apriori' (default)
-                and 'fp-growth'.
+                item sets. Possible values are: 'apriori' and
+                'fp-growth' (default).
             assoc_rule_min_support: Minimum item set support in [0,1].
             assoc_rule_min_confidence: Minimum confidence in [0,1].
         """
