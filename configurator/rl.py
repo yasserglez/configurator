@@ -52,9 +52,9 @@ class RLDialogBuilder(DialogBuilder):
 
     def __init__(self, rl_algorithm="q-learning",
                  rl_table="exact",
-                 rl_learning_rate=0.5,
-                 rl_epsilon=0.3,
-                 rl_epsilon_decay=1.0,
+                 rl_learning_rate=0.3,
+                 rl_epsilon=0.5,
+                 rl_epsilon_decay=0.99,
                  rl_max_episodes=1000,
                  **kwargs):
         """Initialize a new instance.
@@ -63,10 +63,10 @@ class RLDialogBuilder(DialogBuilder):
             rl_algorithm: Reinforcement learning algorithm. Possible
                 values are: 'q-learning' (default) and 'sarsa'.
             rl_learning_rate: Q-learning and SARSA learning rate
-                (default: 0.5).
+                (default: 0.3).
             rl_epsilon: Initial epsilon value for the epsilon-greedy
-                exploration strategy (default: 0.3).
-            rl_epsilon_decay: Epsilon decay rate (default: 1.0).
+                exploration strategy (default: 0.5).
+            rl_epsilon_decay: Epsilon decay rate (default: 0.99).
                 The epsilon value is decayed after every episode.
             rl_max_episodes: Maximum number of simulated episodes
                 (default: 1000).
@@ -174,7 +174,7 @@ class DialogQTable(ActionValueTable):
         return action
 
     def getMaxAction(self, state):
-        # superclass method uses random.choice to choose among
+        # The superclass method uses random.choice to choose among
         # multiple actions with the same maximum value, we just want
         # to return the first one.
         action = self.Q[state, :].argmax()
@@ -340,12 +340,10 @@ class DialogAgent(LearningAgent):
 
     def getAction(self):
         log.debug("getting an action from the agent")
+        # Epsilon-greedy exploration. It ensures that a valid action
+        # at the current configuration state is returned.
         self.lastaction = self.module.get_next_question(self.lastconfig)
         log.debug("the greedy action is %d", self.lastaction)
-        # Epsilon-greedy exploration, i.e. check if the greedy action
-        # should be replaced by a randomly chosen action. Not using
-        # EpsilonGreedyExplorer because we want to restrict the
-        # sampling to the valid actions.
         if np.random.uniform() < self._epsilon:
             invalid_actions = [i for i in range(self.module.numActions)
                                if i not in self.lastconfig]
