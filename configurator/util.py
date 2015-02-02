@@ -99,7 +99,7 @@ def simulate_dialog(dialog, config):
     return accuracy, questions
 
 
-def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
+def cross_validation(n_folds, builder_class, builder_kwargs,
                      config_sample, config_values=None):
     """Measure the performance of a configuration dialog builder.
 
@@ -111,9 +111,6 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
 
     Arguments:
         n_folds: Number of folds. Must be at least 2.
-        random_state: Pseudo-random number generator state (int or
-            numpy.random.RandomState) used for random sampling. If
-            None, use default numpy RNG for shuffling.
         builder_class: A DialogBuilder subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
             when a new instance is created (except config_sample and
@@ -143,8 +140,7 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
                           columns=["accuracy_mean", "accuracy_std",
                                    "questions_mean", "questions_std"])
     k = 0  # current fold index
-    folds = KFold(config_sample.shape[0], n_folds=n_folds,
-                  shuffle=True, random_state=random_state)
+    folds = KFold(config_sample.shape[0], n_folds=n_folds, shuffle=True)
     for train_indices, test_indices in folds:
         # Build the dialog using the training sample.
         train_sample = config_sample[train_indices, :]
@@ -168,7 +164,7 @@ def cross_validation(n_folds, random_state, builder_class, builder_kwargs,
     return result
 
 
-def measure_scalability(random_state, builder_class, builder_kwargs,
+def measure_scalability(builder_class, builder_kwargs,
                         config_sample, config_values=None):
     """Measure the scalability of a configuration dialog builder.
 
@@ -178,9 +174,6 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
     configuration sample are added in a random order.
 
     Arguments:
-        random_state: Pseudo-random number generator state (int or
-            numpy.random.RandomState) used for random sampling. If
-            None, use default numpy RNG for shuffling.
         builder_class: A DialogBuilder subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
             when a new instance is created (except config_sample and
@@ -207,7 +200,7 @@ def measure_scalability(random_state, builder_class, builder_kwargs,
     # Choose the order of the variables.
     num_vars = len(config_values)
     var_order = np.arange(num_vars)
-    rng = check_random_state(random_state)
+    rng = check_random_state(None)
     rng.shuffle(var_order)
     # Initialize the output df.
     result = pd.DataFrame({"bin_vars": np.zeros(num_vars - 1),

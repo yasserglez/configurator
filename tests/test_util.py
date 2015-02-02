@@ -59,13 +59,12 @@ def test_simulate_approx_rl_dialog(email_client):
 
 def test_cross_validation(email_client):
     n_folds = 10
-    random_state = 42
     builder_class = DPDialogBuilder
     builder_kwargs = {"validate": True,
                       "assoc_rule_min_support": email_client.min_support,
                       "assoc_rule_min_confidence": email_client.min_confidence}
-    df = cross_validation(n_folds, random_state, builder_class,
-                          builder_kwargs, email_client.config_sample)
+    df = cross_validation(n_folds, builder_class, builder_kwargs,
+                          email_client.config_sample)
     assert len(df.index) == n_folds
     assert ((0.5 <= df["accuracy_mean"]) & (df["accuracy_mean"] <= 1)).all()
     assert ((0 <= df["accuracy_std"]) & (df["accuracy_std"] <= 0.25)).all()
@@ -73,13 +72,11 @@ def test_cross_validation(email_client):
     assert ((0 <= df["questions_std"]) & (df["questions_std"] <= 0.25)).all()
 
 
-def _test_measure_scalability(builder_class, builder_kwargs,
-                              titanic_sample, random_seed):
+def _test_measure_scalability(builder_class, builder_kwargs, titanic_sample):
     builder_kwargs.update({"validate": True,
                            "assoc_rule_min_support": 0.5,
                            "assoc_rule_min_confidence": 0.9})
-    df = measure_scalability(random_seed, builder_class,
-                             builder_kwargs, titanic_sample)
+    df = measure_scalability(builder_class, builder_kwargs, titanic_sample)
     assert df.shape == (titanic_sample.shape[1] - 1, 2)
     assert (df["bin_vars"] > 0).all()
     assert (df["cpu_time"] > 0).all()
@@ -87,59 +84,53 @@ def _test_measure_scalability(builder_class, builder_kwargs,
 
 def _test_scalability_dp(algorithm, discard_states,
                          partial_assoc_rules, aggregate_terminals,
-                         titanic_sample, random_seed):
+                         titanic_sample):
     builder_class = DPDialogBuilder
     builder_kwargs = {"dp_algorithm": algorithm,
                       "dp_discard_states": discard_states,
                       "dp_partial_assoc_rules": partial_assoc_rules,
                       "dp_aggregate_terminals": aggregate_terminals}
-    _test_measure_scalability(builder_class, builder_kwargs,
-                              titanic_sample, random_seed)
+    _test_measure_scalability(builder_class, builder_kwargs, titanic_sample)
 
 
-def test_scalability_value_iteration_without_optim(titanic_sample, random_seed):
+def test_scalability_value_iteration_without_optim(titanic_sample):
     _test_scalability_dp("value-iteration", False, False, False,
-                         titanic_sample, random_seed)
+                         titanic_sample)
 
 
-def test_scalability_policy_iteration_without_optim(titanic_sample, random_seed):
+def test_scalability_policy_iteration_without_optim(titanic_sample):
     _test_scalability_dp("policy-iteration", False, False, False,
-                         titanic_sample, random_seed)
+                         titanic_sample)
 
 
-def test_scalability_value_iteration_with_optim(titanic_sample, random_seed):
+def test_scalability_value_iteration_with_optim(titanic_sample):
     _test_scalability_dp("value-iteration", True, True, True,
-                         titanic_sample, random_seed)
+                         titanic_sample)
 
 
-def test_scalability_policy_iteration_with_optim(titanic_sample, random_seed):
+def test_scalability_policy_iteration_with_optim(titanic_sample):
     _test_scalability_dp("policy-iteration", True, True, True,
-                         titanic_sample, random_seed)
+                         titanic_sample)
 
 
-def _test_scalability_rl(algorithm, table, titanic_sample, random_seed):
+def _test_scalability_rl(algorithm, table, titanic_sample):
     builder_class = RLDialogBuilder
     builder_kwargs = {"rl_algorithm": algorithm,
                       "rl_table": table}
-    _test_measure_scalability(builder_class, builder_kwargs,
-                              titanic_sample, random_seed)
+    _test_measure_scalability(builder_class, builder_kwargs, titanic_sample)
 
 
-def test_scalability_qlearning_exact(titanic_sample, random_seed):
-    _test_scalability_rl("q-learning", "exact",
-                         titanic_sample, random_seed)
+def test_scalability_qlearning_exact(titanic_sample):
+    _test_scalability_rl("q-learning", "exact", titanic_sample)
 
 
-def test_scalability_qlearning_approx(titanic_sample, random_seed):
-    _test_scalability_rl("q-learning", "approx",
-                         titanic_sample, random_seed)
+def test_scalability_qlearning_approx(titanic_sample):
+    _test_scalability_rl("q-learning", "approx", titanic_sample)
 
 
-def test_scalability_sarsa_exact(titanic_sample, random_seed):
-    _test_scalability_rl("sarsa", "exact",
-                         titanic_sample, random_seed)
+def test_scalability_sarsa_exact(titanic_sample):
+    _test_scalability_rl("sarsa", "exact", titanic_sample)
 
 
-def test_scalability_sarsa_approx(titanic_sample, random_seed):
-    _test_scalability_rl("sarsa", "approx",
-                         titanic_sample, random_seed)
+def test_scalability_sarsa_approx(titanic_sample):
+    _test_scalability_rl("sarsa", "approx", titanic_sample)
