@@ -138,7 +138,7 @@ class AssociationRuleMiner(object):
                          min_len=2, max_len=None, algorithm="apriori"):
         """
         Arguments:
-            min_support: Minimum item set support in [0,1] (default: 0.1).
+            min_support: Minimum rule support in [0,1] (default: 0.1).
             min_confidence: Minimum confidence of the rules in [0,1]
                 (default: 0.8).
             min_len: Minimum number of items per item set (default: 2).
@@ -155,9 +155,10 @@ class AssociationRuleMiner(object):
         min_support = 100 * min_support
         min_confidence = 100 * min_confidence
         algorithm = fpgrowth if algorithm == "fp-growth" else apriori
-        result = algorithm(self._transactions, target="r", report="se",
-                           zmin=min_len, zmax=max_len, supp=min_support,
-                           conf=min_confidence, eval="c", thresh=0)
+        result = algorithm(self._transactions, target="r",
+                           zmin=min_len, zmax=max_len,
+                           supp=min_support, conf=min_confidence,
+                           report="sc", mode="o")
         rules = [AssociationRule(dict(lhs), dict((rhs, )),
                                  report[0], report[1])
                  for rhs, lhs, report in result]
