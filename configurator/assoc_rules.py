@@ -46,7 +46,11 @@ class AssociationRule(object):
         Returns:
             True if the left-hand-side is compaible, False if not.
         """
-        return set(self.lhs.items()) <= set(observation.items())
+        for var_index, var_value in self.lhs.items():
+            if (var_index not in observation
+                    or observation[var_index] != var_value):
+                return False
+        return True
 
     def is_rhs_compatible(self, observation):
         """Check right-hand-side compatibility.
