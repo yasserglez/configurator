@@ -21,7 +21,7 @@ extensions = [
 ]
 
 # The suffix of source filenames.
-source_suffix = '.rst'
+source_suffix = '.txt'
 
 # The master toctree document.
 master_doc = 'manual'
