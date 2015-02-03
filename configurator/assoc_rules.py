@@ -1,6 +1,6 @@
 """Association Rule Mining"""
 
-from fim import apriori, fpgrowth
+from fim import fpgrowth
 
 
 class AssociationRule(object):
@@ -135,7 +135,7 @@ class AssociationRuleMiner(object):
                               for i in range(self.data.shape[0]))
 
     def mine_assoc_rules(self, min_support=0.1, min_confidence=0.8,
-                         min_len=2, max_len=None, algorithm="fp-growth"):
+                         min_len=2, max_len=None):
         """
         Arguments:
             min_support: Minimum rule support in [0,1] (default: 0.1).
@@ -143,22 +143,17 @@ class AssociationRuleMiner(object):
                 (default: 0.8).
             min_len: Minimum number of items per item set (default: 2).
             max_len: Maximum number of items per item set (default: no limit).
-            algorithm: Algorithm for mining the frequent item sets.
-                Possible values are: 'apriori' and 'fp-growth' (default).
 
         Returns:
             A list of AssociationRule instances.
         """
-        if algorithm not in ("apriori", "fp-growth"):
-            raise ValueError("Invalid frequent item set mining algorithm")
         max_len = -1 if max_len is None else max_len
         min_support = 100 * min_support
         min_confidence = 100 * min_confidence
-        algorithm = apriori if algorithm == "apriori" else fpgrowth
-        result = algorithm(self._transactions, target="r",
-                           zmin=min_len, zmax=max_len,
-                           supp=min_support, conf=min_confidence,
-                           report="sc", mode="o")
+        result = fpgrowth(self._transactions, target="r",
+                          zmin=min_len, zmax=max_len,
+                          supp=min_support, conf=min_confidence,
+                          report="sc", mode="o")
         rules = [AssociationRule(dict(lhs), dict((rhs, )),
                                  report[0], report[1])
                  for rhs, lhs, report in result]

@@ -134,7 +134,6 @@ class DialogBuilder(object):
     def __init__(self, config_sample=None,
                  config_values=None,
                  validate=False,
-                 assoc_rule_algorithm="fp-growth",
                  assoc_rule_min_support=None,
                  assoc_rule_min_confidence=None):
         """Initialize a new instance.
@@ -149,9 +148,6 @@ class DialogBuilder(object):
             validate: Whether or not to run some (generally costly)
                 checks on the generated model and the resulting Dialog
                 instance (default: False). Mostly for debugging purposes.
-            assoc_rule_algorithm: Algorithm for mining the frequent
-                item sets. Possible values are: 'apriori' and
-                'fp-growth' (default).
             assoc_rule_min_support: Minimum item set support in [0,1].
             assoc_rule_min_confidence: Minimum confidence in [0,1].
         """
@@ -171,7 +167,6 @@ class DialogBuilder(object):
         log.info("the configuration sample has %d observations",
                  self._config_sample.shape[0])
         self._validate = validate
-        self._assoc_rule_algorithm = assoc_rule_algorithm
         self._assoc_rule_min_support = assoc_rule_min_support
         self._assoc_rule_min_confidence = assoc_rule_min_confidence
 
@@ -188,8 +183,7 @@ class DialogBuilder(object):
         log.info("mining association rules")
         miner = AssociationRuleMiner(self._config_sample)
         rules = miner.mine_assoc_rules(self._assoc_rule_min_support,
-                                       self._assoc_rule_min_confidence,
-                                       algorithm=self._assoc_rule_algorithm)
+                                       self._assoc_rule_min_confidence)
         if rules:
             log.info("found %d rules", len(rules))
             supp = [rule.support for rule in rules]

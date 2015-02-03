@@ -1,4 +1,3 @@
-import pytest
 from numpy.testing import assert_almost_equal
 
 from configurator.assoc_rules import AssociationRule, AssociationRuleMiner
@@ -34,19 +33,11 @@ class TestAssociationRule(object):
         assert observation == {1: "a", 2: "b", 3: "c", 4: "d"}
 
 
-@pytest.fixture(scope="module")
-def miner(titanic_data):
-    miner = AssociationRuleMiner(titanic_data)
-    return miner
-
-
 class TestAssociationRuleMiner(object):
 
-    def _test_mine_assoc_rlues(self, algorithm, titanic_data):
+    def test_mine_assoc_rlues(self, titanic_data):
         miner = AssociationRuleMiner(titanic_data)
-        rules = miner.mine_assoc_rules(min_support=0.5,
-                                       min_confidence=0.95,
-                                       algorithm=algorithm)
+        rules = miner.mine_assoc_rules(min_support=0.5, min_confidence=0.95)
         assert len(rules) == 3
         rules.sort(key=lambda rule: rule.confidence, reverse=True)
         # Rule #1
@@ -64,9 +55,3 @@ class TestAssociationRuleMiner(object):
         assert rules[2].rhs == {2: "Adult"}
         assert_almost_equal(rules[2].support, 0.7573830)
         assert_almost_equal(rules[2].confidence, 0.9630272)
-
-    def test_mine_assoc_rules_apriori(self, titanic_data):
-        self._test_mine_assoc_rlues("apriori", titanic_data)
-
-    def test_mine_assoc_rules_fpgrowth(self, titanic_data):
-        self._test_mine_assoc_rlues("fp-growth", titanic_data)
