@@ -40,10 +40,22 @@ class RLDialog(Dialog):
         self._table = table
         super().__init__(config_values, rules, validate=validate)
 
+    def reset(self):
+        """Reset the configurator to the initial state.
+        """
+        super().reset()
+        self._last_question = None
+
+    def set_answer(self, var_index, var_value):
+        """Set the value of a configuration variable.
+        """
+        super().set_answer(var_index, var_value)
+        self._last_question = var_index
+
     def get_next_question(self):
         """Get the question that should be asked next.
         """
-        return self._table.get_next_question(self.config)
+        return self._table.get_next_question(self._last_question, self.config)
 
 
 class RLDialogBuilder(DialogBuilder):
@@ -52,6 +64,7 @@ class RLDialogBuilder(DialogBuilder):
 
     def __init__(self, rl_algorithm="q-learning",
                  rl_table="exact",
+                 rl_table_features=None,
                  rl_learning_rate=0.3,
                  rl_epsilon=0.5,
                  rl_epsilon_decay=0.99,
@@ -60,8 +73,17 @@ class RLDialogBuilder(DialogBuilder):
         """Initialize a new instance.
 
         Arguments:
-            rl_algorithm: Reinforcement learning algorithm. Possible
-                values are: 'q-learning' (default) and 'sarsa'.
+            rl_table: Representation of the Q(s,a) action-value table.
+                Possible values are 'exact' (full table, default) and
+                'approx' (approximate table with state aggregation).
+            rl_table_features: Set of features used to approximate the
+                Q(s,a) action-value table with state aggregation.
+                The features are given in an iterable containing any
+                subset of: 'known-vars' (number of known variables),
+                'last-answer' (the last question asked to the user
+                and his/her answer).
+            rl_algorithm: The reinforcement learning algorithm.
+                Possible values are: 'q-learning' (default) and 'sarsa'.
             rl_learning_rate: Q-learning and SARSA learning rate
                 (default: 0.3).
             rl_epsilon: Initial epsilon value for the epsilon-greedy
@@ -74,14 +96,21 @@ class RLDialogBuilder(DialogBuilder):
         See DialogBuilder for the remaining arguments.
         """
         super().__init__(**kwargs)
-        if rl_algorithm in ("q-learning", "sarsa"):
-            self._rl_algorithm = rl_algorithm
-        else:
-            raise ValueError("Invalid rl_algorithm value")
         if rl_table in ("exact", "approx"):
             self._rl_table = rl_table
         else:
             raise ValueError("Invalid rl_table value")
+        if self._rl_table == "approx":
+            table_features = set(rl_table_features)
+            if (len(table_features) > 0 and
+                    table_features <= set(["known-vars", "last-answer"])):
+                self._rl_table_features = table_features
+            else:
+                raise ValueError("Invalid rl_table_features value")
+        if rl_algorithm in ("q-learning", "sarsa"):
+            self._rl_algorithm = rl_algorithm
+        else:
+            raise ValueError("Invalid rl_algorithm value")
         self._rl_learning_rate = rl_learning_rate
         self._rl_epsilon = rl_epsilon
         self._rl_epsilon_decay = rl_epsilon_decay
@@ -101,7 +130,8 @@ class RLDialogBuilder(DialogBuilder):
         if self._rl_table == "exact":
             table = DialogQTable(self._config_values)
         elif self._rl_table == "approx":
-            table = ApproxDialogQTable(self._config_values)
+            table = ApproxDialogQTable(self._config_values,
+                                       self._rl_table_features)
         if self._rl_algorithm == "q-learning":
             learner = QLearning(alpha=self._rl_learning_rate, gamma=1.0)
         elif self._rl_algorithm == "sarsa":
@@ -141,6 +171,7 @@ class DialogQTable(ActionValueTable):
                 of the variable.
         """
         self._config_values = config_values
+        self._var_card = list(map(len, self._config_values))
         num_states = self._get_num_states()
         num_actions = len(self._config_values)
         log.info("the action-value table has %d states and %d actions",
@@ -150,25 +181,25 @@ class DialogQTable(ActionValueTable):
         self.Q = self.params.reshape(num_states, num_actions)
 
     def _get_num_states(self):
-        # One variable value is added for the unknown value.
-        all_states = reduce(mul, map(lambda x: len(x) + 1, self._config_values))
+        # One variable value is added for the unknown state.
+        all_states = reduce(mul, map(lambda x: x + 1, self._var_card))
         terminal_states = reduce(mul, map(len, self._config_values))
         num_states = (all_states - terminal_states) + 1
         return num_states
 
-    def get_state_index(self, config):
+    def get_state_index(self, last_question, config):
         # Find the position of the state among all the possible
-        # configuration states. This is not efficient, but the
-        # tabular version won't work for many variables anyway.
+        # configuration states. This implementation is not efficient,
+        # but the exact version won't work for many variables anyway.
         state_key = hash(frozenset(config.items()))
         non_terminals = iter_config_states(self._config_values, True)
         for state_index, state in enumerate(non_terminals):
             if state_key == hash(frozenset(state.items())):
                 return state_index
 
-    def get_next_question(self, config):
+    def get_next_question(self, last_question, config):
         # Get the question that should be asked at the given state.
-        state = self.get_state_index(config)
+        state = self.get_state_index(last_question, config)
         invalid_actions = [a in config for a in range(self.numActions)]
         action = ma.array(self.Q[state, :], mask=invalid_actions).argmax()
         return action
@@ -182,23 +213,50 @@ class DialogQTable(ActionValueTable):
 
 
 class ApproxDialogQTable(DialogQTable):
-    """Approxximate action-value table using state aggregation."""
+    """Approximate action-value table using state aggregation."""
 
-    def __init__(self, config_values):
+    def __init__(self, config_values, features):
         """Initialize a new instance.
 
-        See DialogQTable for information about the arguments.
+        Arguments:
+            features: Any non-empty subset of: 'known-vars', 'last-answer'.
+
+        See DialogQTable for information about the remaining arguments.
         """
+        self._features = features
         super().__init__(config_values)
 
     def _get_num_states(self):
-        # All the states in which the same number of variables are
-        # known are aggregated into a single state.
-        num_states = len(self._config_values) + 1
+        self._num_known_vars_states, self._last_answer_states = 1, 1
+        if "known-vars" in self._features:
+            # The empty configuration at the initial state is not
+            # considered here. See num_states below.
+            self._num_known_vars_states = len(self._config_values)
+        if "last-answer" in self._features:
+            # One state for every value of every variable.
+            self._last_answer_states = sum(self._var_card)
+        # One is added for the initial state.
+        num_states = 1 + (self._num_known_vars_states *
+                          self._last_answer_states)
         return num_states
 
-    def get_state_index(self, config):
-        state_index = len(config)
+    def get_state_index(self, last_question, config):
+        # The agent is at the given configuration state after having
+        # asked the given question. What's the current state index?
+        if not config:
+            # Empty configuration, i.e. the initial state.
+            state_index = 0
+        else:
+            num_known_vars_index, last_answer_index = 0, 0
+            if "known-vars" in self._features:
+                num_known_vars_index = len(config) - 1
+            if "last-answer" in self._features:
+                last_answer_index = sum(self._var_card[:last_question])
+                var_answers = self._config_values[last_question]
+                last_answer_index += var_answers.index(config[last_question])
+            state_index = 1 + ((num_known_vars_index *
+                                self._last_answer_states) +
+                               last_answer_index)
         log.debug("the aggregated state index is %d", state_index)
         return state_index
 
@@ -209,11 +267,10 @@ class DialogEnvironment(Environment):
     The environment keeps track of the configuration state. It starts
     in a state where all the variables are unknown (and it can be
     reset at any time to this state using the reset method). An action
-    can be performed (i.e. asking a question) by calling
-    performAction. Then, the user response is simulated and the
-    configuration state is updated (including variables discovered due
-    to the association rules). The current configuration state is
-    returned by getSensors.
+    can be performed (i.e. asking a question) by calling performAction.
+    Then, the user response is simulated and the configuration state
+    is updated (including variables discovered due to the association
+    rules). The current configuration state is returned by getSensors.
 
     Attributes:
         dialog: A Dialog instance.
@@ -324,32 +381,41 @@ class DialogAgent(LearningAgent):
                 decayed after every episode.
         """
         super().__init__(table, learner)  # self.module = table
-        self._epsilon = epsilon * (1 / epsilon_decay)
+        self._epsilon = epsilon * (1 / epsilon_decay)  # it's decreased first
         self._epsilon_decay = epsilon_decay
 
     def newEpisode(self):
         log.debug("new episode in the agent")
         super().newEpisode()
+        self.lastconfig = None
+        self.lastobs = None
+        self.lastaction = None
+        self.lastreward = None
         self._epsilon *= self._epsilon_decay
         log.debug("the epsilon value is %g", self._epsilon)
 
-    def integrateObservation(self, obs):
+    def integrateObservation(self, obs):  # Step 1
         self.lastconfig = obs
-        state_index = self.module.get_state_index(self.lastconfig)
-        super().integrateObservation(state_index)  # self.lastobs = state_index
+        s = self.module.get_state_index(self.lastaction, self.lastconfig)
+        self.lastobs = s
 
-    def getAction(self):
+    def getAction(self):  # Step 2
         log.debug("getting an action from the agent")
         # Epsilon-greedy exploration. It ensures that a valid action
         # at the current configuration state is returned.
-        self.lastaction = self.module.get_next_question(self.lastconfig)
-        log.debug("the greedy action is %d", self.lastaction)
+        a = self.module.get_next_question(self.lastaction, self.lastconfig)
+        log.debug("the greedy action is %d", a)
         if np.random.uniform() < self._epsilon:
             invalid_actions = [i for i in range(self.module.numActions)
                                if i not in self.lastconfig]
-            self.lastaction = np.random.choice(invalid_actions)
-            log.debug("performing random action %d instead", self.lastaction)
+            a = np.random.choice(invalid_actions)
+            log.debug("performing random action %d instead", a)
+        self.lastaction = a
         return self.lastaction
+
+    def giveReward(self, r):  # Step 3
+        self.lastreward = r
+        self.history.addSample(self.lastobs, self.lastaction, self.lastreward)
 
 
 class _LearnFromLastMixin(object):
