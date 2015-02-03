@@ -7,18 +7,16 @@ from configurator.dp import (DPDialogBuilder, MDP, EpisodicMDP,
 
 class TestDPDialogBuilder(object):
 
-    def _test_builder(self, algorithm, discard_states,
-                      partial_assoc_rules, aggregate_terminals,
-                      email_client):
+    def _test_builder(self, algorithm, improv, email_client):
         builder = DPDialogBuilder(
             config_sample=email_client.config_sample,
             validate=True,
             assoc_rule_min_support=email_client.min_support,
             assoc_rule_min_confidence=email_client.min_confidence,
             dp_algorithm=algorithm,
-            dp_discard_states=discard_states,
-            dp_partial_assoc_rules=partial_assoc_rules,
-            dp_aggregate_terminals=aggregate_terminals)
+            dp_discard_states=improv,
+            dp_partial_assoc_rules=improv,
+            dp_aggregate_terminals=improv)
         dialog = builder.build_dialog()
         for var_index in email_client.questions:
             assert dialog.get_next_question() == var_index
@@ -26,23 +24,23 @@ class TestDPDialogBuilder(object):
         assert dialog.is_complete()
         assert dialog.config == email_client.config
 
-    def _test_builder_without_optim(self, algorithm, email_client):
-        self._test_builder(algorithm, False, False, False, email_client)
+    def _test_builder_without_improv(self, algorithm, email_client):
+        self._test_builder(algorithm, False, email_client)
 
-    def _test_builder_with_optim(self, algorithm, email_client):
-        self._test_builder(algorithm, True, True, True, email_client)
+    def _test_builder_with_improv(self, algorithm, email_client):
+        self._test_builder(algorithm, True, email_client)
 
-    def test_value_iteration_without_optim(self, email_client):
-        self._test_builder_without_optim("value-iteration", email_client)
+    def test_value_iteration_without_improv(self, email_client):
+        self._test_builder_without_improv("value-iteration", email_client)
 
-    def test_policy_iteration_without_optim(self, email_client):
-        self._test_builder_without_optim("policy-iteration", email_client)
+    def test_policy_iteration_without_improv(self, email_client):
+        self._test_builder_without_improv("policy-iteration", email_client)
 
-    def test_value_iteration_with_optim(self, email_client):
-        self._test_builder_with_optim("value-iteration", email_client)
+    def test_value_iteration_with_improv(self, email_client):
+        self._test_builder_with_improv("value-iteration", email_client)
 
-    def test_policy_iteration_with_optim(self, email_client):
-        self._test_builder_with_optim("policy-iteration", email_client)
+    def test_policy_iteration_with_improv(self, email_client):
+        self._test_builder_with_improv("policy-iteration", email_client)
 
 
 class TestMDP(object):
