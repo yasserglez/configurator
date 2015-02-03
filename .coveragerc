@@ -1,9 +1,0 @@
-[run]
-source = configurator/
-omit = configurator/__init__.py
-
-[report]
-show_missing = True
-exclude_lines =
-    raise NotImplementedError
-    pass
