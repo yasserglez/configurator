@@ -4,12 +4,7 @@ import os
 import subprocess
 
 
-def get_version(version=None):  # overwritten by setup.py
-    """Get the version string.
-
-    Returns:
-        The version string.
-    """
+def _get_version(version=None):  # overwritten by setup.py
     if version is None:
         pkg_dir = os.path.dirname(__file__)
         src_dir = os.path.abspath(os.path.join(pkg_dir, os.pardir))
@@ -21,4 +16,4 @@ def get_version(version=None):  # overwritten by setup.py
             version = output.decode("utf-8").strip()[1:]
     return version
 
-__version__ = get_version()
+__version__ = _get_version()
