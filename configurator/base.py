@@ -149,8 +149,8 @@ class DialogBuilder(object):
     def __init__(self, config_sample=None,
                  config_values=None,
                  validate=False,
-                 assoc_rule_min_support=None,
-                 assoc_rule_min_confidence=None):
+                 assoc_rule_min_support=0.1,
+                 assoc_rule_min_confidence=0.99):
         super().__init__()
         self._config_sample = config_sample
         if config_values is None:
@@ -195,9 +195,9 @@ class DialogBuilder(object):
         else:
             log.info("no rules were found")
         # Merge rules with the same lhs. If two rules have
-        # contradictory rhs, the rule with the greatest confidence
-        # takes precedence.
-        rule_sort_key = lambda rule: rule.confidence  # by inc. confidence
+        # contradictory rhs, the rule with the greatest support (i.e.
+        # the most popular) takes precedence.
+        rule_sort_key = lambda rule: rule.support  # ascending by support
         rules_dict = defaultdict(lambda: SortedListWithKey(key=rule_sort_key))
         for rule in rules:
             lhs_key = hash(frozenset(rule.lhs.items()))
