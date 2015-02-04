@@ -5,7 +5,8 @@ from fim import fpgrowth
 
 
 class AssociationRule(object):
-    """An association rule mined by :class:`AssociationRuleMiner`.
+    """An association rule mined by
+    :class:`configurator.assoc_rules.AssociationRuleMiner`.
 
     Arguments:
         lhs: Left-hand-side (also called antecedent or body) of the rule.
@@ -135,7 +136,8 @@ class AssociationRuleMiner(object):
             max_len: Maximum number of items per item set (default: no limit).
 
         Returns:
-            A list of :class:`AssociationRule` instances.
+            A list of :class:`configurator.assoc_rules.AssociationRule`
+            instances.
         """
         max_len = -1 if max_len is None else max_len
         min_support = 100 * min_support

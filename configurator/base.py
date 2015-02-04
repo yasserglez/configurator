@@ -32,7 +32,7 @@ class Dialog(object):
     This is the base class of all the configuration dialogs defined in
     the package (not intented to be instantiated directly). It defines
     a common interface shared by the dialogs generated using the
-    different :class:`DialogBuilder` subclasses.
+    different :class:`configurator.base.DialogBuilder` subclasses.
 
     Arguments:
         config_values: A list with one entry for each variable,
@@ -138,9 +138,10 @@ class DialogBuilder(object):
             containing an enumerable with all the possible values
             of the variable. If it is not given, it is computed
             from :obj:`config_sample`.
-        validate: Whether or not to run some (generally costly) checks
-            on the generated model and the resulting :class:`Dialog`
-            instance. Mostly for testing purposes.
+        validate: Whether or not to run some (generally costly)
+            checks on the generated model and the resulting
+            :class:`configurator.base.Dialog` instance.
+            Mostly intended for testing purposes.
         assoc_rule_min_support: Minimum item set support in [0,1].
         assoc_rule_min_confidence: Minimum confidence in [0,1].
     """
@@ -173,7 +174,7 @@ class DialogBuilder(object):
         """Construct a configuration dialog.
 
         Returns:
-            An instance of a :class:`Dialog` subclass.
+            An instance of a :class:`configurator.base.Dialog` subclass.
         """
         raise NotImplementedError
 
