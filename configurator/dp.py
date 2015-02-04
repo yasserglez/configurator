@@ -324,9 +324,8 @@ class DPDialogBuilder(DialogBuilder):
                     # "shortcut" from S to S'. After creating the "shortcut",
                     # S becomes inaccessible and it's added to a list of
                     # vertices to be deleted at the end.
-                    self._update_graph_shortcut(graph, v_s, v_sp)
+                    self._create_graph_shortcut(graph, v_s, v_sp, rule)
                     inaccessible_vertices.add(v_s.index)
-                    break  # a match for S was found, don't keep looking
         # Remove the inaccesible vertices.
         if self._dp_discard_states:
             graph.delete_vertices(inaccessible_vertices)
@@ -382,9 +381,11 @@ class DPDialogBuilder(DialogBuilder):
                     return False
         return True
 
-    def _update_graph_shortcut(self, graph, v_s, v_sp):
+    def _create_graph_shortcut(self, graph, v_s, v_sp, rule):
         # Create a "shortcut" from S to S'. Take all the edges that
         # are targeting S and rewire them so that they now target S'.
+        log.debug("creating a graph shortcut\n from %r\n to %r\n using %r",
+                  v_s["state"], v_sp["state"], rule)
         rewired_edges = []
         for e in graph.es.select(_target=v_s.index):
             # The reward is incremented by the difference in the
