@@ -183,7 +183,8 @@ class DialogBuilder(object):
         log.info("mining association rules")
         miner = AssociationRuleMiner(self._config_sample)
         rules = miner.mine_assoc_rules(self._assoc_rule_min_support,
-                                       self._assoc_rule_min_confidence)
+                                       self._assoc_rule_min_confidence,
+                                       min_len=2, max_len=2)
         if rules:
             log.info("found %d rules", len(rules))
             supp = [rule.support for rule in rules]
