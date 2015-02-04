@@ -47,6 +47,7 @@ setup(name="configurator",
       long_description=long_description,
       author="Yasser Gonzalez",
       author_email="yasserglez@gmail.com",
+      url="https://github.com/yasserglez/configurator",
       packages=["configurator"],
       data_files=[("docs", ["docs/manual.pdf"])],
       install_requires=[
