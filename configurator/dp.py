@@ -303,26 +303,24 @@ class DPDialogBuilder(DialogBuilder):
         num_vars = len(self._config_values)
         inaccessible_vertices = set()
         for rule in rules:
-            # Condition (b-i) allows skipping more states than (b-ii),
-            # therefore the outer loop iterates thorugh S'.
-            for v_sp in graph.vs:
-                sp = v_sp["state"]  # S'
-                if not (v_sp.index not in inaccessible_vertices and
-                        self._update_graph_cond_a(rule, sp) and
-                        self._update_graph_cond_bi(rule, sp)):
+            # It doesn't make sense to apply the rule in a terminal
+            # state, so the S selection is restricted to non-terminals.
+            for v_s in graph.vs.select(state_len_ne=num_vars):
+                s = v_s["state"]  # S
+                if not (v_s.index not in inaccessible_vertices and
+                        self._update_graph_cond_a(rule, s) and
+                        self._update_graph_cond_bii(rule, s)):
                     continue  # skip this vertex
-                # It doesn't make sense to apply the rule in a terminal
-                # state, so the S selection is restricted to non-terminals.
-                for v_s in graph.vs.select(state_len_ne=num_vars):
-                    s = v_s["state"]  # S
-                    if not (v_s.index not in inaccessible_vertices and
-                            self._update_graph_cond_a(rule, s) and
-                            self._update_graph_cond_bii(rule, s) and
+                for v_sp in graph.vs:
+                    sp = v_sp["state"]  # S'
+                    if not (v_sp.index not in inaccessible_vertices and
+                            self._update_graph_cond_a(rule, sp) and
+                            self._update_graph_cond_bi(rule, sp) and
                             self._update_graph_cond_c(rule, s, sp)):
                         continue  # skip this vertex
                     # If we've reached this far, the rule can be used to
-                    # "shortcut" from S to S'. After creating the "shortcut",
-                    # S becomes inaccessible and it's added to a list of
+                    # shortcut from S to S'. After creating the shortcut,
+                    # S becomes inaccessible and it's added to a set of
                     # vertices to be deleted at the end.
                     self._create_graph_shortcut(graph, v_s, v_sp, rule)
                     inaccessible_vertices.add(v_s.index)
