@@ -1,4 +1,5 @@
-"""Frequency Table"""
+"""Frequency table.
+"""
 
 from functools import reduce
 from operator import mul
@@ -11,28 +12,25 @@ class FrequencyTable(object):
     """Multivariate frequency table.
 
     Compute multivariate frequencies and conditional probabilities
-    from a 2-dimensional numpy array. Each column is expected to
+    from a two-dimensional numpy array. Each column is expected to
     represent a categorical variable and each row a multivariate
     observation.
 
+    Arguments:
+        var_sample: A two-dimensional numpy array.
+        var_values: A list with one entry for each variable,
+            containing an enumerable with all the possible values of
+            the variable.
+        cache_size: Size of the LRU cache for the frequencies.
+
     Attributes:
-        var_sample: A 2-dimensional numpy array.
+        var_sample: A two-dimensional numpy array.
         var_values: A list with one entry for each variable,
             containing an enumerable with all the possible values of
             the variable.
     """
 
     def __init__(self, var_sample, var_values, cache_size=0):
-        """Initialize a new instance.
-
-        Arguments:
-            var_sample: A 2-dimensional numpy array.
-            var_values: A list with one entry for each variable,
-                containing an enumerable with all the possible values
-                of the variable.
-            cache_size: Size of the LRU cache for the frequencies.
-                It is disabled by default, i.e. set to zero.
-        """
         self.var_sample = var_sample
         self.var_values = var_values
         self._cache_size = cache_size
@@ -70,8 +68,7 @@ class FrequencyTable(object):
         Arguments:
             x: A dict mapping variable indices to their values.
             y: A dict mapping variable indices to their values.
-            add_one_smoothing: Use add-one (Laplace) smoothing
-                (default: True).
+            add_one_smoothing: Use add-one (Laplace) smoothing.
 
         Returns:
             The conditional probability of x given y.

@@ -1,4 +1,8 @@
-"""Configurator: Adaptive Configuration Dialogs"""
+"""Adaptive configuration dialogs.
+
+Attributes:
+    __version__: The current version string.
+"""
 
 import os
 import subprocess

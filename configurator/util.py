@@ -1,4 +1,5 @@
-"""Utility Functions"""
+"""Utility functions.
+"""
 
 import math
 import time
@@ -12,6 +13,11 @@ from sklearn.cross_validation import KFold
 from sklearn.utils import check_random_state
 
 
+__all__ = ["load_config_sample", "get_config_values",
+           "simulate_dialog", "cross_validation",
+           "measure_scalability"]
+
+
 def load_config_sample(csv_file, dtype=np.uint8):
     """Load a CSV file with a sample of categorical variables.
 
@@ -20,11 +26,10 @@ def load_config_sample(csv_file, dtype=np.uint8):
 
     Arguments:
         csv_file: Path to a CSV file.
-        dtype: dtype of the returned numpy array
-            (default: numpy.uint8).
+        dtype: dtype of the returned numpy array.
 
     Returns:
-        A 2-dimensional numpy array.
+        A two-dimensional numpy array.
     """
     df = pd.read_csv(csv_file)
     config_sample = np.zeros(df.shape, dtype=dtype)
@@ -41,8 +46,7 @@ def iter_config_states(config_values, exclude_terminals=False):
         config_values: A list with one entry for each variable,
             containing an enumerable with all the possible values of
             the variable.
-        exclude_terminals: Exclude states where all the variables are
-            known (default: False).
+        exclude_terminals: Exclude states where all the variables are known.
     """
     extended_values = [[None] + values for values in config_values]
     for state_values in itertools.product(*extended_values):
@@ -57,7 +61,7 @@ def get_config_values(config_sample):
     """Get the possible configuration values from the sample.
 
     Arguments:
-        config_sample: A 2-dimensional numpy array containing a sample
+        config_sample: A two-dimensional numpy array containing a sample
             of the configuration variables.
 
     Returns:
@@ -111,19 +115,19 @@ def cross_validation(n_folds, builder_class, builder_kwargs,
 
     Arguments:
         n_folds: Number of folds. Must be at least 2.
-        builder_class: A DialogBuilder subclass.
+        builder_class: A :class:`configurator.base.DialogBuilder` subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
-            when a new instance is created (except config_sample and
-            config_values).
-        config_sample: A 2-dimensional numpy array containing a sample
+            when a new instance is created (except :obj:`config_sample`
+            and :obj:`config_values`).
+        config_sample: A two-dimensional numpy array containing a sample
             of the configuration variables.
         config_values: A list with one entry for each variable,
             containing an enumerable with all the possible values of
             the variable. If it is not given, it is automatically
-            computed from the columns of config_sample.
+            computed from the columns of :obj:`config_sample`.
 
     Returns:
-        A pandas.DataFrame with one row for each fold and one column
+        A `pandas.DataFrame` with one row for each fold and one column
         for each one of the following statistics: mean and standard
         deviation of the prediction accuracy, mean and standard
         deviation of the number of questions that were asked
@@ -174,23 +178,24 @@ def measure_scalability(builder_class, builder_kwargs,
     configuration sample are added in a random order.
 
     Arguments:
-        builder_class: A DialogBuilder subclass.
+        builder_class: A :class:`configurator.base.DialogBuilder` subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
-            when a new instance is created (except config_sample and
-            config_values).
-        config_sample: A 2-dimensional numpy array containing a sample
+            when a new instance is created (except :obj:`config_sample`
+            and :obj:`config_values`).
+        config_sample: A two-dimensional numpy array containing a sample
             of the configuration variables.
         config_values: A list with one entry for each variable,
             containing an enumerable with all the possible values of
             the variable. If it is not given, it is automatically
-            computed from the columns of config_sample.
+            computed from the columns of :obj:`config_sample`.
 
     Returns:
-        A pandas.DataFrame with two columns. The first column gives
+
+        A `pandas.DataFrame` with two columns. The first column gives
         the number of binary variables and the second the
         corresponding measured CPU time (in seconds). The number of
-        binary variables is computed as the log2 of the number of
-        possible configurations.
+        binary variables is computed as the log to the base 2 of the
+        number of possible configurations.
     """
     if config_values is None:
         config_values = get_config_values(config_sample)

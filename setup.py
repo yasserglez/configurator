@@ -43,7 +43,7 @@ class custom_build(build):
 
 setup(name="configurator",
       version=version,
-      description="Adaptive Configuration Dialogs",
+      description="Adaptive configuration dialogs.",
       long_description=long_description,
       author="Yasser Gonzalez",
       author_email="yasserglez@gmail.com",

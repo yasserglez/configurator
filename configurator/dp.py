@@ -1,4 +1,5 @@
-"""Configuration Dialogs based on Dynamic Programming"""
+"""Configuration dialogs based on dynamic programming.
+"""
 
 import os
 import types
@@ -15,26 +16,26 @@ from .base import Dialog, DialogBuilder
 from .util import iter_config_states
 
 
+__all__ = ["DPDialogBuilder"]
+
+
 log = logging.getLogger(__name__)
 
 
 class DPDialog(Dialog):
     """Configuration dialog generated using dynamic programming.
 
-    See Dialog for information about the attributes and methods.
+    Arguments:
+        policy: The MDP policy, i.e. a dict mapping configuration
+            states to variable indices. The configuration states
+            are represented as frozensets of (index, value) tuples
+            for each variable.
+
+    See Dialog for information about the remaining arguments,
+    attributes and methods.
     """
 
     def __init__(self, config_values, rules, policy, validate=False):
-        """Initialize a new instance.
-
-        Arguments:
-            policy: The MDP policy, i.e. a dict mapping configuration
-                states to variable indices. The configuration states
-                are represented as frozensets of (index, value) tuples
-                for each variable.
-
-        See Dialog for the remaining arguments.
-        """
         self._policy = policy
         super().__init__(config_values, rules, validate=validate)
 
@@ -50,14 +51,31 @@ class DPDialog(Dialog):
                 pass
 
     def get_next_question(self):
-        """Get the question that should be asked next.
-        """
         next_var_index = self._policy[frozenset(self.config.items())]
         return next_var_index
 
 
 class DPDialogBuilder(DialogBuilder):
     """Build a configuration dialog using dynamic programming.
+
+    Arguments:
+        dp_algorithm: Algorithm for solving the MDP. Possible values
+            are: `'policy-iteration'` and `'value-iteration'`.
+        dp_max_iter: The maximum number of iterations of the algorithm
+            used to solve the MDP.
+        dp_discard_states: Indicates whether states that can't be
+            reached from the initial state after applying the
+            association rules should be discarded.
+        dp_partial_assoc_rules: Indicates whether the association
+            rules can be applied when some of the variables in the
+            right-hand-side are already set to the correct values.
+            (the opposite is to require that all variables in the
+            left-hand-side are unknown).
+        dp_aggregate_terminals: Indicates whether all terminal states
+            should be aggregated into a single state.
+
+    See :class:`configurator.base.DialogBuilder` for the remaining
+    arguments.
     """
 
     def __init__(self, dp_algorithm="policy-iteration",
@@ -66,28 +84,6 @@ class DPDialogBuilder(DialogBuilder):
                  dp_partial_assoc_rules=True,
                  dp_aggregate_terminals=True,
                  **kwargs):
-        """Initialize a new instance.
-
-        Arguments:
-            dp_algorithm: Algorithm for solving the MDP. Possible
-                values are: 'policy-iteration' (default) and
-                'value-iteration'.
-            dp_max_iter: The maximum number of iterations of the
-                algorithm used to solve the MDP (default: 1000).
-            dp_discard_states: Indicates whether states that can't be
-                reached from the initial state after applying the
-                association rules should be discarded (default: True).
-            dp_partial_assoc_rules: Indicates whether the association
-                rules can be applied when some of the variables in the
-                right-hand-side are already set to the correct values.
-                (the opposite is to require that all variables in the
-                left-hand-side are unknown) (default: True).
-            dp_aggregate_terminals: Indicates whether all terminal
-                states should be aggregated into a single state
-                (default: True).
-
-        See DialogBuilder for the remaining arguments.
-        """
         super().__init__(**kwargs)
         if dp_algorithm == "policy-iteration":
             self._solver = PolicyIteration(max_iter=dp_max_iter)
@@ -103,7 +99,7 @@ class DPDialogBuilder(DialogBuilder):
         """Construct a configuration dialog.
 
         Returns:
-            A DPDialog instance.
+            An instance of a :class:`configurator.base.Dialog` subclass.
         """
         rules = self._mine_rules()
         log.info("building the MDP")
@@ -442,9 +438,9 @@ class MDP(object):
                 An entry (a, s, s') gives the reward for reaching the
                 state s' from the state s by taking the action a.
             discount_factor: Discount factor in [0,1].
-            validate: Set it to True (default) if the MDP formulation
-                should be validated, False otherwise. A ValueError
-                exception will be raised if any error is found.
+            validate: Set it to True if the MDP formulation should be
+                validated, False otherwise. A ValueError exception
+                will be raised if any error is found.
         """
         super().__init__()
         self.transitions = transitions
@@ -468,6 +464,18 @@ class MDP(object):
 class EpisodicMDP(MDP):
     """Episodic MDP.
 
+    Let S denote the number of states and A the number of actions.
+
+    Arguments:
+        transitions: Transition probability matrices.
+        rewards: Reward matrices.
+        discount_factor: Discount factor in [0,1].
+        initial_state: Index of the initial state (default: 0).
+        terminal_state: Index of the terminal state (default: S - 1).
+        validate: Set it to True if the MDP formulation should be
+            validated, False otherwise. A ValueError exception will be
+            raised if any error is found.
+
     Attributes:
         transitions: Transition probability matrices.
         rewards: Reward matrices.
@@ -478,20 +486,6 @@ class EpisodicMDP(MDP):
 
     def __init__(self, transitions, rewards, discount_factor,
                  initial_state=None, terminal_state=None, validate=True):
-        """Initialize a new instance.
-
-        Let S denote the number of states and A the number of actions.
-
-        Arguments:
-            transitions: Transition probability matrices.
-            rewards: Reward matrices.
-            discount_factor: Discount factor in [0,1].
-            initial_state: Index of the initial state (default: 0).
-            terminal_state: Index of the terminal state (default: S - 1).
-            validate: Set it to True (default) if the MDP formulation
-                should be validated, False otherwise. A ValueError
-                exception will be raised if any error is found.
-        """
         self.initial_state = initial_state if initial_state is not None else 0
         self.terminal_state = (terminal_state
                                if terminal_state is not None else
@@ -516,8 +510,6 @@ class MDPSolver(object):
     """
 
     def __init__(self):
-        """Initialize a new instance.
-        """
         super().__init__()
 
     def solve(self, mdp):
@@ -536,6 +528,16 @@ class MDPSolver(object):
 class PolicyIteration(MDPSolver):
     """MDP solver using modified policy iteration.
 
+    Arguments:
+        max_iter: The maximum number of iterations.
+        eval_epsilon: Stopping criterion for the policy evaluation
+            step. For discounted MDPs it defines the epsilon value
+            used to compute the threshold for the maximum change in
+            the value function between two subsequent iterations. It
+            has no effect for undiscounted MDPs.
+        eval_max_iter: Stopping criterion for the policy evaluation
+            step. The maximum number of iterations.
+
     The initial policy is the one that maximizes the expected
     immediate rewards. The algorithm terminates when the policy does
     not change between two consecutive iterations or after max_iter.
@@ -546,35 +548,12 @@ class PolicyIteration(MDPSolver):
     """
 
     def __init__(self, max_iter=1000, eval_epsilon=0.01, eval_max_iter=10):
-        """Initialize a new instance.
-
-        Arguments:
-            max_iter: The maximum number of iterations (default: 1000).
-            eval_epsilon: Stopping criterion for the policy evaluation
-                step (default: 0.01). For discounted MDPs it defines
-                the epsilon value used to compute the threshold for
-                the maximum change in the value function between two
-                subsequent iterations. It has no effect for
-                undiscounted MDPs.
-            eval_max_iter: Stopping criterion for the policy
-                evaluation step (default: 10). The maximum number of
-                iterations.
-        """
         super().__init__()
         self._max_iter = max_iter
         self._eval_epsilon = eval_epsilon
         self._eval_max_iter = eval_max_iter
 
     def solve(self, mdp):
-        """Run the modified policy iteration algorithm.
-
-        Arguments:
-            mdp: An MDP instance.
-
-        Returns:
-            A policy, i.e. a numpy array mapping state indices to
-            action indices.
-        """
         P = mdp.transitions
         R = mdp.rewards
         gamma = mdp.discount_factor
@@ -598,36 +577,26 @@ class PolicyIteration(MDPSolver):
 class ValueIteration(MDPSolver):
     """MDP solver using value iteration.
 
+    Arguments:
+        epsilon: Stopping criterion. For discounted MDPs it defines
+            the epsilon value used to compute the threshold for the
+            maximum change in the value function between two
+            subsequent iterations. For undiscounted MDPs it defines
+            the absolute threshold.
+        max_iter: The maximum number of iterations.
+
     The initial value function is zero for all the states. The
     algorithm terminates when an epsilon-optimal policy is found or
     after a maximum number of iterations.
+
     """
 
     def __init__(self, epsilon=0.01, max_iter=1000):
-        """Initialize a new instance.
-
-        Parameters:
-            epsilon: Stopping criterion (default: 0.01). For discounted
-                MDPs it defines the epsilon value used to compute the
-                threshold for the maximum change in the value function
-                between two subsequent iterations. For undiscounted
-                MDPs it defines the absolute threshold.
-            max_iter: The maximum number of iterations (default: 1000).
-        """
         super().__init__()
         self._epsilon = epsilon
         self._max_iter = max_iter
 
     def solve(self, mdp):
-        """Run the value iteration algorithm.
-
-        Arguments:
-            mdp: An MDP instance.
-
-        Returns:
-            A policy, i.e. a numpy array mapping state indices to
-            action indices.
-        """
         P = mdp.transitions
         R = mdp.rewards
         gamma = mdp.discount_factor

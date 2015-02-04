@@ -1,7 +1,8 @@
-"""Base Configuration Dialogs
+"""Base configuration dialogs.
 
-These classes are not intented to be instantiated directly, see
-configurator.policy and configurator.sequence instead.
+These classes are not intented to be instantiated directly, see the
+classes defined in :mod:`configurator.dp`, :mod:`configurator.rl` and
+:mod:`configurator.optim`.
 """
 
 import math
@@ -19,6 +20,9 @@ from .freq_table import FrequencyTable
 from .assoc_rules import AssociationRuleMiner
 
 
+__all__ = ["Dialog", "DialogBuilder"]
+
+
 log = logging.getLogger(__name__)
 
 
@@ -27,22 +31,31 @@ class Dialog(object):
 
     This is the base class of all the configuration dialogs defined in
     the package (not intented to be instantiated directly). It defines
-    a common interface followed by the dialogs generated using the
-    different Dialog subclasses.
+    a common interface shared by the dialogs generated using the
+    different :class:`DialogBuilder` subclasses.
 
-    The interaction with all subclasses must be as follows. First, the
-    reset method should be called to begin at a state where all the
-    configuration variables are unknown. Next, a call to the method
-    get_next_question will suggest a question, which can be posed to
-    the user and the answer should be given as feedback to the dialog
-    using the set_answer method. It is possible to ignore the
+    Arguments:
+        config_values: A list with one entry for each variable,
+            containing an enumerable with all the possible values
+            of the variable.
+        rules: A list of :class:`configurator.assoc_rules.AssociationRule`.
+        validate: Indicates whether the dialog initialization should
+            be validated or not. A `ValueError` exception will be
+            raised if an error is found.
+
+    The interaction with all subclasses must be as follows. First,
+    :meth:`reset` should be called to begin at a state where all the
+    configuration variables are unknown. Next, a call to
+    :meth:`get_next_question` will suggest a question, which can be
+    posed to the user and the answer should be given as feedback to
+    the dialog using :meth:`set_answer`. It is possible to ignore the
     suggestion given by the dialog and answer the questions in any
-    order. In this case, simply call set_answer and future calls to
-    get_next_question will act accordingly.
+    order. In this case, simply call :meth:`set_answer` and future
+    calls to :meth:`get_next_question` will act accordingly.
 
-    The config attribute can be used at any time to retrieve the
-    configuration values collected so far. The is_complete method can
-    be used to check whether all the variables has been set.
+    The :attr:`config` attribute can be used at any time to retrieve
+    the configuration values collected so far. :meth:`is_complete` can
+    be used to check whether all the variables have been set.
 
     Attributes:
         config: The current configuration state, i.e. a dict mapping
@@ -50,22 +63,10 @@ class Dialog(object):
         config_values: A list with one entry for each variable,
             containing an enumerable with all the possible values of
             the variable.
-        rules: A list of AssociationRule instances.
+        rules: A list of :class:`configurator.assoc_rules.AssociationRule`.
     """
 
     def __init__(self, config_values, rules, validate=False):
-        """Initialize a new instance.
-
-        Arguments:
-            config_values: A list with one entry for each variable,
-                containing an enumerable with all the possible values
-                of the variable.
-            rules: A list of AssociationRule instances.
-            validate: Indicates whether the dialog initialization
-                should be validated or not (default: False).
-                A ValueError exception will be raised if any error
-                is found.
-        """
         super().__init__()
         self.config_values = config_values
         self.rules = rules
@@ -81,7 +82,7 @@ class Dialog(object):
 
         In the initial configuration state the value of all the
         variables is unknown. This method must be called before making
-        any call to get_next_question or set_answer methods.
+        any call to :meth:`get_next_question` or :meth:`set_answer`.
         """
         self.config = {}
 
@@ -101,14 +102,14 @@ class Dialog(object):
         """Set the value of a configuration variable.
 
         It wil be usually called with a variable index returned right
-        before by get_next_question and the answer that the user gave
-        to the question.
+        before by :meth:`get_next_question` and the answer that the
+        user gave to the question.
 
         Arguments:
             var_index: An integer, the variable index.
             var_value: The value of the variable. It must be one of
                 the possible values of the variable in the
-                config_values instance attribute.
+                :attr:`config_values` attribute.
         """
         assert var_index not in self.config, \
             "Variable {0} is already set".format(var_index)
@@ -121,14 +122,27 @@ class Dialog(object):
         """Check if the configuration is complete.
 
         Returns:
-            True if the values of all the variables has been set,
-            False otherwise.
+            `True` if the values of all the variables has been set,
+            `False` otherwise.
         """
         return len(self.config) == len(self.config_values)
 
 
 class DialogBuilder(object):
     """Base configuration dialog builder.
+
+    Arguments:
+        config_sample: A two-dimensional numpy array containing a
+            sample of the configuration variables.
+        config_values: A list with one entry for each variable,
+            containing an enumerable with all the possible values
+            of the variable. If it is not given, it is computed
+            from :obj:`config_sample`.
+        validate: Whether or not to run some (generally costly) checks
+            on the generated model and the resulting :class:`Dialog`
+            instance. Mostly for testing purposes.
+        assoc_rule_min_support: Minimum item set support in [0,1].
+        assoc_rule_min_confidence: Minimum confidence in [0,1].
     """
 
     def __init__(self, config_sample=None,
@@ -136,21 +150,6 @@ class DialogBuilder(object):
                  validate=False,
                  assoc_rule_min_support=None,
                  assoc_rule_min_confidence=None):
-        """Initialize a new instance.
-
-        Arguments:
-            config_sample: A 2-dimensional numpy array containing a
-                sample of the configuration variables.
-            config_values: A list with one entry for each variable,
-                containing an enumerable with all the possible values
-                of the variable. If it is not given, it is computed
-                from config_sample.
-            validate: Whether or not to run some (generally costly)
-                checks on the generated model and the resulting Dialog
-                instance (default: False). Mostly for debugging purposes.
-            assoc_rule_min_support: Minimum item set support in [0,1].
-            assoc_rule_min_confidence: Minimum confidence in [0,1].
-        """
         super().__init__()
         self._config_sample = config_sample
         if config_values is None:
@@ -174,7 +173,7 @@ class DialogBuilder(object):
         """Construct a configuration dialog.
 
         Returns:
-            An instance of a Dialog subclass.
+            An instance of a :class:`Dialog` subclass.
         """
         raise NotImplementedError
 

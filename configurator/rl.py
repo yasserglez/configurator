@@ -1,4 +1,5 @@
-"""Configuration Dialogs based on Reinforcement Learning"""
+"""Configuration dialogs based on reinforcement learning.
+"""
 
 import logging
 import pprint
@@ -20,13 +21,17 @@ from .base import Dialog, DialogBuilder
 from .util import iter_config_states
 
 
+__all__ = ["RLDialogBuilder"]
+
+
 log = logging.getLogger(__name__)
 
 
 class RLDialog(Dialog):
     """Configuration dialog generated using reinforcement learning.
 
-    See Dialog for information about the attributes and methods.
+    See Dialog for information about the remaining arguments,
+    attributes and methods.
     """
 
     def __init__(self, config_values, rules, table, validate=False):
@@ -60,6 +65,28 @@ class RLDialog(Dialog):
 
 class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
+
+    Arguments:
+        rl_table: Representation of the action-value table. Possible
+            values are `'exact'` (full table) and `'approx'`
+            (approximate table with state aggregation).
+        rl_table_features: Set of features used to approximate the
+            action-value table with state aggregation. The features
+            are given in an iterable containing any subset of:
+            `'known-vars'` (number of known variables),
+            `'last-answer'` (the last question asked to the user and
+            his/her answer).
+        rl_algorithm: The reinforcement learning algorithm. Possible
+            values are: `'q-learning'` and `'sarsa'`.
+        rl_learning_rate: Q-learning and SARSA learning rate.
+        rl_epsilon: Initial epsilon value for the epsilon-greedy
+            exploration strategy.
+        rl_epsilon_decay: Epsilon decay rate. The epsilon value is
+            decayed after every episode.
+        rl_max_episodes: Maximum number of simulated episodes.
+
+    See :class:`configurator.base.DialogBuilder` for the remaining
+    arguments.
     """
 
     def __init__(self, rl_algorithm="q-learning",
@@ -70,31 +97,6 @@ class RLDialogBuilder(DialogBuilder):
                  rl_epsilon_decay=0.99,
                  rl_max_episodes=1000,
                  **kwargs):
-        """Initialize a new instance.
-
-        Arguments:
-            rl_table: Representation of the Q(s,a) action-value table.
-                Possible values are 'exact' (full table, default) and
-                'approx' (approximate table with state aggregation).
-            rl_table_features: Set of features used to approximate the
-                Q(s,a) action-value table with state aggregation.
-                The features are given in an iterable containing any
-                subset of: 'known-vars' (number of known variables),
-                'last-answer' (the last question asked to the user
-                and his/her answer).
-            rl_algorithm: The reinforcement learning algorithm.
-                Possible values are: 'q-learning' (default) and 'sarsa'.
-            rl_learning_rate: Q-learning and SARSA learning rate
-                (default: 0.3).
-            rl_epsilon: Initial epsilon value for the epsilon-greedy
-                exploration strategy (default: 0.5).
-            rl_epsilon_decay: Epsilon decay rate (default: 0.99).
-                The epsilon value is decayed after every episode.
-            rl_max_episodes: Maximum number of simulated episodes
-                (default: 1000).
-
-        See DialogBuilder for the remaining arguments.
-        """
         super().__init__(**kwargs)
         if rl_table in ("exact", "approx"):
             self._rl_table = rl_table
@@ -121,7 +123,7 @@ class RLDialogBuilder(DialogBuilder):
         """Construct a configuration dialog.
 
         Returns:
-            An instance of a Dialog subclass.
+            An instance of a :class:`configurator.base.Dialog` subclass.
         """
         rules = self._mine_rules()
         dialog = Dialog(self._config_values, rules)
@@ -160,16 +162,15 @@ class RLDialogBuilder(DialogBuilder):
 
 
 class DialogQTable(ActionValueTable):
-    """An action-value table."""
+    """An action-value table.
+
+    Arguments:
+        config_values: A list with one entry for each variable,
+            containing an enumerable with all the possible values
+            of the variable.
+    """
 
     def __init__(self, config_values):
-        """Initialize a new instance.
-
-        Arguments:
-            config_values: A list with one entry for each variable,
-                containing an enumerable with all the possible values
-                of the variable.
-        """
         self._config_values = config_values
         self._var_card = list(map(len, self._config_values))
         num_states = self._get_num_states()
@@ -213,16 +214,15 @@ class DialogQTable(ActionValueTable):
 
 
 class ApproxDialogQTable(DialogQTable):
-    """Approximate action-value table using state aggregation."""
+    """Approximate action-value table using state aggregation.
+
+    Arguments:
+        features: Any non-empty subset of: 'known-vars', 'last-answer'.
+
+    See DialogQTable for information about the remaining arguments.
+    """
 
     def __init__(self, config_values, features):
-        """Initialize a new instance.
-
-        Arguments:
-            features: Any non-empty subset of: 'known-vars', 'last-answer'.
-
-        See DialogQTable for information about the remaining arguments.
-        """
         self._features = features
         super().__init__(config_values)
 
@@ -262,7 +262,11 @@ class ApproxDialogQTable(DialogQTable):
 
 
 class DialogEnvironment(Environment):
-    """Represents the use of a configuration dialog in PyBrain's RL model.
+    """Represents a configuration dialog in PyBrain's RL model.
+
+    Arguments:
+        dialog: A Dialog instance.
+        freq_tab: A FrequencyTable instance.
 
     The environment keeps track of the configuration state. It starts
     in a state where all the variables are unknown (and it can be
@@ -277,12 +281,6 @@ class DialogEnvironment(Environment):
     """
 
     def __init__(self, dialog, freq_tab):
-        """Initialize a new instance.
-
-        Arguments:
-            dialog: A Dialog instance.
-            freq_tab: A FrequencyTable instance.
-        """
         super().__init__()
         self.dialog = dialog
         self._freq_tab = freq_tab
@@ -316,14 +314,12 @@ class DialogEnvironment(Environment):
 
 class DialogTask(EpisodicTask):
     """Represents the configuration goal in PyBrain's RL model.
+
+    Arguments:
+        env: A DialogEnvironment instance.
     """
 
     def __init__(self, env):
-        """Initialize a new instance.
-
-        Arguments:
-            env: A DialogEnvironment instance.
-        """
         super().__init__(env)
         self.lastreward = None
 
@@ -367,19 +363,18 @@ class DialogTask(EpisodicTask):
 
 
 class DialogAgent(LearningAgent):
+    """A learning agent in PyBrain's RL model.
+
+    Arguments:
+        table: A DialogQTable instance.
+        learner: A Q or SARSA instance.
+        epsilon: Initial epsilon value for the epsilon-greedy
+           exploration strategy.
+        epsilon_decay: Epsilon decay rate. The epsilon value is
+            decayed after every episode.
+    """
 
     def __init__(self, table, learner, epsilon, epsilon_decay):
-        """Initialize a new instance.
-
-        Arguments:
-
-            table: A DialogQTable instance.
-            learner: A Q or SARSA instance.
-            epsilon: Initial epsilon value for the epsilon-greedy
-                exploration strategy.
-            epsilon_decay: Epsilon decay rate. The epsilon value is
-                decayed after every episode.
-        """
         super().__init__(table, learner)  # self.module = table
         self._epsilon = epsilon * (1 / epsilon_decay)  # it's decreased first
         self._epsilon_decay = epsilon_decay
