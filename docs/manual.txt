@@ -4,5 +4,5 @@ configurator documentation
 .. toctree::
    :maxdepth: 3
 
-   overview
+   intro
    api
