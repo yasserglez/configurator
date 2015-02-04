@@ -1,0 +1,4 @@
+include README.txt
+include setup.py
+include configurator/*.py
+include docs/manual.pdf
