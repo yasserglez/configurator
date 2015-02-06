@@ -17,7 +17,7 @@ def _get_version(version=None):  # overwritten by setup.py
                     "describe", "--tags", "--dirty")
         with open(os.devnull, "w") as devnull:
             output = subprocess.check_output(git_args, stderr=devnull)
-            version = output.decode("utf-8").strip()[1:]
+            version = output.decode("utf-8").strip()
     return version
 
 __version__ = _get_version()
