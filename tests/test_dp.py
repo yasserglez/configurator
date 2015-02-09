@@ -94,26 +94,21 @@ class TestEpisodicMDP(TestMDP):
         Sn = grid_world.terminal_state
         A = grid_world.num_actions
         invalid_P = np.random.rand(A, S, S)
-        assert_raises(ValueError, self.mdp_class,
-                      invalid_P, R, gamma, S0, Sn)
+        assert_raises(ValueError, self.mdp_class, invalid_P, R, gamma, S0, Sn)
         invalid_R = np.random.rand(A, S, S)
-        assert_raises(ValueError, self.mdp_class,
-                      P, invalid_R, gamma, S0, Sn)
+        assert_raises(ValueError, self.mdp_class, P, invalid_R, gamma, S0, Sn)
 
 
 class BaseTestMDPSolver(object):
 
     solver_class = None
 
-    def setup(self):
-        self.solver = self.solver_class()
-
     def test_solve(self, grid_world):
         P = grid_world.transitions
         R = grid_world.rewards
         gamma = grid_world.discount_factor
         mdp = EpisodicMDP(P, R, gamma)
-        policy = self.solver.solve(mdp)
+        policy = self.solver_class().solve(mdp)
         assert all([policy[i] == grid_world.policy[i]
                     for i in range(len(grid_world.policy))])
 

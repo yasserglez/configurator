@@ -1,42 +1,50 @@
+import pytest
 from numpy.testing import assert_almost_equal
 
 from configurator.assoc_rules import AssociationRule, AssociationRuleMiner
 
 
+@pytest.fixture(scope="module")
+def rule():
+    lhs = {1: "a", 2: "b"}
+    rhs = {3: "c", 4: "d"}
+    support = 0.5
+    confidence = 0.9
+    rule = AssociationRule(lhs, rhs, support, confidence)
+    return rule
+
+
+@pytest.fixture(scope="module")
+def miner(titanic_data):
+    miner = AssociationRuleMiner(titanic_data)
+    return miner
+
+
 class TestAssociationRule(object):
 
-    def setup(self):
-        lhs = {1: "a", 2: "b"}
-        rhs = {3: "c", 4: "d"}
-        support = 0.5
-        confidence = 0.9
-        self.rule = AssociationRule(lhs, rhs, support, confidence)
+    def test_is_lhs_compatible(self, rule):
+        assert rule.is_lhs_compatible({1: "a", 2: "b"})
+        assert not rule.is_lhs_compatible({1: "z", 2: "b"})
 
-    def test_is_lhs_compatible(self):
-        assert self.rule.is_lhs_compatible({1: "a", 2: "b"})
-        assert not self.rule.is_lhs_compatible({1: "z", 2: "b"})
+    def test_is_rhs_compatible(self, rule):
+        assert rule.is_rhs_compatible({1: "a", 2: "b"})
+        assert rule.is_rhs_compatible({1: "a", 2: "b", 3: "c"})
+        assert not rule.is_rhs_compatible({1: "a", 2: "b", 3: "z"})
+        assert not rule.is_rhs_compatible({1: "a", 2: "b", 3: "c", 4: "d"})
 
-    def test_is_rhs_compatible(self):
-        assert self.rule.is_rhs_compatible({1: "a", 2: "b"})
-        assert self.rule.is_rhs_compatible({1: "a", 2: "b", 3: "c"})
-        assert not self.rule.is_rhs_compatible({1: "a", 2: "b", 3: "z"})
-        assert not self.rule.is_rhs_compatible({1: "a", 2: "b",
-                                                3: "c", 4: "d"})
+    def test_is_applicable(self, rule):
+        assert rule.is_applicable({1: "a", 2: "b", 3: "c"})
+        assert not rule.is_applicable({1: "z", 2: "b", 3: "c"})
 
-    def test_is_applicable(self):
-        assert self.rule.is_applicable({1: "a", 2: "b", 3: "c"})
-        assert not self.rule.is_applicable({1: "z", 2: "b", 3: "c"})
-
-    def test_apply_rule(self):
+    def test_apply_rule(self, rule):
         observation = {1: "a", 2: "b", 3: "c"}
-        self.rule.apply_rule(observation)
+        rule.apply_rule(observation)
         assert observation == {1: "a", 2: "b", 3: "c", 4: "d"}
 
 
 class TestAssociationRuleMiner(object):
 
-    def test_mine_assoc_rlues(self, titanic_data):
-        miner = AssociationRuleMiner(titanic_data)
+    def test_mine_assoc_rlues(self, miner):
         rules = miner.mine_assoc_rules(min_support=0.5, min_confidence=0.95)
         assert len(rules) == 3
         rules.sort(key=lambda rule: rule.confidence, reverse=True)
