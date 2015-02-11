@@ -16,7 +16,7 @@ def _get_version(version=None):  # overwritten by setup.py
         git_args = ("git", "--work-tree", src_dir, "--git-dir", git_dir,
                     "describe", "--tags", "--dirty")
         with open(os.devnull, "w") as devnull:
-            output = subprocess.check_output(git_args)
+            output = subprocess.check_output(git_args, stderr=devnull)
             version = output.decode("utf-8").strip()
     return version
 
