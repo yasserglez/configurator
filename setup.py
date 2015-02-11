@@ -59,7 +59,7 @@ setup(name="configurator",
           "python-igraph >= 0.7",
           "sortedcontainers >= 0.9.4",
           "pymdptoolbox >= 4.0-b3",
-          "PyBrain >= 0.3.3",
+          "PyBrain >= 0.3",
           "fim",
       ],
       dependency_links=[
