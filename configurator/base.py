@@ -78,7 +78,7 @@ class Dialog(object):
         pass
 
     def reset(self):
-        """Reset the configurator to the initial state.
+        """Reset the dialog to the initial state.
 
         In the initial configuration state the value of all the
         variables is unknown. This method must be called before making
