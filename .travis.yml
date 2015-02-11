@@ -12,6 +12,7 @@ before_install:
   - conda install --yes -n test-env "pandas >= 0.15.2"
   - source activate test-env
 install:
+  - pip install https://github.com/pybrain/pybrain/archive/0.3.3.zip
   - pip install -r requirements.txt
   - pip install -e .
 script: py.test --verbose
