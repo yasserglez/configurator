@@ -53,6 +53,7 @@ setup(name="configurator",
       install_requires=[
           "numpy >= 1.9.1",
           "scipy >= 0.14.0",
+          "scikit-learn >= 0.15.2",
           "pandas >= 0.15.2",
           "pylru >= 1.0.6",
           "python-igraph >= 0.7",
