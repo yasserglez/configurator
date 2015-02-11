@@ -3,7 +3,15 @@ python:
   - 3.2
   - 3.3
   - 3.4
-install: pip install -r requirements.txt
+before_install:
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+  - chmod +x miniconda.sh
+  - ./miniconda.sh -b
+  - export PATH=/home/travis/miniconda/bin:$PATH
+  - conda update --yes conda
+  - conda create --yes -n condaenv python=$TRAVIS_PYTHON_VERSION
+  - conda install --yes -n condaenv pip
+  - source activate condaenv
+install:
+  - pip install -r requirements.txt
 script: py.test --verbose
-notifications:
-  email: false
