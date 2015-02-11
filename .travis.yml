@@ -7,8 +7,10 @@ before_install:
   - ./miniconda.sh -b
   - export PATH=/home/travis/miniconda/bin:$PATH
   - conda update --yes conda
-  - conda create --yes -n test-env python=$TRAVIS_PYTHON_VERSION
-  - conda install --yes -n test-env pip "pandas >= 0.15.2" "scikit-learn >= 0.15.2"
+  - conda create --yes -n test-env python=$TRAVIS_PYTHON_VERSION pip
+  - conda install --yes -n test-env "scikit-learn >= 0.15.2"
+  - conda install --yes -n test-env "pandas >= 0.15.2"
+  - conda install --yes -n test-env -c https://conda.binstar.org/llvll0hsen "python-igraph >= 0.7"
   - source activate test-env
 install:
   - pip install -r requirements.txt
