@@ -1,7 +1,5 @@
 language: python
 python:
-  - 3.2
-  - 3.3
   - 3.4
 before_install:
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
@@ -9,9 +7,9 @@ before_install:
   - ./miniconda.sh -b
   - export PATH=/home/travis/miniconda/bin:$PATH
   - conda update --yes conda
-  - conda create --yes -n condaenv python=$TRAVIS_PYTHON_VERSION
-  - conda install --yes -n condaenv pip
-  - source activate condaenv
+  - conda create --yes -n test-env python=$TRAVIS_PYTHON_VERSION
+  - conda install --yes -n test-env pip pandas
+  - source activate test-env
 install:
   - pip install -r requirements.txt
 script: py.test --verbose
