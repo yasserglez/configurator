@@ -1,7 +1,13 @@
 language: python
 python:
-  - "3.2"
-  - "3.3"
-  - "3.4"
-install: pip install --process-dependency-links --editable .
+  - 3.2
+  - 3.3
+  - 3.4
+install: >
+  pip install
+    --process-dependency-links
+    --trusted-host www.borgelt.net
+    --allow-external fim
+    --allow-unverified fim
+    --editable .
 script: py.test --verbose
