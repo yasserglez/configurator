@@ -9,7 +9,7 @@ import configurator
 version = configurator.__version__
 
 src_dir = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(src_dir, "README.txt")) as f:
+with open(os.path.join(src_dir, "README.rst")) as f:
     long_description = f.read()
 
 

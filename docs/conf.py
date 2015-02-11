@@ -25,7 +25,7 @@ napoleon_numpy_docstring = False
 napoleon_include_special_with_doc = False
 
 # The suffix of source filenames.
-source_suffix = '.txt'
+source_suffix = '.rst'
 
 # The master toctree document.
 master_doc = 'manual'
