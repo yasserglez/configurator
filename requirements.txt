@@ -6,8 +6,8 @@ pandas >= 0.15.2
 pylru >= 1.0.6
 python-igraph >= 0.7
 sortedcontainers >= 0.9.4
-pymdptoolbox >= 4.0-b4
-PyBrain >= 0.3.3
+https://github.com/sawcordwell/pymdptoolbox/zipball/master
+https://github.com/pybrain/pybrain/zipball/master
 http://www.borgelt.net/src/pyfim.tar.gz
 
 # Development requirements:
