@@ -10,7 +10,6 @@ from operator import mul
 import numpy as np
 import pandas as pd
 from sklearn.cross_validation import KFold
-from sklearn.utils import check_random_state
 
 
 __all__ = ["load_config_sample", "get_config_values",
@@ -205,8 +204,7 @@ def measure_scalability(builder_class, builder_kwargs,
     # Choose the order of the variables.
     num_vars = len(config_values)
     var_order = np.arange(num_vars)
-    rng = check_random_state(None)
-    rng.shuffle(var_order)
+    np.random.shuffle(var_order)
     # Initialize the output df.
     result = pd.DataFrame({"bin_vars": np.zeros(num_vars - 1),
                            "cpu_time": np.zeros(num_vars - 1)})
