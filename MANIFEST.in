@@ -1,4 +1,3 @@
 include README.rst
 include setup.py
 include configurator/*.py
-include docs/manual.pdf

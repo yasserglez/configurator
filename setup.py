@@ -49,7 +49,6 @@ setup(name="configurator",
       author_email="yasserglez@gmail.com",
       url="https://github.com/yasserglez/configurator",
       packages=["configurator"],
-      data_files=[("docs", ["docs/manual.pdf"])],
       install_requires=[
           "numpy >= 1.9.1",
           "scipy >= 0.14.0",
