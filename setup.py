@@ -61,6 +61,7 @@ setup(name="configurator",
           "beautifulsoup4 >= 4.3.2",
           "pymdptoolbox",
           "PyBrain",
+          "simpleai",
           "fim",
       ],
       dependency_links=[

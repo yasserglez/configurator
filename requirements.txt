@@ -10,6 +10,7 @@ lxml >= 3.4.2
 beautifulsoup4 >= 4.3.2
 https://github.com/sawcordwell/pymdptoolbox/zipball/master
 https://github.com/pybrain/pybrain/zipball/master
+https://github.com/yasserglez/simpleai/zipball/master
 http://www.borgelt.net/src/pyfim.tar.gz
 
 # Development requirements:
