@@ -1,8 +1,7 @@
 """Base configuration dialogs.
 
 These classes are not intented to be instantiated directly, see the
-classes defined in :mod:`configurator.dp`, :mod:`configurator.rl` and
-:mod:`configurator.optim`.
+classes defined in :mod:`configurator.dp` and :mod:`configurator.rl`.
 """
 
 import math

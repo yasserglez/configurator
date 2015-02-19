@@ -28,7 +28,7 @@ napoleon_include_special_with_doc = False
 source_suffix = '.rst'
 
 # The master toctree document.
-master_doc = 'manual'
+master_doc = 'index'
 
 # General information about the project.
 project = 'configurator'
@@ -45,6 +45,10 @@ release = configurator.__version__
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = ['_build']
+
+# The name of a reST role (builtin or Sphinx extension) to use as the
+# default role, that is, for text marked up `like this`.
+default_role = 'py:obj'
 
 
 # Options for HTML output
@@ -80,7 +84,7 @@ html_theme = 'default'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -127,44 +131,3 @@ html_show_copyright = False
 
 # This is the file name suffix for HTML files (e.g. ".xhtml").
 # html_file_suffix = None
-
-# Output file base name for HTML help builder.
-htmlhelp_basename = 'configuratordoc'
-
-
-# Options for LaTeX output
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    # 'papersize': 'letterpaper',
-
-    # The font size ('10pt', '11pt' or '12pt').
-    # 'pointsize': '10pt',
-
-    # Additional stuff for the LaTeX preamble.
-    # 'preamble': '',
-}
-
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    ('manual',
-     'manual.tex',
-     'configurator documentation',
-     'Yasser Gonzalez',
-     'howto'),
-]
-
-# The name of an image file (relative to this directory) to place at the top of
-# the title page.
-# latex_logo = None
-
-# If true, show page references after internal links.
-# latex_show_pagerefs = False
-
-# If true, show URL addresses after external links.
-# latex_show_urls = False
-
-# If false, no module index is generated.
-latex_domain_indices = False

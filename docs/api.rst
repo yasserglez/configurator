@@ -31,21 +31,20 @@ configurator.rl
     :members:
     :show-inheritance:
 
-configurator.optim
-^^^^^^^^^^^^^^^^^^
-
-.. automodule:: configurator.optim
-    :members:
-    :show-inheritance:
-
 
 Supporting modules
 ------------------
 
-configurator.assoc_rules
-^^^^^^^^^^^^^^^^^^^^^^^^
+configurator.rules
+^^^^^^^^^^^^^^^^^^
 
-.. automodule:: configurator.assoc_rules
+.. automodule:: configurator.rules
+    :members:
+
+configurator.csp
+^^^^^^^^^^^^^^^^^^
+
+.. automodule:: configurator.csp
     :members:
 
 configurator.util
