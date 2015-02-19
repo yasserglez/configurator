@@ -1,7 +1,7 @@
 import pytest
 from numpy.testing import assert_almost_equal
 
-from configurator.assoc_rules import AssociationRule, AssociationRuleMiner
+from configurator.rules import Rule, RuleMiner
 
 
 @pytest.fixture(scope="module")
@@ -10,17 +10,17 @@ def rule():
     rhs = {3: "c", 4: "d"}
     support = 0.5
     confidence = 0.9
-    rule = AssociationRule(lhs, rhs, support, confidence)
+    rule = Rule(lhs, rhs, support, confidence)
     return rule
 
 
 @pytest.fixture(scope="module")
 def miner(titanic_data):
-    miner = AssociationRuleMiner(titanic_data)
+    miner = RuleMiner(titanic_data)
     return miner
 
 
-class TestAssociationRule(object):
+class TestRule(object):
 
     def test_is_lhs_compatible(self, rule):
         assert rule.is_lhs_compatible({1: "a", 2: "b"})
@@ -37,17 +37,17 @@ class TestAssociationRule(object):
         assert not rule.is_applicable({1: "z", 2: "b", 3: "c"})
 
     def test_apply_rule(self, rule):
-        observation = {1: "a", 2: "b", 3: "c"}
-        rule.apply_rule(observation)
-        assert observation == {1: "a", 2: "b", 3: "c", 4: "d"}
+        assignment = {1: "a", 2: "b", 3: "c"}
+        rule.apply_rule(assignment)
+        assert assignment == {1: "a", 2: "b", 3: "c", 4: "d"}
 
 
-class TestAssociationRuleMiner(object):
+class TestRuleMiner(object):
 
-    def test_mine_assoc_rlues(self, miner):
-        rules = miner.mine_assoc_rules(min_support=0.5, min_confidence=0.95)
+    def test_mine_rlues(self, miner):
+        rules = miner.mine_rules(min_support=0.5, min_confidence=0.95)
         assert len(rules) == 3
-        rules.sort(key=lambda rule: rule.confidence, reverse=True)
+        rules.sort(key=lambda rule: rule.support)
         # Rule #1
         assert rules[0].lhs == {1: "Male", 3: "No"}
         assert rules[0].rhs == {2: "Adult"}

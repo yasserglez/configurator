@@ -66,7 +66,7 @@ class DPDialogBuilder(DialogBuilder):
         dp_discard_states: Indicates whether states that can't be
             reached from the initial state after applying the
             association rules should be discarded.
-        dp_partial_assoc_rules: Indicates whether the association
+        dp_partial_rules: Indicates whether the association
             rules can be applied when some of the variables in the
             right-hand-side are already set to the correct values.
             (the opposite is to require that all variables in the
@@ -81,7 +81,7 @@ class DPDialogBuilder(DialogBuilder):
     def __init__(self, dp_algorithm="policy-iteration",
                  dp_max_iter=1000,
                  dp_discard_states=True,
-                 dp_partial_assoc_rules=True,
+                 dp_partial_rules=True,
                  dp_aggregate_terminals=True,
                  **kwargs):
         super().__init__(**kwargs)
@@ -92,7 +92,7 @@ class DPDialogBuilder(DialogBuilder):
         else:
             raise ValueError("Invalid dp_algorithm value")
         self._dp_discard_states = dp_discard_states
-        self._dp_partial_assoc_rules = dp_partial_assoc_rules
+        self._dp_partial_rules = dp_partial_rules
         self._dp_aggregate_terminals = dp_aggregate_terminals
 
     def build_dialog(self):
@@ -350,7 +350,7 @@ class DPDialogBuilder(DialogBuilder):
         return True
 
     def _update_graph_cond_bii(self, rule, s):
-        if self._dp_partial_assoc_rules:
+        if self._dp_partial_rules:
             # (b-ii) variables in the rhs appear with the same values
             # or set to unknown in S. At least one must be set to
             # unknown in S.

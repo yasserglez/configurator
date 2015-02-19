@@ -17,7 +17,7 @@ from sortedcontainers import SortedListWithKey
 
 from .util import get_config_values
 from .freq_table import FrequencyTable
-from .assoc_rules import AssociationRuleMiner
+from .rules import RuleMiner
 
 
 __all__ = ["Dialog", "DialogBuilder"]
@@ -38,7 +38,7 @@ class Dialog(object):
         config_values: A list with one entry for each variable,
             containing an enumerable with all the possible values
             of the variable.
-        rules: A list of :class:`configurator.assoc_rules.AssociationRule`.
+        rules: A list of :class:`configurator.rules.Rule`.
         validate: Indicates whether the dialog initialization should
             be validated or not. A `ValueError` exception will be
             raised if an error is found.
@@ -63,7 +63,7 @@ class Dialog(object):
         config_values: A list with one entry for each variable,
             containing an enumerable with all the possible values of
             the variable.
-        rules: A list of :class:`configurator.assoc_rules.AssociationRule`.
+        rules: A list of :class:`configurator.rules.Rule`.
     """
 
     def __init__(self, config_values, rules, validate=False):
@@ -142,15 +142,15 @@ class DialogBuilder(object):
             checks on the generated model and the resulting
             :class:`configurator.base.Dialog` instance.
             Mostly intended for testing purposes.
-        assoc_rule_min_support: Minimum item set support in [0,1].
-        assoc_rule_min_confidence: Minimum confidence in [0,1].
+        rule_min_support: Minimum item set support in [0,1].
+        rule_min_confidence: Minimum confidence in [0,1].
     """
 
     def __init__(self, config_sample=None,
                  config_values=None,
                  validate=False,
-                 assoc_rule_min_support=0.1,
-                 assoc_rule_min_confidence=0.99):
+                 rule_min_support=0.1,
+                 rule_min_confidence=0.99):
         super().__init__()
         self._config_sample = config_sample
         if config_values is None:
@@ -167,8 +167,8 @@ class DialogBuilder(object):
         log.info("the configuration sample has %d observations",
                  self._config_sample.shape[0])
         self._validate = validate
-        self._assoc_rule_min_support = assoc_rule_min_support
-        self._assoc_rule_min_confidence = assoc_rule_min_confidence
+        self._rule_min_support = rule_min_support
+        self._rule_min_confidence = rule_min_confidence
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -181,10 +181,10 @@ class DialogBuilder(object):
     def _mine_rules(self):
         # Mine the association rules.
         log.info("mining association rules")
-        miner = AssociationRuleMiner(self._config_sample)
-        rules = miner.mine_assoc_rules(self._assoc_rule_min_support,
-                                       self._assoc_rule_min_confidence,
-                                       min_len=2, max_len=2)
+        miner = RuleMiner(self._config_sample)
+        rules = miner.mine_rules(self._rule_min_support,
+                                 self._rule_min_confidence,
+                                 min_len=2, max_len=2)
         if rules:
             log.info("found %d rules", len(rules))
             supp = [rule.support for rule in rules]

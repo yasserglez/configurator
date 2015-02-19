@@ -24,8 +24,8 @@ def _test_simulate_dialog(builder_class, builder_kwargs, email_client):
     builder = builder_class(
         config_sample=email_client.config_sample,
         validate=True,
-        assoc_rule_min_support=email_client.min_support,
-        assoc_rule_min_confidence=email_client.min_confidence,
+        rule_min_support=email_client.min_support,
+        rule_min_confidence=email_client.min_confidence,
         **builder_kwargs)
     dialog = builder.build_dialog()
     # {yes = 1, no = 0}, {smi = 1, lgi = 0}
@@ -75,8 +75,8 @@ def test_cross_validation(email_client):
     n_folds = 10
     builder_class = DPDialogBuilder
     builder_kwargs = {"validate": True,
-                      "assoc_rule_min_support": email_client.min_support,
-                      "assoc_rule_min_confidence": email_client.min_confidence}
+                      "rule_min_support": email_client.min_support,
+                      "rule_min_confidence": email_client.min_confidence}
     df = cross_validation(n_folds, builder_class, builder_kwargs,
                           email_client.config_sample)
     assert len(df.index) == n_folds
@@ -88,8 +88,8 @@ def test_cross_validation(email_client):
 
 def _test_measure_scalability(builder_class, builder_kwargs, titanic_sample):
     builder_kwargs.update({"validate": True,
-                           "assoc_rule_min_support": 0.5,
-                           "assoc_rule_min_confidence": 0.9})
+                           "rule_min_support": 0.5,
+                           "rule_min_confidence": 0.9})
     df = measure_scalability(builder_class, builder_kwargs, titanic_sample)
     assert df.shape == (titanic_sample.shape[1] - 1, 2)
     assert (df["bin_vars"] > 0).all()
@@ -100,7 +100,7 @@ def _test_scalability_dp(algorithm, improv, titanic_sample):
     builder_class = DPDialogBuilder
     builder_kwargs = {"dp_algorithm": algorithm,
                       "dp_discard_states": improv,
-                      "dp_partial_assoc_rules": improv,
+                      "dp_partial_rules": improv,
                       "dp_aggregate_terminals": improv}
     _test_measure_scalability(builder_class, builder_kwargs, titanic_sample)
 

@@ -7,8 +7,8 @@ class TestRLDialogBuilder(object):
         builder = RLDialogBuilder(
             config_sample=email_client.config_sample,
             validate=True,
-            assoc_rule_min_support=email_client.min_support,
-            assoc_rule_min_confidence=email_client.min_confidence,
+            rule_min_support=email_client.min_support,
+            rule_min_confidence=email_client.min_confidence,
             rl_algorithm=algorithm,
             rl_table=table,
             rl_table_features=table_features)

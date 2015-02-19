@@ -11,11 +11,11 @@ class TestDPDialogBuilder(object):
         builder = DPDialogBuilder(
             config_sample=email_client.config_sample,
             validate=True,
-            assoc_rule_min_support=email_client.min_support,
-            assoc_rule_min_confidence=email_client.min_confidence,
+            rule_min_support=email_client.min_support,
+            rule_min_confidence=email_client.min_confidence,
             dp_algorithm=algorithm,
             dp_discard_states=improv,
-            dp_partial_assoc_rules=improv,
+            dp_partial_rules=improv,
             dp_aggregate_terminals=improv)
         dialog = builder.build_dialog()
         for var_index in email_client.questions:
