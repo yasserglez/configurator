@@ -11,7 +11,7 @@ def australia():
     # Artificial Intelligence: A Modern Approach, 2nd edition.
     # http://aima.cs.berkeley.edu/2nd-ed/newchap05.pdf
     regions = ("WA", "NT", "Q", "NSW", "V", "T", "SA")
-    domain = {i: [0, 1, 2] for i in range(len(regions))}
+    domain = [[0, 1, 2] for region in regions]
     must_have_distinct_colors = lambda _, color: color[0] != color[1]
     constraints = [
         ((0, 1), must_have_distinct_colors),
@@ -32,7 +32,7 @@ def australia():
 def australia_without_SA():
     # Constraint graph in Figure 5.1 (b).
     regions = ("WA", "NT", "Q", "NSW", "V", "T")
-    domain = {i: [0, 1] for i in range(len(regions))}
+    domain = [[0, 1] for region in regions]
     must_have_distinct_colors = lambda _, color: color[0] != color[1]
     constraints = [
         ((0, 1), must_have_distinct_colors),

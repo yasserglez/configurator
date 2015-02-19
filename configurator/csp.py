@@ -19,9 +19,8 @@ class CSP(object):
     """Finite-domain constraint satisfaction problem.
 
     Arguments:
-        domain: A dictionary mapping variable indices to an iterable
-            with all their possible values. All the variables must be
-            domain consistent.
+        domain: A list with one entry for each variable containing an
+            enumerable with all the possible values of the variable.
         constraints: A list of tuples with two components each: i) a
             tuple with the indices of the variables involved in the
             constraint, and ii) a function that checks the constraint.
@@ -38,9 +37,9 @@ class CSP(object):
     """
 
     def __init__(self, domain, constraints):
-        # simpleai expects a list with the domain values
+        # simpleai expects a dictionary and list with the domain values.
         self.domain = {var_index: list(set(var_values))
-                       for var_index, var_values in domain.items()}
+                       for var_index, var_values in enumerate(domain)}
         # Ensure that the constraints are normalized.
         constraint_support = set()
         for var_indices, _ in constraints:
