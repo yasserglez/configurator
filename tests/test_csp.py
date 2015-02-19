@@ -10,19 +10,19 @@ def australia():
     # Chapter 5 of Russell, S. J. and Norvig, P.,
     # Artificial Intelligence: A Modern Approach, 2nd edition.
     # http://aima.cs.berkeley.edu/2nd-ed/newchap05.pdf
-    regions = ("WA", "NT", "SA", "Q", "NSW", "V", "T")
-    domain = {region: [0, 1, 2] for region in regions}
+    regions = ("WA", "NT", "Q", "NSW", "V", "T", "SA")
+    domain = {i: [0, 1, 2] for i in range(len(regions))}
     must_have_distinct_colors = lambda _, color: color[0] != color[1]
     constraints = [
-        (("WA", "NT"), must_have_distinct_colors),
-        (("WA", "SA"), must_have_distinct_colors),
-        (("SA", "NT"), must_have_distinct_colors),
-        (("SA", "Q"), must_have_distinct_colors),
-        (("NT", "Q"), must_have_distinct_colors),
-        (("SA", "NSW"), must_have_distinct_colors),
-        (("Q", "NSW"), must_have_distinct_colors),
-        (("SA", "V"), must_have_distinct_colors),
-        (("NSW", "V"), must_have_distinct_colors),
+        ((0, 1), must_have_distinct_colors),
+        ((0, 6), must_have_distinct_colors),
+        ((6, 1), must_have_distinct_colors),
+        ((6, 2), must_have_distinct_colors),
+        ((1, 2), must_have_distinct_colors),
+        ((6, 3), must_have_distinct_colors),
+        ((2, 3), must_have_distinct_colors),
+        ((6, 4), must_have_distinct_colors),
+        ((3, 4), must_have_distinct_colors),
     ]
     csp = CSP(domain, constraints)
     return csp
@@ -32,13 +32,13 @@ def australia():
 def australia_without_SA():
     # Constraint graph in Figure 5.1 (b).
     regions = ("WA", "NT", "Q", "NSW", "V", "T")
-    domain = {region: [0, 1] for region in regions}
+    domain = {i: [0, 1] for i in range(len(regions))}
     must_have_distinct_colors = lambda _, color: color[0] != color[1]
     constraints = [
-        (("WA", "NT"), must_have_distinct_colors),
-        (("NT", "Q"), must_have_distinct_colors),
-        (("Q", "NSW"), must_have_distinct_colors),
-        (("NSW", "V"), must_have_distinct_colors),
+        ((0, 1), must_have_distinct_colors),
+        ((1, 2), must_have_distinct_colors),
+        ((2, 3), must_have_distinct_colors),
+        ((3, 4), must_have_distinct_colors),
     ]
     csp = CSP(domain, constraints)
     return csp
@@ -55,8 +55,8 @@ class TestCSP(object):
             assert constrain_fun(var_names, var_values)
 
     def test_assign_variable(self, australia):
-        australia.assign_variable("T", 0, prune_domain=False)
-        assert australia.get_assignment() == {"T": 0}
+        australia.assign_variable(5, 0, prune_domain=False)
+        assert australia.get_assignment() == {5: 0}
 
     def test_is_acyclic(self):
         empty = igraph.Graph(6)
@@ -76,51 +76,51 @@ class TestCSP(object):
     def test_prune_domain(self, australia):
         # Using the consistent assignment on page 138.
         csp = australia
-        csp.assign_variable("T", 0)
-        assert csp.pruned_domain["WA"] == [0, 1, 2]
-        assert csp.pruned_domain["NT"] == [0, 1, 2]
-        assert csp.pruned_domain["SA"] == [0, 1, 2]
-        assert csp.pruned_domain["Q"] == [0, 1, 2]
-        assert csp.pruned_domain["NSW"] == [0, 1, 2]
-        assert csp.pruned_domain["V"] == [0, 1, 2]
-        assert csp.pruned_domain["T"] == [0]
-        assert csp.get_assignment() == {"T": 0}
-        csp.assign_variable("WA", 0)
-        assert csp.pruned_domain["WA"] == [0]
-        assert csp.pruned_domain["NT"] == [1, 2]
-        assert csp.pruned_domain["SA"] == [1, 2]
-        assert csp.pruned_domain["Q"] == [0]
-        assert csp.pruned_domain["NSW"] == [1, 2]
-        assert csp.pruned_domain["V"] == [0]
-        assert csp.pruned_domain["T"] == [0]
-        assert csp.get_assignment() == {"WA": 0, "Q": 0, "V": 0, "T": 0}
-        csp.assign_variable("NT", 1)
-        assert csp.pruned_domain["WA"] == [0]
-        assert csp.pruned_domain["NT"] == [1]
-        assert csp.pruned_domain["SA"] == [2]
-        assert csp.pruned_domain["Q"] == [0]
-        assert csp.pruned_domain["NSW"] == [1]
-        assert csp.pruned_domain["V"] == [0]
-        assert csp.pruned_domain["T"] == [0]
-        assert csp.get_assignment() == {"WA": 0, "NT": 1, "SA": 2,
-                                        "Q": 0, "NSW": 1, "V": 0, "T": 0}
+        csp.assign_variable(5, 0)
+        assert csp.pruned_domain[0] == [0, 1, 2]
+        assert csp.pruned_domain[1] == [0, 1, 2]
+        assert csp.pruned_domain[6] == [0, 1, 2]
+        assert csp.pruned_domain[2] == [0, 1, 2]
+        assert csp.pruned_domain[3] == [0, 1, 2]
+        assert csp.pruned_domain[4] == [0, 1, 2]
+        assert csp.pruned_domain[5] == [0]
+        assert csp.get_assignment() == {5: 0}
+        csp.assign_variable(0, 0)
+        assert csp.pruned_domain[0] == [0]
+        assert csp.pruned_domain[1] == [1, 2]
+        assert csp.pruned_domain[6] == [1, 2]
+        assert csp.pruned_domain[2] == [0]
+        assert csp.pruned_domain[3] == [1, 2]
+        assert csp.pruned_domain[4] == [0]
+        assert csp.pruned_domain[5] == [0]
+        assert csp.get_assignment() == {0: 0, 2: 0, 4: 0, 5: 0}
+        csp.assign_variable(1, 1)
+        assert csp.pruned_domain[0] == [0]
+        assert csp.pruned_domain[1] == [1]
+        assert csp.pruned_domain[6] == [2]
+        assert csp.pruned_domain[2] == [0]
+        assert csp.pruned_domain[3] == [1]
+        assert csp.pruned_domain[4] == [0]
+        assert csp.pruned_domain[5] == [0]
+        assert csp.get_assignment() == {0: 0, 1: 1, 6: 2, 2:
+                                        0, 3: 1, 4: 0, 5: 0}
 
     def test_prune_domain_in_tree_csp(self, australia_without_SA):
         csp = australia_without_SA
-        csp.assign_variable("T", 0)
-        assert csp.pruned_domain["WA"] == [0, 1]
-        assert csp.pruned_domain["NT"] == [0, 1]
-        assert csp.pruned_domain["Q"] == [0, 1]
-        assert csp.pruned_domain["NSW"] == [0, 1]
-        assert csp.pruned_domain["V"] == [0, 1]
-        assert csp.pruned_domain["T"] == [0]
-        assert csp.get_assignment() == {"T": 0}
-        csp.assign_variable("WA", 0)
-        assert csp.pruned_domain["WA"] == [0]
-        assert csp.pruned_domain["NT"] == [1]
-        assert csp.pruned_domain["Q"] == [0]
-        assert csp.pruned_domain["NSW"] == [1]
-        assert csp.pruned_domain["V"] == [0]
-        assert csp.pruned_domain["T"] == [0]
-        assert csp.get_assignment() == {"WA": 0, "NT": 1, "Q": 0,
-                                        "NSW": 1, "V": 0, "T": 0}
+        csp.assign_variable(5, 0)
+        assert csp.pruned_domain[0] == [0, 1]
+        assert csp.pruned_domain[1] == [0, 1]
+        assert csp.pruned_domain[2] == [0, 1]
+        assert csp.pruned_domain[3] == [0, 1]
+        assert csp.pruned_domain[4] == [0, 1]
+        assert csp.pruned_domain[5] == [0]
+        assert csp.get_assignment() == {5: 0}
+        csp.assign_variable(0, 0)
+        assert csp.pruned_domain[0] == [0]
+        assert csp.pruned_domain[1] == [1]
+        assert csp.pruned_domain[2] == [0]
+        assert csp.pruned_domain[3] == [1]
+        assert csp.pruned_domain[4] == [0]
+        assert csp.pruned_domain[5] == [0]
+        assert csp.get_assignment() == {0: 0, 1: 1, 2: 0,
+                                        3: 1, 4: 0, 5: 0}

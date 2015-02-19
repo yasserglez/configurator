@@ -19,38 +19,36 @@ class CSP(object):
     """Finite-domain constraint satisfaction problem.
 
     Arguments:
-        domain: A dictionary mapping each variable name (string) to an
-            iterable with their values (strings or integers). All the
-            variables must be domain consistent.
+        domain: A dictionary mapping variable indices to an iterable
+            with all their possible values. All the variables must be
+            domain consistent.
         constraints: A list of tuples with two components each: i) a
-            tuple with the names of the variables involved in the
+            tuple with the indices of the variables involved in the
             constraint, and ii) a function that checks the constraint.
             The constraint functions will receive a variables tuple
             and a values tuple, both containing only the restricted
-            variable names and their values (in the same order
-            provided in :obj:`constraints`). The function should
-            return :obj:`True` if the values satisfy the constraint,
-            :obj:`False` otherwise. The constraints must be normalized
-            (i.e. two different constraints shouldn't involve the same
-            set of variables).
+            variable indices and their values (in the same order
+            provided in `constraints`). The function should return
+            `True` if the values satisfy the constraint, `False`
+            otherwise. The constraints must be normalized (i.e. two
+            different constraints shouldn't involve the same set of
+            variables).
 
     All the arguments are available as instance attributes.
     """
 
     def __init__(self, domain, constraints):
         # simpleai expects a list with the domain values
-        self.domain = {v: list(set(var_values))
-                       for v, var_values in domain.items()}
-        self._variables = tuple(self.domain.keys())  # cached for simpleai
+        self.domain = {var_index: list(set(var_values))
+                       for var_index, var_values in domain.items()}
         # Ensure that the constraints are normalized.
         constraint_support = set()
-        for var_names, constraint_fun in constraints:
-            var_names = frozenset(var_names)
-            if var_names in constraint_support:
+        for var_indices, _ in constraints:
+            var_indices = frozenset(var_indices)
+            if var_indices in constraint_support:
                 raise ValueError("The constraints must be normalized")
-            constraint_support.add(var_names)
+            constraint_support.add(var_indices)
         self.constraints = constraints
-        # Initialization for the internal methods.
         self.is_tree_csp = self._compute_is_tree_csp()
         self.reset()
 
@@ -59,7 +57,7 @@ class CSP(object):
 
         Returns:
             A dictionary with the values assigned to the variables if
-            a solution was found, :obj:`None` otherwise.
+            a solution was found, `None` otherwise.
         """
         solution = self._backtracking_solver(self.domain)
         return solution
@@ -69,7 +67,7 @@ class CSP(object):
         # AC-3 algorithm), with the minimum-remaining-values heuristic
         # for variable selection and the least-constraining-value
         # heuristic for value selection.
-        csp = CspProblem(self._variables, domain, self.constraints)
+        csp = CspProblem(list(domain.keys()), domain, self.constraints)
         solution = backtrack(csp, variable_heuristic=MOST_CONSTRAINED_VARIABLE,
                              value_heuristic=LEAST_CONSTRAINING_VALUE,
                              inference=True)
@@ -86,31 +84,31 @@ class CSP(object):
     def get_assignment(self):
         return self._assignment
 
-    def assign_variable(self, var_name, var_value, prune_domain=True):
-        if var_name in self._assignment:
+    def assign_variable(self, var_index, var_value, prune_domain=True):
+        if var_index in self._assignment:
             raise ValueError("The variable is already assigned")
-        if var_value not in self.pruned_domain[var_name]:
+        if var_value not in self.pruned_domain[var_index]:
             raise ValueError("Invalid assignment in the current state")
-        log.debug("assignning variable %s to %r", var_name, var_value)
+        log.debug("assignning variable %d to %d", var_index, var_value)
         log.debug("initial assignment:\n%s", pprint.pformat(self._assignment))
-        self._assignment[var_name] = var_value
+        self._assignment[var_index] = var_value
         if prune_domain:
             self.prune_domain()
             # If the domain of a variable was reduced to a single
             # value, set it back in the assignment.
-            for var_name, var_values in self.pruned_domain.items():
+            for var_index, var_values in self.pruned_domain.items():
                 assert len(var_values) > 0
-                if len(var_values) == 1 and var_name not in self._assignment:
-                    var_value = self.pruned_domain[var_name][0]
-                    self._assignment[var_name] = var_value
+                if len(var_values) == 1 and var_index not in self._assignment:
+                    var_value = self.pruned_domain[var_index][0]
+                    self._assignment[var_index] = var_value
         log.debug("final assignment:\n%s", pprint.pformat(self._assignment))
 
     def prune_domain(self):
-        log.debug("prunning the domain")
+        log.debug("pruning the domain")
         log.debug("initial domain:\n%s", pprint.pformat(self.pruned_domain))
         # Enforce unary constraints.
-        for v, var_value in self._assignment.items():
-            self.pruned_domain[v] = [var_value]
+        for var_index, var_value in self._assignment.items():
+            self.pruned_domain[var_index] = [var_value]
         log.debug("after enforcing unary constraints:\n%s",
                   pprint.pformat(self.pruned_domain))
         log.debug("enforcing global consistency")
@@ -122,25 +120,25 @@ class CSP(object):
         else:
             self._enforce_global_consistency()
         log.debug("finished enforcing global consistency")
-        log.debug("finished prunning the domain")
+        log.debug("finished pruning the domain")
         log.debug("final domain:\n%s", pprint.pformat(self.pruned_domain))
 
     def _enforce_global_consistency(self):
         # Check that all possible answers for the next question lead
         # to a consistent assignment.
         base_domain = copy.deepcopy(self.pruned_domain.copy())
-        for var_name, var_values in self.pruned_domain.items():
+        for var_index, var_values in self.pruned_domain.items():
             if len(var_values) > 1:
                 tmp_domain = base_domain.copy()  # shallow copy is enough
                 consistent_values = []
                 for var_value in var_values:
-                    tmp_domain[var_name] = [var_value]
+                    tmp_domain[var_index] = [var_value]
                     if self._backtracking_solver(tmp_domain) is None:
-                        log.debug("invalid value %d for %r",
-                                  var_value, var_name)
+                        log.debug("invalid value %d for %d",
+                                  var_value, var_index)
                     else:
                         consistent_values.append(var_value)
-                self.pruned_domain[var_name] = consistent_values
+                self.pruned_domain[var_index] = consistent_values
 
     def _compute_is_tree_csp(self):
         is_tree_csp = self._is_binary_csp() and self._has_acyclic_network()
@@ -148,8 +146,8 @@ class CSP(object):
         return is_tree_csp
 
     def _is_binary_csp(self):
-        for var_names, constraint_fun in self.constraints:
-            if len(var_names) != 2:
+        for var_indices, _ in self.constraints:
+            if len(var_indices) != 2:
                 return False
         return True
 
@@ -157,9 +155,8 @@ class CSP(object):
         # _is_binary_csp must be called first.
         network = igraph.Graph(len(self.domain))
         edges = []
-        var_index = {v: i for i, v in enumerate(self.domain.keys())}
-        for var_names, constraint_fun in self.constraints:
-            edges.append([var_index[v] for v in var_names])
+        for var_indices, _ in self.constraints:
+            edges.append([var_index for var_index in var_indices])
         network.add_edges(edges)
         is_acyclic = self._is_acyclic(network)
         return is_acyclic
