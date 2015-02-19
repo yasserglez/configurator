@@ -269,7 +269,7 @@ class DPDialogBuilder(DialogBuilder):
                         probs.append(1.0)
                     else:
                         response = {var_index: w["state"][var_index]}
-                        prob = self._freq_tab.cond_prob(response, v["state"])
+                        prob = self._freq_table.cond_prob(response, v["state"])
                         probs.append(prob)
         # This is faster than using graph.add_edge one at a time.
         base_eid = graph.ecount()

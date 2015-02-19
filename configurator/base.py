@@ -156,9 +156,9 @@ class DialogBuilder(object):
         if config_values is None:
             config_values = get_config_values(config_sample)
         self._config_values = config_values
-        self._freq_tab = FrequencyTable(self._config_sample,
-                                        self._config_values,
-                                        cache_size=1000)
+        self._freq_table = FrequencyTable(self._config_values,
+                                          self._config_sample,
+                                          cache_size=1000)
         config_card = reduce(mul, map(len, self._config_values))
         log.info("there are %d possible configurations of %d variables",
                  config_card, len(self._config_values))

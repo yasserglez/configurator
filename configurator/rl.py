@@ -127,7 +127,7 @@ class RLDialogBuilder(DialogBuilder):
         """
         rules = self._mine_rules()
         dialog = Dialog(self._config_values, rules)
-        env = DialogEnvironment(dialog, self._freq_tab)
+        env = DialogEnvironment(dialog, self._freq_table)
         task = DialogTask(env)
         if self._rl_table == "exact":
             table = DialogQTable(self._config_values)
@@ -266,7 +266,7 @@ class DialogEnvironment(Environment):
 
     Arguments:
         dialog: A Dialog instance.
-        freq_tab: A FrequencyTable instance.
+        freq_table: A FrequencyTable instance.
 
     The environment keeps track of the configuration state. It starts
     in a state where all the variables are unknown (and it can be
@@ -280,10 +280,10 @@ class DialogEnvironment(Environment):
         dialog: A Dialog instance.
     """
 
-    def __init__(self, dialog, freq_tab):
+    def __init__(self, dialog, freq_table):
         super().__init__()
         self.dialog = dialog
-        self._freq_tab = freq_tab
+        self._freq_table = freq_table
 
     def reset(self):
         log.debug("configuration reset in the environment")
@@ -299,9 +299,9 @@ class DialogEnvironment(Environment):
         var_index = int(action)
         # Simulate the user response.
         values = ([], [])
-        for var_value in self._freq_tab.var_values[var_index]:
+        for var_value in self._freq_table.domain[var_index]:
             response = {var_index: var_value}
-            var_prob = self._freq_tab.cond_prob(response, self.dialog.config)
+            var_prob = self._freq_table.cond_prob(response, self.dialog.config)
             values[0].append(var_value)
             values[1].append(var_prob)
         var_value = stats.rv_discrete(values=values).rvs()
