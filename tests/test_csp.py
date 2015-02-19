@@ -28,6 +28,22 @@ def australia():
     return csp
 
 
+@pytest.fixture(scope="function")
+def australia_without_SA():
+    # Constraint graph in Figure 5.1 (b).
+    regions = ("WA", "NT", "Q", "NSW", "V", "T")
+    domain = {region: [0, 1, 2] for region in regions}
+    must_have_distinct_colors = lambda _, color: color[0] != color[1]
+    constraints = [
+        (("WA", "NT"), must_have_distinct_colors),
+        (("NT", "Q"), must_have_distinct_colors),
+        (("Q", "NSW"), must_have_distinct_colors),
+        (("NSW", "V"), must_have_distinct_colors),
+    ]
+    csp = CSP(domain, constraints)
+    return csp
+
+
 class TestCSP(object):
 
     def test_solve(self, australia):
@@ -83,3 +99,7 @@ class TestCSP(object):
         assert not CSP._is_acyclic(full)
         assert not CSP._is_acyclic(empty + full)
         assert not CSP._is_acyclic(tree + full)
+
+    def test_is_tree_csp(self, australia, australia_without_SA):
+        assert not australia.is_tree_csp
+        assert australia_without_SA.is_tree_csp
