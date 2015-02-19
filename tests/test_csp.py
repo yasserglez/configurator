@@ -1,5 +1,7 @@
 import pytest
 
+import igraph
+
 from configurator.csp import CSP
 
 
@@ -70,3 +72,14 @@ class TestCSP(object):
         assert australia.pruned_domain["T"] == [0]
         assert australia.get_assignment() == {"WA": 0, "NT": 1, "SA": 2,
                                               "Q": 0, "NSW": 1, "V": 0, "T": 0}
+
+    def test_is_acyclic(self):
+        empty = igraph.Graph(6)
+        tree = igraph.Graph.Tree(6, 2**6 - 1)
+        full = igraph.Graph.Full(6)
+        assert CSP._is_acyclic(empty)
+        assert CSP._is_acyclic(tree)
+        assert CSP._is_acyclic(empty + tree)
+        assert not CSP._is_acyclic(full)
+        assert not CSP._is_acyclic(empty + full)
+        assert not CSP._is_acyclic(tree + full)

@@ -5,6 +5,7 @@ import copy
 import pprint
 import logging
 
+import igraph
 from simpleai.search import (CspProblem, backtrack,
                              MOST_CONSTRAINED_VARIABLE,
                              LEAST_CONSTRAINING_VALUE)
@@ -49,6 +50,7 @@ class CSP(object):
                 raise ValueError("The constraints must be normalized")
             constraint_support.add(var_names)
         self.constraints = constraints
+        # Initialization for the internal methods.
         self.reset()
 
     def solve(self):
@@ -58,7 +60,8 @@ class CSP(object):
             A dictionary with the values assigned to the variables if
             a solution was found, :obj:`None` otherwise.
         """
-        return self._backtracking_solver(self.domain)
+        solution = self._backtracking_solver(self.domain)
+        return solution
 
     def _backtracking_solver(self, domain):
         # Backtracking solver maintaining arc consistency (using the
@@ -126,3 +129,22 @@ class CSP(object):
                 self._assignment[var_name] = self.pruned_domain[var_name][0]
         log.debug("final assignment:\n%s", pprint.pformat(self._assignment))
         log.debug("final domain:\n%s", pprint.pformat(self.pruned_domain))
+
+    @staticmethod
+    def _is_acyclic(graph):
+        # Check if a given undirected graph contains no cycles.
+        assert not graph.is_directed()
+        visited = [False] * graph.vcount()
+        parent = [None] * graph.vcount()
+        while not all(visited):
+            stack = [visited.index(False)]
+            while stack:
+                v = stack.pop()
+                visited[v] = True
+                for w in graph.vs[v].neighbors():
+                    if w.index != parent[v]:
+                        if visited[w.index]:
+                            return False
+                        stack.append(w.index)
+                        parent[w.index] = v
+        return True
