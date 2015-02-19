@@ -32,7 +32,7 @@ def australia():
 def australia_without_SA():
     # Constraint graph in Figure 5.1 (b).
     regions = ("WA", "NT", "Q", "NSW", "V", "T")
-    domain = {region: [0, 1, 2] for region in regions}
+    domain = {region: [0, 1] for region in regions}
     must_have_distinct_colors = lambda _, color: color[0] != color[1]
     constraints = [
         (("WA", "NT"), must_have_distinct_colors),
@@ -55,39 +55,8 @@ class TestCSP(object):
             assert constrain_fun(var_names, var_values)
 
     def test_assign_variable(self, australia):
-        australia.assign_variable("T", 0, enforce_consistency=False)
+        australia.assign_variable("T", 0, prune_domain=False)
         assert australia.get_assignment() == {"T": 0}
-
-    def test_enforce_consistency(self, australia):
-        # Using the consistent assignment on page 138.
-        australia.assign_variable("T", 0)
-        assert australia.pruned_domain["WA"] == [0, 1, 2]
-        assert australia.pruned_domain["NT"] == [0, 1, 2]
-        assert australia.pruned_domain["SA"] == [0, 1, 2]
-        assert australia.pruned_domain["Q"] == [0, 1, 2]
-        assert australia.pruned_domain["NSW"] == [0, 1, 2]
-        assert australia.pruned_domain["V"] == [0, 1, 2]
-        assert australia.pruned_domain["T"] == [0]
-        assert australia.get_assignment() == {"T": 0}
-        australia.assign_variable("WA", 0)
-        assert australia.pruned_domain["WA"] == [0]
-        assert australia.pruned_domain["NT"] == [1, 2]
-        assert australia.pruned_domain["SA"] == [1, 2]
-        assert australia.pruned_domain["Q"] == [0]
-        assert australia.pruned_domain["NSW"] == [1, 2]
-        assert australia.pruned_domain["V"] == [0]
-        assert australia.pruned_domain["T"] == [0]
-        assert australia.get_assignment() == {"WA": 0, "Q": 0, "V": 0, "T": 0}
-        australia.assign_variable("NT", 1)
-        assert australia.pruned_domain["WA"] == [0]
-        assert australia.pruned_domain["NT"] == [1]
-        assert australia.pruned_domain["SA"] == [2]
-        assert australia.pruned_domain["Q"] == [0]
-        assert australia.pruned_domain["NSW"] == [1]
-        assert australia.pruned_domain["V"] == [0]
-        assert australia.pruned_domain["T"] == [0]
-        assert australia.get_assignment() == {"WA": 0, "NT": 1, "SA": 2,
-                                              "Q": 0, "NSW": 1, "V": 0, "T": 0}
 
     def test_is_acyclic(self):
         empty = igraph.Graph(6)
@@ -103,3 +72,55 @@ class TestCSP(object):
     def test_is_tree_csp(self, australia, australia_without_SA):
         assert not australia.is_tree_csp
         assert australia_without_SA.is_tree_csp
+
+    def test_prune_domain(self, australia):
+        # Using the consistent assignment on page 138.
+        csp = australia
+        csp.assign_variable("T", 0)
+        assert csp.pruned_domain["WA"] == [0, 1, 2]
+        assert csp.pruned_domain["NT"] == [0, 1, 2]
+        assert csp.pruned_domain["SA"] == [0, 1, 2]
+        assert csp.pruned_domain["Q"] == [0, 1, 2]
+        assert csp.pruned_domain["NSW"] == [0, 1, 2]
+        assert csp.pruned_domain["V"] == [0, 1, 2]
+        assert csp.pruned_domain["T"] == [0]
+        assert csp.get_assignment() == {"T": 0}
+        csp.assign_variable("WA", 0)
+        assert csp.pruned_domain["WA"] == [0]
+        assert csp.pruned_domain["NT"] == [1, 2]
+        assert csp.pruned_domain["SA"] == [1, 2]
+        assert csp.pruned_domain["Q"] == [0]
+        assert csp.pruned_domain["NSW"] == [1, 2]
+        assert csp.pruned_domain["V"] == [0]
+        assert csp.pruned_domain["T"] == [0]
+        assert csp.get_assignment() == {"WA": 0, "Q": 0, "V": 0, "T": 0}
+        csp.assign_variable("NT", 1)
+        assert csp.pruned_domain["WA"] == [0]
+        assert csp.pruned_domain["NT"] == [1]
+        assert csp.pruned_domain["SA"] == [2]
+        assert csp.pruned_domain["Q"] == [0]
+        assert csp.pruned_domain["NSW"] == [1]
+        assert csp.pruned_domain["V"] == [0]
+        assert csp.pruned_domain["T"] == [0]
+        assert csp.get_assignment() == {"WA": 0, "NT": 1, "SA": 2,
+                                        "Q": 0, "NSW": 1, "V": 0, "T": 0}
+
+    def test_prune_domain_in_tree_csp(self, australia_without_SA):
+        csp = australia_without_SA
+        csp.assign_variable("T", 0)
+        assert csp.pruned_domain["WA"] == [0, 1]
+        assert csp.pruned_domain["NT"] == [0, 1]
+        assert csp.pruned_domain["Q"] == [0, 1]
+        assert csp.pruned_domain["NSW"] == [0, 1]
+        assert csp.pruned_domain["V"] == [0, 1]
+        assert csp.pruned_domain["T"] == [0]
+        assert csp.get_assignment() == {"T": 0}
+        csp.assign_variable("WA", 0)
+        assert csp.pruned_domain["WA"] == [0]
+        assert csp.pruned_domain["NT"] == [1]
+        assert csp.pruned_domain["Q"] == [0]
+        assert csp.pruned_domain["NSW"] == [1]
+        assert csp.pruned_domain["V"] == [0]
+        assert csp.pruned_domain["T"] == [0]
+        assert csp.get_assignment() == {"WA": 0, "NT": 1, "Q": 0,
+                                        "NSW": 1, "V": 0, "T": 0}

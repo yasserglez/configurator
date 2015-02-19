@@ -6,16 +6,17 @@ import pprint
 import logging
 
 import igraph
-from simpleai.search import (CspProblem, backtrack,
-                             MOST_CONSTRAINED_VARIABLE,
-                             LEAST_CONSTRAINING_VALUE)
+from simpleai.search import CspProblem
+from simpleai.search.arc import arc_consistency_3
+from simpleai.search.csp import (backtrack, MOST_CONSTRAINED_VARIABLE,
+                                 LEAST_CONSTRAINING_VALUE)
 
 
 log = logging.getLogger(__name__)
 
 
 class CSP(object):
-    """Constraint satisfaction problem.
+    """Finite-domain constraint satisfaction problem.
 
     Arguments:
         domain: A dictionary mapping each variable name (string) to an
@@ -50,7 +51,7 @@ class CSP(object):
             constraint_support.add(var_names)
         self.constraints = constraints
         # Initialization for the internal methods.
-        self._is_tree_csp = self._compute_is_tree_csp()
+        self.is_tree_csp = self._compute_is_tree_csp()
         self.reset()
 
     def solve(self):
@@ -85,50 +86,61 @@ class CSP(object):
     def get_assignment(self):
         return self._assignment
 
-    def assign_variable(self, v, var_value, enforce_consistency=True):
-        if v in self._assignment:
+    def assign_variable(self, var_name, var_value, prune_domain=True):
+        if var_name in self._assignment:
             raise ValueError("The variable is already assigned")
-        if var_value not in self.pruned_domain[v]:
+        if var_value not in self.pruned_domain[var_name]:
             raise ValueError("Invalid assignment in the current state")
-        self._assignment[v] = var_value
-        if enforce_consistency:
-            self.enforce_consistency()
-
-    def enforce_consistency(self):
-        log.debug("enforcing global consistency")
+        log.debug("assignning variable %s to %r", var_name, var_value)
         log.debug("initial assignment:\n%s", pprint.pformat(self._assignment))
+        self._assignment[var_name] = var_value
+        if prune_domain:
+            self.prune_domain()
+            # If the domain of a variable was reduced to a single
+            # value, set it back in the assignment.
+            for var_name, var_values in self.pruned_domain.items():
+                assert len(var_values) > 0
+                if len(var_values) == 1 and var_name not in self._assignment:
+                    var_value = self.pruned_domain[var_name][0]
+                    self._assignment[var_name] = var_value
+        log.debug("final assignment:\n%s", pprint.pformat(self._assignment))
+
+    def prune_domain(self):
+        log.debug("prunning the domain")
         log.debug("initial domain:\n%s", pprint.pformat(self.pruned_domain))
-        # Start with unary constraints.
+        # Enforce unary constraints.
         for v, var_value in self._assignment.items():
             self.pruned_domain[v] = [var_value]
         log.debug("after enforcing unary constraints:\n%s",
                   pprint.pformat(self.pruned_domain))
-        # Then, check that all possible answers for the next question
-        # lead to a consistent assignment.
+        log.debug("enforcing global consistency")
+        if self.is_tree_csp:
+            # Arc consistency is equivalent to global consistency in
+            # normalized, tree-structured, binary CSPs.
+            log.debug("it's a tree CSP, enforcing arc consistency")
+            arc_consistency_3(self.pruned_domain, self.constraints)
+        else:
+            self._enforce_global_consistency()
+        log.debug("finished enforcing global consistency")
+        log.debug("finished prunning the domain")
+        log.debug("final domain:\n%s", pprint.pformat(self.pruned_domain))
+
+    def _enforce_global_consistency(self):
+        # Check that all possible answers for the next question lead
+        # to a consistent assignment.
         base_domain = copy.deepcopy(self.pruned_domain.copy())
-        for v, var_values in self.pruned_domain.items():
+        for var_name, var_values in self.pruned_domain.items():
             if len(var_values) > 1:
                 tmp_domain = base_domain.copy()  # shallow copy is enough
                 consistent_values = []
                 for var_value in var_values:
-                    tmp_domain[v] = [var_value]
+                    tmp_domain[var_name] = [var_value]
                     if self._backtracking_solver(tmp_domain) is None:
                         log.debug("invalid value %d for %r",
-                                  var_value, v)
+                                  var_value, var_name)
                     else:
                         consistent_values.append(var_value)
-                # Empty the list and then refill it, this doesn't
-                # affect existing references to the list.
-                del self.pruned_domain[v][:]
-                self.pruned_domain[v].extend(consistent_values)
-        # If the domain of a variable was reduced to a single value,
-        # set it back in the assignment.
-        for v, var_values in self.pruned_domain.items():
-            assert len(var_values) > 0
-            if len(var_values) == 1 and v not in self._assignment:
-                self._assignment[v] = self.pruned_domain[v][0]
-        log.debug("final assignment:\n%s", pprint.pformat(self._assignment))
-        log.debug("final domain:\n%s", pprint.pformat(self.pruned_domain))
+                self.pruned_domain[var_name] = consistent_values
 
     def _compute_is_tree_csp(self):
         is_tree_csp = self._is_binary_csp() and self._has_acyclic_network()
