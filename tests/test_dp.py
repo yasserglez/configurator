@@ -1,8 +1,7 @@
 import numpy as np
-from numpy.testing import assert_array_equal, assert_raises
+from numpy.testing import assert_raises
 
-from configurator.dp import (DPDialogBuilder, MDP, EpisodicMDP,
-                             PolicyIteration, ValueIteration)
+from configurator.dp import DPDialogBuilder, EpisodicMDP
 
 
 class TestDPDialogBuilder(object):
@@ -43,49 +42,9 @@ class TestDPDialogBuilder(object):
         self._test_builder_with_improv("policy-iteration", email_client)
 
 
-class TestMDP(object):
+class TestEpisodicMDP(object):
 
-    mdp_class = MDP
-
-    def test_init_attributes(self, grid_world):
-        P = grid_world.transitions
-        R = grid_world.rewards
-        gamma = grid_world.discount_factor
-        mdp = self.mdp_class(P, R, gamma)
-        assert_array_equal(mdp.transitions, P)
-        assert_array_equal(mdp.rewards, R)
-        assert mdp.discount_factor == gamma
-
-    def test_init_validation(self, grid_world):
-        P = grid_world.transitions
-        R = grid_world.rewards
-        gamma = grid_world.discount_factor
-        S = grid_world.num_states
-        A = grid_world.num_actions
-        invalid_P = np.random.rand(A, S, S)
-        assert_raises(ValueError, self.mdp_class, invalid_P, R, gamma)
-        invalid_R = np.zeros((A - 1, S, S))
-        assert_raises(ValueError, self.mdp_class, P, invalid_R, gamma)
-        invalid_gamma = 2
-        assert_raises(ValueError, self.mdp_class, P, R, invalid_gamma)
-
-
-class TestEpisodicMDP(TestMDP):
-
-    mdp_class = EpisodicMDP
-
-    def test_init_attributes(self, grid_world):
-        P = grid_world.transitions
-        R = grid_world.rewards
-        gamma = grid_world.discount_factor
-        S0 = grid_world.initial_state
-        Sn = grid_world.terminal_state
-        mdp = self.mdp_class(P, R, gamma, S0, Sn)
-        assert mdp.initial_state == S0
-        assert mdp.terminal_state == Sn
-
-    def test_init_validation(self, grid_world):
-        super().test_init_validation(grid_world)
+    def test_validate(self, grid_world):
         P = grid_world.transitions
         R = grid_world.rewards
         gamma = grid_world.discount_factor
@@ -94,30 +53,26 @@ class TestEpisodicMDP(TestMDP):
         Sn = grid_world.terminal_state
         A = grid_world.num_actions
         invalid_P = np.random.rand(A, S, S)
-        assert_raises(ValueError, self.mdp_class, invalid_P, R, gamma, S0, Sn)
+        assert_raises(ValueError, EpisodicMDP, invalid_P, R, gamma, S0, Sn)
         invalid_R = np.random.rand(A, S, S)
-        assert_raises(ValueError, self.mdp_class, P, invalid_R, gamma, S0, Sn)
+        assert_raises(ValueError, EpisodicMDP, P, invalid_R, gamma, S0, Sn)
+        invalid_gamma = 2
+        assert_raises(ValueError, EpisodicMDP, P, R, invalid_gamma, S0, Sn)
 
-
-class BaseTestMDPSolver(object):
-
-    solver_class = None
-
-    def test_solve(self, grid_world):
+    def test_policy_iteration(self, grid_world):
         P = grid_world.transitions
         R = grid_world.rewards
         gamma = grid_world.discount_factor
         mdp = EpisodicMDP(P, R, gamma)
-        policy = self.solver_class().solve(mdp)
+        policy = mdp.policy_iteration()
         assert all([policy[i] == grid_world.policy[i]
                     for i in range(len(grid_world.policy))])
 
-
-class TestPolicyIteration(BaseTestMDPSolver):
-
-    solver_class = PolicyIteration
-
-
-class TestValueIteration(BaseTestMDPSolver):
-
-    solver_class = ValueIteration
+    def test_value_iteration(self, grid_world):
+        P = grid_world.transitions
+        R = grid_world.rewards
+        gamma = grid_world.discount_factor
+        mdp = EpisodicMDP(P, R, gamma)
+        policy = mdp.value_iteration()
+        assert all([policy[i] == grid_world.policy[i]
+                    for i in range(len(grid_world.policy))])

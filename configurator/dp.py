@@ -9,8 +9,7 @@ from contextlib import redirect_stdout
 import igraph
 from scipy import sparse
 import mdptoolbox.util
-from mdptoolbox.mdp import PolicyIteration as _PolicyIteration
-from mdptoolbox.mdp import ValueIteration as _ValueIteration
+from mdptoolbox.mdp import PolicyIteration, ValueIteration
 
 from .base import Dialog, DialogBuilder
 from .util import iter_config_states
@@ -85,12 +84,11 @@ class DPDialogBuilder(DialogBuilder):
                  dp_aggregate_terminals=True,
                  **kwargs):
         super().__init__(**kwargs)
-        if dp_algorithm == "policy-iteration":
-            self._solver = PolicyIteration(max_iter=dp_max_iter)
-        elif dp_algorithm == "value-iteration":
-            self._solver = ValueIteration(max_iter=dp_max_iter)
+        if dp_algorithm in ("policy-iteration", "value-iteration"):
+            self._dp_algorithm = dp_algorithm
         else:
             raise ValueError("Invalid dp_algorithm value")
+        self._dp_max_iter = dp_max_iter
         self._dp_discard_states = dp_discard_states
         self._dp_partial_rules = dp_partial_rules
         self._dp_aggregate_terminals = dp_aggregate_terminals
@@ -111,7 +109,10 @@ class DPDialogBuilder(DialogBuilder):
         mdp = self._transform_graph_to_mdp(graph)
         log.info("finished building the MDP")
         log.info("solving the MDP")
-        policy_tuple = self._solver.solve(mdp)
+        if self._dp_algorithm == "policy-iteration":
+            policy_tuple = mdp.policy_iteration(max_iter=self._dp_max_iter)
+        else:
+            policy_tuple = mdp.value_iteration(max_iter=self._dp_max_iter)
         log.info("finished solving the MDP")
         # Create the DPDialog instance.
         num_vars = len(self._config_values)
@@ -414,41 +415,37 @@ class DPDialogBuilder(DialogBuilder):
 
 
 class MDP(object):
-    """Finite MDP.
+    """Finite Markov decision process.
 
-    Attributes:
-        transitions: Transition probability matrices.
-        rewards: Reward matrices.
+    Let S denote the number of states and A the number of actions.
+
+    Arguments:
+        transitions: Transition probability matrices. Either a
+            (A, S, S)-shaped numpy array or a list with A elements
+            containing (possibly sparse) (S, S) matrices. An entry
+            (a, s, s') gives the probability of transitioning from the
+            state s into state s' with the action a.
+        rewards: Reward matrices. Same shape as transitions. An entry
+                (a, s, s') gives the reward for reaching the state s'
+                from the state s by taking the action a.
         discount_factor: Discount factor in [0,1].
+        validate: If set to `True`, the :meth:`validate` method will
+            be called upon creation (default: True).
     """
 
     def __init__(self, transitions, rewards, discount_factor, validate=True):
-        """Initialize a new instance.
-
-        Let S denote the number of states and A the number of actions.
-
-        Arguments:
-            transitions: Transition probability matrices. Either a
-                (A, S, S)-shaped numpy array or a list with A elements
-                containing (possibly sparse) (S, S) matrices. An entry
-                (a, s, s') gives the probability of transitioning from
-                the state s into state s' with the action a.
-            rewards: Reward matrices. Same shape as transitions.
-                An entry (a, s, s') gives the reward for reaching the
-                state s' from the state s by taking the action a.
-            discount_factor: Discount factor in [0,1].
-            validate: Set it to True if the MDP formulation should be
-                validated, False otherwise. A ValueError exception
-                will be raised if any error is found.
-        """
         super().__init__()
         self.transitions = transitions
         self.rewards = rewards
         self.discount_factor = discount_factor
         if validate:
-            self._validate()
+            self.validate()
 
-    def _validate(self):
+    def validate(self):
+        """Validate the MDP formulation.
+
+        A `ValueError` exception will be raised if any error is found.
+        """
         if not (0 <= self.discount_factor <= 1):
             raise ValueError("The discount factor is not in [0,1]")
         # Rely on pymdptoolbox to check the transition and reward matrices.
@@ -459,28 +456,87 @@ class MDP(object):
         except mdptoolbox.error.Error as error:
             raise ValueError(error.message) from error
 
+    def policy_iteration(self, max_iter=1000, eval_epsilon=0.01,
+                         eval_max_iter=10):
+        """Solve the MDP using modified policy iteration.
+
+        Arguments:
+            max_iter: The maximum number of iterations.
+            eval_epsilon: Stopping criterion for the policy evaluation
+                step. For discounted MDPs it defines the epsilon value
+                used to compute the threshold for the maximum change
+                in the value function between two subsequent
+                iterations. It has no effect for undiscounted MDPs.
+            eval_max_iter: Stopping criterion for the policy
+                evaluation step. The maximum number of iterations.
+
+        The initial policy is the one that maximizes the expected
+        immediate rewards. The algorithm terminates when the policy
+        does not change between two consecutive iterations or after
+        `max_iter` iterations. The policy evaluation step is
+        implemented iteratively, stopping when the maximum change in
+        the value function is less than the threshold computed for
+        `eval_epsilon` (only for discounted MDPs) or after
+        `eval_max_iter` iterations.
+
+        Returns:
+            A tuple mapping state indices to action indices.
+        """
+        P, R = self.transitions, self.rewards
+        gamma = self.discount_factor
+        # Prevent pymdptoolbox from printing a warning about using a
+        # discount factor of 1.0.
+        with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
+            pi = PolicyIteration(P, R, gamma, max_iter=max_iter,
+                                  eval_type="iterative", skip_check=True)
+        # Monkey-patch the _evalPoicyIterative method to change the
+        # default values for epsilon and max_iter.
+        original = pi._evalPolicyIterative
+        epsilon = eval_epsilon
+        max_iter = eval_max_iter
+        patched = lambda self, V0=0, epsilon=epsilon, max_iter=max_iter: \
+            original(V0, epsilon, max_iter)
+        pi._evalPolicyIterative = types.MethodType(patched, pi)
+        pi.run()
+        return pi.policy
+
+    def value_iteration(self, epsilon=0.01, max_iter=1000):
+        """Solve the MDP using value iteration.
+
+        Arguments:
+            epsilon: Stopping criterion. For discounted MDPs it
+                defines the epsilon value used to compute the
+                threshold for the maximum change in the value function
+                between two subsequent iterations. For undiscounted
+                MDPs it defines the absolute threshold.
+            max_iter: The maximum number of iterations.
+
+        The initial value function is zero for all the states. The
+        algorithm terminates when an epsilon-optimal policy is found
+        or after a maximum number of iterations.
+
+        Returns:
+            A tuple mapping state indices to action indices.
+        """
+        P, R = self.transitions, self.rewards
+        gamma = self.discount_factor
+        # Prevent pymdptoolbox from printing a warning about using a
+        # discount factor of 1.0.
+        with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
+            vi = ValueIteration(P, R, gamma, epsilon,
+                                 max_iter, skip_check=True)
+        vi.run()
+        return vi.policy
+
 
 class EpisodicMDP(MDP):
     """Episodic MDP.
 
-    Let S denote the number of states and A the number of actions.
-
     Arguments:
-        transitions: Transition probability matrices.
-        rewards: Reward matrices.
-        discount_factor: Discount factor in [0,1].
         initial_state: Index of the initial state (default: 0).
         terminal_state: Index of the terminal state (default: S - 1).
-        validate: Set it to True if the MDP formulation should be
-            validated, False otherwise. A ValueError exception will be
-            raised if any error is found.
 
-    Attributes:
-        transitions: Transition probability matrices.
-        rewards: Reward matrices.
-        discount_factor: Discount factor in [0,1].
-        initial_state: Index of the initial state.
-        terminal_state: Index of the terminal state.
+    See :class:`MDP` for the remaining arguments.
     """
 
     def __init__(self, transitions, rewards, discount_factor,
@@ -491,118 +547,14 @@ class EpisodicMDP(MDP):
                                transitions[0].shape[0] - 1)
         super().__init__(transitions, rewards, discount_factor, validate)
 
-    def _validate(self):
-        super()._validate()
+    def validate(self):
+        super().validate()
         # Check that the terminal state is absorbing.
         s = self.terminal_state
         for a in range(len(self.transitions)):
             for sp in range(self.transitions[0].shape[0]):
                 value = self.transitions[a][s, sp]
                 if (s == sp and value != 1) or (s != sp and value != 0):
-                    raise ValueError("The terminal state is not an absorbing state")
+                    raise ValueError("The terminal state is not absorbing")
             if self.rewards[a][s, s] != 0:
-                raise ValueError("Terminal state has transitions with non-zero rewards")
-
-
-class MDPSolver(object):
-    """MDP solver.
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def solve(self, mdp):
-        """Solve an MDP.
-
-        Arguments:
-            mdp: An MDP instance.
-
-        Returns:
-            A policy, i.e. a numpy array mapping state indices to
-            action indices.
-        """
-        raise NotImplementedError
-
-
-class PolicyIteration(MDPSolver):
-    """MDP solver using modified policy iteration.
-
-    Arguments:
-        max_iter: The maximum number of iterations.
-        eval_epsilon: Stopping criterion for the policy evaluation
-            step. For discounted MDPs it defines the epsilon value
-            used to compute the threshold for the maximum change in
-            the value function between two subsequent iterations. It
-            has no effect for undiscounted MDPs.
-        eval_max_iter: Stopping criterion for the policy evaluation
-            step. The maximum number of iterations.
-
-    The initial policy is the one that maximizes the expected
-    immediate rewards. The algorithm terminates when the policy does
-    not change between two consecutive iterations or after max_iter.
-    The policy evaluation step is implemented iteratively, stopping
-    when the maximum change in the value function is less than the
-    threshold computed for eval_epsilon (only for discounted MDPs) or
-    after eval_max_iter iterations.
-    """
-
-    def __init__(self, max_iter=1000, eval_epsilon=0.01, eval_max_iter=10):
-        super().__init__()
-        self._max_iter = max_iter
-        self._eval_epsilon = eval_epsilon
-        self._eval_max_iter = eval_max_iter
-
-    def solve(self, mdp):
-        P = mdp.transitions
-        R = mdp.rewards
-        gamma = mdp.discount_factor
-        # Prevent pymdptoolbox from printing a warning about using a
-        # discount factor of 1.0.
-        with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
-            pi = _PolicyIteration(P, R, gamma, max_iter=self._max_iter,
-                                  eval_type="iterative", skip_check=True)
-        # Monkey-patch the _evalPoicyIterative method to change the
-        # default values for epsilon and max_iter.
-        original = pi._evalPolicyIterative
-        epsilon = self._eval_epsilon
-        max_iter = self._eval_max_iter
-        patched = lambda self, V0=0, epsilon=epsilon, max_iter=max_iter: \
-            original(V0, epsilon, max_iter)
-        pi._evalPolicyIterative = types.MethodType(patched, pi)
-        pi.run()
-        return pi.policy
-
-
-class ValueIteration(MDPSolver):
-    """MDP solver using value iteration.
-
-    Arguments:
-        epsilon: Stopping criterion. For discounted MDPs it defines
-            the epsilon value used to compute the threshold for the
-            maximum change in the value function between two
-            subsequent iterations. For undiscounted MDPs it defines
-            the absolute threshold.
-        max_iter: The maximum number of iterations.
-
-    The initial value function is zero for all the states. The
-    algorithm terminates when an epsilon-optimal policy is found or
-    after a maximum number of iterations.
-
-    """
-
-    def __init__(self, epsilon=0.01, max_iter=1000):
-        super().__init__()
-        self._epsilon = epsilon
-        self._max_iter = max_iter
-
-    def solve(self, mdp):
-        P = mdp.transitions
-        R = mdp.rewards
-        gamma = mdp.discount_factor
-        # Prevent pymdptoolbox from printing a warning about using a
-        # discount factor of 1.0.
-        with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
-            vi = _ValueIteration(P, R, gamma, self._epsilon,
-                                 self._max_iter, skip_check=True)
-        vi.run()
-        return vi.policy
+                raise ValueError("Terminal state with non-zero reward transitions")
