@@ -11,7 +11,7 @@ from scipy import sparse
 import mdptoolbox.util
 from mdptoolbox.mdp import PolicyIteration, ValueIteration
 
-from .base import Dialog, DialogBuilder
+from .dialog import Dialog, DialogBuilder
 from .util import iter_config_states
 
 
@@ -73,7 +73,7 @@ class DPDialogBuilder(DialogBuilder):
         dp_aggregate_terminals: Indicates whether all terminal states
             should be aggregated into a single state.
 
-    See :class:`configurator.base.DialogBuilder` for the remaining
+    See :class:`configurator.dialog.DialogBuilder` for the remaining
     arguments.
     """
 
@@ -97,7 +97,7 @@ class DPDialogBuilder(DialogBuilder):
         """Construct a configuration dialog.
 
         Returns:
-            An instance of a :class:`configurator.base.Dialog` subclass.
+            An instance of a :class:`configurator.dialog.Dialog` subclass.
         """
         rules = self._mine_rules()
         log.info("building the MDP")

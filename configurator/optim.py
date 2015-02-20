@@ -1,7 +1,7 @@
 """Configuration dialogs based on optimization.
 """
 
-from .base import Dialog
+from .dialog import Dialog
 
 
 __all__ = []

@@ -114,7 +114,7 @@ def cross_validation(n_folds, builder_class, builder_kwargs,
 
     Arguments:
         n_folds: Number of folds. Must be at least 2.
-        builder_class: A :class:`configurator.base.DialogBuilder` subclass.
+        builder_class: A :class:`configurator.dialog.DialogBuilder` subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
             when a new instance is created (except :obj:`config_sample`
             and :obj:`config_values`).
@@ -177,7 +177,7 @@ def measure_scalability(builder_class, builder_kwargs,
     configuration sample are added in a random order.
 
     Arguments:
-        builder_class: A :class:`configurator.base.DialogBuilder` subclass.
+        builder_class: A :class:`configurator.dialog.DialogBuilder` subclass.
         builder_kwargs: A dict with arguments to pass to builder_class
             when a new instance is created (except :obj:`config_sample`
             and :obj:`config_values`).

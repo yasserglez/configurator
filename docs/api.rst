@@ -11,10 +11,10 @@ configurator
 .. automodule:: configurator
     :members:
 
-configurator.base
-^^^^^^^^^^^^^^^^^
+configurator.dialog
+^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: configurator.base
+.. automodule:: configurator.dialog
     :members:
 
 configurator.dp
