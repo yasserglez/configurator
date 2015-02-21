@@ -112,9 +112,9 @@ class RuleMiner(object):
     All the arguments are available as instance attributes.
 
     Discover association rules in a two-dimensional numpy array. Each
-    column is expected to represent a categorical variable and each
-    row a multi-variate observation. The frequent item sets are mined
-    using the FP-growth algorithm implementation provided by Christian
+    column is expected to represent a discrete variable and each row a
+    multivariate observation. The frequent item sets are mined using
+    the FP-growth algorithm implementation provided by Christian
     Borgelt's PyFIM library available at http://www.borgelt.net/pyfim.html.
     """
 

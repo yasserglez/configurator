@@ -13,7 +13,7 @@ class FrequencyTable(object):
 
     Compute multivariate frequencies and conditional probabilities
     from a two-dimensional numpy array. Each column is expected to
-    represent a categorical variable and each row a multivariate
+    represent a discrete variable and each row a multivariate
     observation.
 
     Arguments:

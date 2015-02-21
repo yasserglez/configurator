@@ -21,6 +21,9 @@ class CSP(object):
     Arguments:
         domain: A list with one entry for each variable containing an
             enumerable with all the possible values of the variable.
+            All the variables must be domain-consistent (i.e. there
+            must exist at least one consistent configuration in which
+            each value value occurs).
         constraints: A list of tuples with two components each: i) a
             tuple with the indices of the variables involved in the
             constraint, and ii) a function that checks the constraint.
@@ -34,6 +37,7 @@ class CSP(object):
             variables).
 
     All the arguments are available as instance attributes.
+
     """
 
     def __init__(self, domain, constraints):
