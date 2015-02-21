@@ -1,6 +1,6 @@
 from numpy.testing import assert_raises
 
-from configurator.dialogs import DialogBuilder, Dialog
+from configurator.dialogs import DialogBuilder, Dialog, PermutationDialog
 
 
 class TestDialogBuilder(object):
@@ -16,7 +16,9 @@ class TestDialogBuilder(object):
 class TestDialog(object):
 
     def test_reset(self, email_client):
-        dialog = Dialog(email_client.domain, rules=email_client.rules)
+        dialog = Dialog(email_client.domain, rules=email_client.rules,
+                        validate=True)
+        dialog.reset()
         assert dialog.config == {}
         dialog.set_answer(0, "yes")
         assert dialog.config != {}
@@ -24,12 +26,37 @@ class TestDialog(object):
         assert dialog.config == {}
 
     def test_set_answer_rules(self, email_client):
-        dialog = Dialog(email_client.domain, rules=email_client.rules)
+        dialog = Dialog(email_client.domain, rules=email_client.rules,
+                        validate=True)
+        dialog.reset()
         dialog.set_answer(1, "lgi")
         assert dialog.is_complete()
 
     def test_set_answer_constraints(self, email_client):
         dialog = Dialog(email_client.domain,
-                        constraints=email_client.constraints)
+                        constraints=email_client.constraints,
+                        validate=True)
+        dialog.reset()
+        dialog.set_answer(1, "lgi")
+        assert dialog.is_complete()
+
+
+class TestPermutationDialog(object):
+
+    def test_get_next_question_rules(self, email_client):
+        dialog = PermutationDialog([1, 0], email_client.domain,
+                                   rules=email_client.rules,
+                                   validate=True)
+        dialog.reset()
+        assert dialog.get_next_question() == 1
+        dialog.set_answer(1, "lgi")
+        assert dialog.is_complete()
+
+    def test_get_next_question_constraints(self, email_client):
+        dialog = PermutationDialog([1, 0], email_client.domain,
+                                   constraints=email_client.constraints,
+                                   validate=True)
+        dialog.reset()
+        assert dialog.get_next_question() == 1
         dialog.set_answer(1, "lgi")
         assert dialog.is_complete()
