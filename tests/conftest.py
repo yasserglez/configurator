@@ -15,10 +15,10 @@ TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
 
 @pytest.fixture(scope="function", autouse=True)
 def random_seed():
-    random_seed = 42
-    random.seed(random_seed)
-    np.random.seed(random_seed)
-    return random_seed
+    seed = 12345
+    random.seed(seed)
+    np.random.seed(seed)
+    return seed
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -39,8 +39,8 @@ def logger():
 def titanic_data():
     # R's Titanic dataset. Contingency table expanded into explicit
     # form using the expand.table function from the epitools package.
-    fname = os.path.join(TESTS_DIR, "titanic.csv")
-    return np.genfromtxt(fname, delimiter=",", skip_header=True,
+    csv_file = os.path.join(TESTS_DIR, "titanic.csv")
+    return np.genfromtxt(csv_file, delimiter=",", skip_header=True,
                          dtype=np.dtype(str))
 
 

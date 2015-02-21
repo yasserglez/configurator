@@ -1,13 +1,13 @@
 import pytest
 from numpy.testing import assert_almost_equal, assert_raises
 
-from configurator.util import get_config_values
+from configurator.util import get_domains
 from configurator.freq_table import FrequencyTable
 
 
 @pytest.fixture(scope="module")
 def freq_table(titanic_data):
-    sample, domains = titanic_data, get_config_values(titanic_data)
+    domains, sample = get_domains(titanic_data), titanic_data
     freq_table = FrequencyTable(domains, sample)
     return freq_table
 
@@ -31,7 +31,7 @@ class TestFrequencyTable(object):
         assert first_time == second_time
 
     def test_count_freq_no_sample(self):
-        sample, domains = None, [[0, 1]]
+        domains, sample = [[0, 1]], None
         freq_table = FrequencyTable(domains, sample)
         assert freq_table.count_freq({0: 0}) == 0
 
@@ -46,7 +46,7 @@ class TestFrequencyTable(object):
         assert_almost_equal(prob, 1 / (885 + 2))
 
     def test_cond_prob_no_sample(self):
-        sample, domains = None, [[0, 1], [0, 1, 2]]
+        domains, sample = [[0, 1], [0, 1, 2]], None
         freq_table = FrequencyTable(domains, sample)
         assert freq_table.cond_prob({0: 0}, {}, True) == 0.5
         assert freq_table.cond_prob({0: 0}, {1: 0}, True) == 0.5

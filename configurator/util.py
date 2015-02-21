@@ -12,7 +12,7 @@ import pandas as pd
 from sklearn.cross_validation import KFold
 
 
-__all__ = ["load_config_sample", "get_config_values",
+__all__ = ["load_config_sample", "get_domains",
            "simulate_dialog", "cross_validation",
            "measure_scalability"]
 
@@ -38,6 +38,21 @@ def load_config_sample(csv_file, dtype=np.uint8):
     return config_sample
 
 
+def get_domains(sample):
+    """Get the possible values of the variables from a sample.
+
+    Arguments:
+        sample: A two-dimensional numpy array containing a sample of
+            the configuration variables.
+
+    Returns:
+        A list with one entry for each variable containing an
+        enumerable with all the possible values of the variable.
+    """
+    domains = [list(set(sample[:, i])) for i in range(sample.shape[1])]
+    return domains
+
+
 def iter_config_states(config_values, exclude_terminals=False):
     """Iterate through all configuration states.
 
@@ -54,22 +69,6 @@ def iter_config_states(config_values, exclude_terminals=False):
                  if var_value is not None}
         if len(state) != len(config_values) or not exclude_terminals:
             yield state
-
-
-def get_config_values(config_sample):
-    """Get the possible configuration values from the sample.
-
-    Arguments:
-        config_sample: A two-dimensional numpy array containing a sample
-            of the configuration variables.
-
-    Returns:
-        A list with one entry for each variable, containing a list
-        with all the possible values of the variable.
-    """
-    config_values = [list(set(config_sample[:, i]))
-                     for i in range(config_sample.shape[1])]
-    return config_values
 
 
 def simulate_dialog(dialog, config):
@@ -133,7 +132,7 @@ def cross_validation(n_folds, builder_class, builder_kwargs,
         (normalized by the total number of questions).
     """
     if config_values is None:
-        config_values = get_config_values(config_sample)
+        config_values = get_domains(config_sample)
     # Copy builder_kwargs to avoid inserting config_sample and
     # config_values into the original dict.
     builder_kwargs = builder_kwargs.copy()
@@ -197,7 +196,7 @@ def measure_scalability(builder_class, builder_kwargs,
         number of possible configurations.
     """
     if config_values is None:
-        config_values = get_config_values(config_sample)
+        config_values = get_domains(config_sample)
     # Copy builder_kwargs to avoid inserting config_sample and
     # config_values into the original dict.
     builder_kwargs = builder_kwargs.copy()
