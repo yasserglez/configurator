@@ -1,20 +1,14 @@
 """Base configuration dialogs.
 """
 
-import math
 import pprint
 import logging
 from collections import defaultdict
 from functools import reduce
 from operator import mul
 
-import numpy as np
-from sortedcontainers import SortedListWithKey
-
-from .rules import RuleMiner
+from .rules import Rule
 from .csp import CSP
-
-from .util import get_config_values
 from .freq_table import FrequencyTable
 
 
@@ -86,27 +80,45 @@ class DialogBuilder(object):
     user will select each configuration when using the dialog,
     otherwise it will be assumed that all configurations occur with
     the same probability.
+
+    All the arguments are available as instance attributes.
     """
 
-    def __init__(self, domain, rules=None, constraints=None, validate=False):
+    def __init__(self, domain, rules=None, constraints=None,
+                 sample=None, validate=False):
         super().__init__()
-        self._config_sample = config_sample
-        if config_values is None:
-            config_values = get_config_values(config_sample)
-        self._config_values = config_values
-        self._freq_table = FrequencyTable(self._config_values,
-                                          self._config_sample,
-                                          cache_size=1000)
-        config_card = reduce(mul, map(len, self._config_values))
+        self.domain = {var_index: list(set(var_values))
+                       for var_index, var_values in enumerate(domain)}
         log.info("there are %d possible configurations of %d variables",
-                 config_card, len(self._config_values))
-        log.info("it is equivalent to %d binary variables",
-                 math.ceil(math.log2(config_card)))
-        log.info("the configuration sample has %d observations",
-                 self._config_sample.shape[0])
+                 reduce(mul, map(len, self.domain)), len(self.domain))
+        # Validate and process the rules and constraints.
+        if rules and constraints:
+            raise ValueError("Both rules and constraints " +
+                             "cannot be given at the same time")
+        if rules is not None:
+            log.info("using %d rules", len(rules))
+            # Merge rules with the same lhs.
+            rules_dict = defaultdict(list)
+            for rule in rules:
+                lhs_key = hash(frozenset(rule.lhs.items()))
+                rules_dict[lhs_key].add(rule)
+            rules = [reduce(self._merge_rules, grouped_rules)
+                     for grouped_rules in rules_dict.values()]
+            log.info("which turned into %d rules after merging", len(rules))
+            log.debug("merged rules:\n%s", pprint.pformat(rules))
+        self.rules = rules
+        self.constraints = constraints
+        if constraints is not None:
+            log.info("using %d constraints", len(self.constraints))
+            self._csp = CSP(self.domain, self.constraints)
+        # Build the frequency table from the configuration sample.
+        self.sample = sample
+        if self.sample is not None:
+            log.info("the configuration sample has %d observations",
+                     self.sample.shape[0])
+        self._freq_table = FrequencyTable(self.domain, self.sample,
+                                          cache_size=1000)
         self._validate = validate
-        self._rule_min_support = rule_min_support
-        self._rule_min_confidence = rule_min_confidence
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -116,47 +128,12 @@ class DialogBuilder(object):
         """
         raise NotImplementedError
 
-    def _mine_rules(self):
-        # Mine the association rules.
-        log.info("mining association rules")
-        miner = RuleMiner(self._config_sample)
-        rules = miner.mine_rules(self._rule_min_support,
-                                 self._rule_min_confidence,
-                                 min_len=2, max_len=2)
-        if rules:
-            log.info("found %d rules", len(rules))
-            supp = [rule.support for rule in rules]
-            log.info("support five-number summary:\n%s",
-                     np.array_str(np.percentile(supp, [0, 25, 50, 75, 100])))
-            conf = [rule.confidence for rule in rules]
-            log.info("confidence five-number summary:\n%s",
-                     np.array_str(np.percentile(conf, [0, 25, 50, 75, 100])))
-        else:
-            log.info("no rules were found")
-        # Merge rules with the same lhs. If two rules have
-        # contradictory rhs, the rule with the greatest support (i.e.
-        # the most popular) takes precedence.
-        rule_sort_key = lambda rule: rule.support  # ascending by support
-        rules_dict = defaultdict(lambda: SortedListWithKey(key=rule_sort_key))
-        for rule in rules:
-            lhs_key = hash(frozenset(rule.lhs.items()))
-            rules_dict[lhs_key].add(rule)
-        merged_rules = [reduce(self._merge_rules, grouped_rules)
-                        for grouped_rules in rules_dict.values()]
-        if merged_rules:
-            log.info("turned into %d rules after merging", len(merged_rules))
-            log.debug("merged rules:\n%s", pprint.pformat(merged_rules))
-        log.info("finished mining association rules")
-        # Return the merged rules.
-        return merged_rules
-
     def _merge_rules(self, rule1, rule2):
         # Merge two association rules with the same lhs.
-        # rule1 is overwritten and returned.
-        rule1.support = None
-        rule1.confidence = None
-        rule1.rhs.update(rule2.rhs)
-        return rule1
+        assert rule1.lhs == rule2.lhs
+        merged_rule = Rule(rule1.lhs, rule1.rhs)
+        merged_rule.rhs.update(rule2.rhs)
+        return merged_rule
 
 
 class Dialog(object):
@@ -177,8 +154,6 @@ class Dialog(object):
         validate: Indicates whether the dialog initialization should
             be validated or not (default: `False`).
 
-    All the arguments are available as instance attributes.
-
     The interaction with all subclasses must be as follows. First,
     :meth:`reset` should be called to begin at a state where all the
     configuration variables are unknown. Next, a call to
@@ -196,9 +171,11 @@ class Dialog(object):
     (answers given back to the dialog with :meth:`set_answer` must be
     restricted to one of these values). :meth:`is_complete` can be
     used to check whether all the variables have been set.
+
+    All the arguments are available as instance attributes.
     """
 
-    def __init__(self, config_values, rules, validate=False):
+    def __init__(self, domain, rules=None, constraints=None, validate=False):
         super().__init__()
         self.config_values = config_values
         self.rules = rules

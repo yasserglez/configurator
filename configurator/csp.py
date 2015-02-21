@@ -37,13 +37,10 @@ class CSP(object):
             variables).
 
     All the arguments are available as instance attributes.
-
     """
 
     def __init__(self, domain, constraints):
-        # simpleai expects a dictionary and list with the domain values.
-        self.domain = {var_index: list(set(var_values))
-                       for var_index, var_values in enumerate(domain)}
+        self.domain = domain
         # Ensure that the constraints are normalized.
         constraint_support = set()
         for var_indices, _ in constraints:
