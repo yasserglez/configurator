@@ -17,7 +17,7 @@ from pybrain.rl.learners import Q as Q_, SARSA as SARSA_
 from pybrain.rl.learners.valuebased import ActionValueTable
 from pybrain.rl.experiments import EpisodicExperiment
 
-from .dialog import Dialog, DialogBuilder
+from .dialogs import Dialog, DialogBuilder
 from .util import iter_config_states
 
 
@@ -85,7 +85,7 @@ class RLDialogBuilder(DialogBuilder):
             decayed after every episode.
         rl_max_episodes: Maximum number of simulated episodes.
 
-    See :class:`configurator.dialog.DialogBuilder` for the remaining
+    See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
     """
 
@@ -123,7 +123,7 @@ class RLDialogBuilder(DialogBuilder):
         """Construct a configuration dialog.
 
         Returns:
-            An instance of a :class:`configurator.dialog.Dialog` subclass.
+            An instance of a :class:`configurator.dialogs.Dialog` subclass.
         """
         rules = self._mine_rules()
         dialog = Dialog(self._config_values, rules)
