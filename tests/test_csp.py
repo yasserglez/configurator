@@ -56,7 +56,7 @@ class TestCSP(object):
 
     def test_assign_variable(self, australia):
         australia.assign_variable(5, 0, prune_domains=False)
-        assert australia.get_assignment() == {5: 0}
+        assert australia.assignment == {5: 0}
 
     def test_is_acyclic(self):
         empty = igraph.Graph(6)
@@ -84,7 +84,7 @@ class TestCSP(object):
         assert csp.pruned_domains[3] == [0, 1, 2]
         assert csp.pruned_domains[4] == [0, 1, 2]
         assert csp.pruned_domains[5] == [0]
-        assert csp.get_assignment() == {5: 0}
+        assert csp.assignment == {5: 0}
         csp.assign_variable(0, 0)
         assert csp.pruned_domains[0] == [0]
         assert csp.pruned_domains[1] == [1, 2]
@@ -93,7 +93,7 @@ class TestCSP(object):
         assert csp.pruned_domains[3] == [1, 2]
         assert csp.pruned_domains[4] == [0]
         assert csp.pruned_domains[5] == [0]
-        assert csp.get_assignment() == {0: 0, 2: 0, 4: 0, 5: 0}
+        assert csp.assignment == {0: 0, 2: 0, 4: 0, 5: 0}
         csp.assign_variable(1, 1)
         assert csp.pruned_domains[0] == [0]
         assert csp.pruned_domains[1] == [1]
@@ -102,8 +102,8 @@ class TestCSP(object):
         assert csp.pruned_domains[3] == [1]
         assert csp.pruned_domains[4] == [0]
         assert csp.pruned_domains[5] == [0]
-        assert csp.get_assignment() == {0: 0, 1: 1, 6: 2, 2:
-                                        0, 3: 1, 4: 0, 5: 0}
+        assert csp.assignment == {0: 0, 1: 1, 6: 2, 2: 0,
+                                  3: 1, 4: 0, 5: 0}
 
     def test_prune_domains_in_tree_csp(self, australia_without_SA):
         csp = australia_without_SA
@@ -114,7 +114,7 @@ class TestCSP(object):
         assert csp.pruned_domains[3] == [0, 1]
         assert csp.pruned_domains[4] == [0, 1]
         assert csp.pruned_domains[5] == [0]
-        assert csp.get_assignment() == {5: 0}
+        assert csp.assignment == {5: 0}
         csp.assign_variable(0, 0)
         assert csp.pruned_domains[0] == [0]
         assert csp.pruned_domains[1] == [1]
@@ -122,5 +122,4 @@ class TestCSP(object):
         assert csp.pruned_domains[3] == [1]
         assert csp.pruned_domains[4] == [0]
         assert csp.pruned_domains[5] == [0]
-        assert csp.get_assignment() == {0: 0, 1: 1, 2: 0,
-                                        3: 1, 4: 0, 5: 0}
+        assert csp.assignment == {0: 0, 1: 1, 2: 0, 3: 1, 4: 0, 5: 0}

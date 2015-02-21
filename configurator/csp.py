@@ -79,36 +79,33 @@ class CSP(object):
     # is assigned when the dialog is being used.
 
     def reset(self):
-        self._assignment = {}
+        self.assignment = {}
         self.pruned_domains = copy.deepcopy(self.domains)
 
-    def get_assignment(self):
-        return self._assignment
-
     def assign_variable(self, var_index, var_value, prune_domains=True):
-        if var_index in self._assignment:
+        if var_index in self.assignment:
             raise ValueError("The variable is already assigned")
         if var_value not in self.pruned_domains[var_index]:
             raise ValueError("Invalid assignment in the current state")
         log.debug("assignning variable %d to %d", var_index, var_value)
-        log.debug("initial assignment:\n%s", pprint.pformat(self._assignment))
-        self._assignment[var_index] = var_value
+        log.debug("initial assignment:\n%s", pprint.pformat(self.assignment))
+        self.assignment[var_index] = var_value
         if prune_domains:
             self.prune_domains()
             # If the domain of a variable was reduced to a single
             # value, set it back in the assignment.
             for var_index, var_values in enumerate(self.pruned_domains):
                 assert len(var_values) > 0
-                if len(var_values) == 1 and var_index not in self._assignment:
+                if len(var_values) == 1 and var_index not in self.assignment:
                     var_value = self.pruned_domains[var_index][0]
-                    self._assignment[var_index] = var_value
-        log.debug("final assignment:\n%s", pprint.pformat(self._assignment))
+                    self.assignment[var_index] = var_value
+        log.debug("final assignment:\n%s", pprint.pformat(self.assignment))
 
     def prune_domains(self):
         log.debug("pruning the domains")
         log.debug("initial domains:\n%s", pprint.pformat(self.pruned_domains))
         # Enforce unary constraints.
-        for var_index, var_value in self._assignment.items():
+        for var_index, var_value in self.assignment.items():
             self.pruned_domains[var_index] = [var_value]
         log.debug("after enforcing unary constraints:\n%s",
                   pprint.pformat(self.pruned_domains))
