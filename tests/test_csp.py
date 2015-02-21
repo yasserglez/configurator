@@ -11,7 +11,7 @@ def australia():
     # Artificial Intelligence: A Modern Approach, 2nd edition.
     # http://aima.cs.berkeley.edu/2nd-ed/newchap05.pdf
     regions = ("WA", "NT", "Q", "NSW", "V", "T", "SA")
-    domain = [[0, 1, 2] for region in regions]
+    domains = [[0, 1, 2] for region in regions]
     must_have_distinct_colors = lambda _, color: color[0] != color[1]
     constraints = [
         ((0, 1), must_have_distinct_colors),
@@ -24,7 +24,7 @@ def australia():
         ((6, 4), must_have_distinct_colors),
         ((3, 4), must_have_distinct_colors),
     ]
-    csp = CSP(domain, constraints)
+    csp = CSP(domains, constraints)
     return csp
 
 
@@ -32,7 +32,7 @@ def australia():
 def australia_without_SA():
     # Constraint graph in Figure 5.1 (b).
     regions = ("WA", "NT", "Q", "NSW", "V", "T")
-    domain = [[0, 1] for region in regions]
+    domains = [[0, 1] for region in regions]
     must_have_distinct_colors = lambda _, color: color[0] != color[1]
     constraints = [
         ((0, 1), must_have_distinct_colors),
@@ -40,7 +40,7 @@ def australia_without_SA():
         ((2, 3), must_have_distinct_colors),
         ((3, 4), must_have_distinct_colors),
     ]
-    csp = CSP(domain, constraints)
+    csp = CSP(domains, constraints)
     return csp
 
 
@@ -49,13 +49,13 @@ class TestCSP(object):
     def test_solve(self, australia):
         solution = australia.solve()
         for var_name, var_value in solution.items():
-            assert var_value in australia.domain[var_name]
+            assert var_value in australia.domains[var_name]
         for var_names, constrain_fun in australia.constraints:
             var_values = [solution[var_name] for var_name in var_names]
             assert constrain_fun(var_names, var_values)
 
     def test_assign_variable(self, australia):
-        australia.assign_variable(5, 0, prune_domain=False)
+        australia.assign_variable(5, 0, prune_domains=False)
         assert australia.get_assignment() == {5: 0}
 
     def test_is_acyclic(self):
@@ -73,54 +73,54 @@ class TestCSP(object):
         assert not australia.is_tree_csp
         assert australia_without_SA.is_tree_csp
 
-    def test_prune_domain(self, australia):
+    def test_prune_domains(self, australia):
         # Using the consistent assignment on page 138.
         csp = australia
         csp.assign_variable(5, 0)
-        assert csp.pruned_domain[0] == [0, 1, 2]
-        assert csp.pruned_domain[1] == [0, 1, 2]
-        assert csp.pruned_domain[6] == [0, 1, 2]
-        assert csp.pruned_domain[2] == [0, 1, 2]
-        assert csp.pruned_domain[3] == [0, 1, 2]
-        assert csp.pruned_domain[4] == [0, 1, 2]
-        assert csp.pruned_domain[5] == [0]
+        assert csp.pruned_domains[0] == [0, 1, 2]
+        assert csp.pruned_domains[1] == [0, 1, 2]
+        assert csp.pruned_domains[6] == [0, 1, 2]
+        assert csp.pruned_domains[2] == [0, 1, 2]
+        assert csp.pruned_domains[3] == [0, 1, 2]
+        assert csp.pruned_domains[4] == [0, 1, 2]
+        assert csp.pruned_domains[5] == [0]
         assert csp.get_assignment() == {5: 0}
         csp.assign_variable(0, 0)
-        assert csp.pruned_domain[0] == [0]
-        assert csp.pruned_domain[1] == [1, 2]
-        assert csp.pruned_domain[6] == [1, 2]
-        assert csp.pruned_domain[2] == [0]
-        assert csp.pruned_domain[3] == [1, 2]
-        assert csp.pruned_domain[4] == [0]
-        assert csp.pruned_domain[5] == [0]
+        assert csp.pruned_domains[0] == [0]
+        assert csp.pruned_domains[1] == [1, 2]
+        assert csp.pruned_domains[6] == [1, 2]
+        assert csp.pruned_domains[2] == [0]
+        assert csp.pruned_domains[3] == [1, 2]
+        assert csp.pruned_domains[4] == [0]
+        assert csp.pruned_domains[5] == [0]
         assert csp.get_assignment() == {0: 0, 2: 0, 4: 0, 5: 0}
         csp.assign_variable(1, 1)
-        assert csp.pruned_domain[0] == [0]
-        assert csp.pruned_domain[1] == [1]
-        assert csp.pruned_domain[6] == [2]
-        assert csp.pruned_domain[2] == [0]
-        assert csp.pruned_domain[3] == [1]
-        assert csp.pruned_domain[4] == [0]
-        assert csp.pruned_domain[5] == [0]
+        assert csp.pruned_domains[0] == [0]
+        assert csp.pruned_domains[1] == [1]
+        assert csp.pruned_domains[6] == [2]
+        assert csp.pruned_domains[2] == [0]
+        assert csp.pruned_domains[3] == [1]
+        assert csp.pruned_domains[4] == [0]
+        assert csp.pruned_domains[5] == [0]
         assert csp.get_assignment() == {0: 0, 1: 1, 6: 2, 2:
                                         0, 3: 1, 4: 0, 5: 0}
 
-    def test_prune_domain_in_tree_csp(self, australia_without_SA):
+    def test_prune_domains_in_tree_csp(self, australia_without_SA):
         csp = australia_without_SA
         csp.assign_variable(5, 0)
-        assert csp.pruned_domain[0] == [0, 1]
-        assert csp.pruned_domain[1] == [0, 1]
-        assert csp.pruned_domain[2] == [0, 1]
-        assert csp.pruned_domain[3] == [0, 1]
-        assert csp.pruned_domain[4] == [0, 1]
-        assert csp.pruned_domain[5] == [0]
+        assert csp.pruned_domains[0] == [0, 1]
+        assert csp.pruned_domains[1] == [0, 1]
+        assert csp.pruned_domains[2] == [0, 1]
+        assert csp.pruned_domains[3] == [0, 1]
+        assert csp.pruned_domains[4] == [0, 1]
+        assert csp.pruned_domains[5] == [0]
         assert csp.get_assignment() == {5: 0}
         csp.assign_variable(0, 0)
-        assert csp.pruned_domain[0] == [0]
-        assert csp.pruned_domain[1] == [1]
-        assert csp.pruned_domain[2] == [0]
-        assert csp.pruned_domain[3] == [1]
-        assert csp.pruned_domain[4] == [0]
-        assert csp.pruned_domain[5] == [0]
+        assert csp.pruned_domains[0] == [0]
+        assert csp.pruned_domains[1] == [1]
+        assert csp.pruned_domains[2] == [0]
+        assert csp.pruned_domains[3] == [1]
+        assert csp.pruned_domains[4] == [0]
+        assert csp.pruned_domains[5] == [0]
         assert csp.get_assignment() == {0: 0, 1: 1, 2: 0,
                                         3: 1, 4: 0, 5: 0}

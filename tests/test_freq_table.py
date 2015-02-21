@@ -7,8 +7,8 @@ from configurator.freq_table import FrequencyTable
 
 @pytest.fixture(scope="module")
 def freq_table(titanic_data):
-    sample, domain = titanic_data, get_config_values(titanic_data)
-    freq_table = FrequencyTable(domain, sample)
+    sample, domains = titanic_data, get_config_values(titanic_data)
+    freq_table = FrequencyTable(domains, sample)
     return freq_table
 
 
@@ -31,8 +31,8 @@ class TestFrequencyTable(object):
         assert first_time == second_time
 
     def test_count_freq_no_sample(self):
-        sample, domain = None, [[0, 1]]
-        freq_table = FrequencyTable(domain, sample)
+        sample, domains = None, [[0, 1]]
+        freq_table = FrequencyTable(domains, sample)
         assert freq_table.count_freq({0: 0}) == 0
 
     def test_cond_prob_without_smoothing(self, freq_table):
@@ -46,8 +46,8 @@ class TestFrequencyTable(object):
         assert_almost_equal(prob, 1 / (885 + 2))
 
     def test_cond_prob_no_sample(self):
-        sample, domain = None, [[0, 1], [0, 1, 2]]
-        freq_table = FrequencyTable(domain, sample)
+        sample, domains = None, [[0, 1], [0, 1, 2]]
+        freq_table = FrequencyTable(domains, sample)
         assert freq_table.cond_prob({0: 0}, {}, True) == 0.5
         assert freq_table.cond_prob({0: 0}, {1: 0}, True) == 0.5
         assert_raises(ZeroDivisionError, freq_table.cond_prob,
