@@ -1,8 +1,8 @@
-API reference
+API Reference
 =============
 
 
-Main modules
+Main Modules
 ------------
 
 configurator
@@ -32,7 +32,7 @@ configurator.rl
     :show-inheritance:
 
 
-Supporting modules
+Supporting Modules
 ------------------
 
 configurator.rules
