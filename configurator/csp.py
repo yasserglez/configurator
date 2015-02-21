@@ -41,6 +41,7 @@ class CSP(object):
 
     def __init__(self, domains, constraints):
         self.domains = domains
+        self._variables = list(range(len(self.domains)))  # cached for simpleai
         # Ensure that the constraints are normalized.
         constraint_support = set()
         for var_indices, _ in constraints:
@@ -67,7 +68,7 @@ class CSP(object):
         # AC-3 algorithm), with the minimum-remaining-values heuristic
         # for variable selection and the least-constraining-value
         # heuristic for value selection.
-        csp = CspProblem(list(domains.keys()), domains, self.constraints)
+        csp = CspProblem(self._variables, domains, self.constraints)
         solution = backtrack(csp, variable_heuristic=MOST_CONSTRAINED_VARIABLE,
                              value_heuristic=LEAST_CONSTRAINING_VALUE,
                              inference=True)
@@ -96,7 +97,7 @@ class CSP(object):
             self.prune_domains()
             # If the domain of a variable was reduced to a single
             # value, set it back in the assignment.
-            for var_index, var_values in self.pruned_domains.items():
+            for var_index, var_values in enumerate(self.pruned_domains):
                 assert len(var_values) > 0
                 if len(var_values) == 1 and var_index not in self._assignment:
                     var_value = self.pruned_domains[var_index][0]
@@ -127,7 +128,7 @@ class CSP(object):
         # Check that all possible answers for the next question lead
         # to a consistent assignment.
         base_domains = copy.deepcopy(self.pruned_domains.copy())
-        for var_index, var_values in self.pruned_domains.items():
+        for var_index, var_values in enumerate(self.pruned_domains):
             if len(var_values) > 1:
                 tmp_domains = base_domains.copy()  # shallow copy is enough
                 consistent_values = []
