@@ -1,5 +1,5 @@
 import pytest
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal, assert_raises
 
 from configurator.util import get_config_values
 from configurator.freq_table import FrequencyTable
@@ -30,6 +30,11 @@ class TestFrequencyTable(object):
         second_time = freq_table.count_freq(x)
         assert first_time == second_time
 
+    def test_count_freq_no_sample(self):
+        sample, domain = None, [[0, 1]]
+        freq_table = FrequencyTable(domain, sample)
+        assert freq_table.count_freq({0: 0}) == 0
+
     def test_cond_prob_without_smoothing(self, freq_table):
         prob = freq_table.cond_prob({3: "Yes"}, {2: "Adult"}, False)
         assert_almost_equal(prob, 0.3126195)
@@ -39,3 +44,11 @@ class TestFrequencyTable(object):
     def test_cond_prob_with_smoothing(self, freq_table):
         prob = freq_table.cond_prob({2: "Child"}, {0: "Crew"})
         assert_almost_equal(prob, 1 / (885 + 2))
+
+    def test_cond_prob_no_sample(self):
+        sample, domain = None, [[0, 1], [0, 1, 2]]
+        freq_table = FrequencyTable(domain, sample)
+        assert freq_table.cond_prob({0: 0}, {}, True) == 0.5
+        assert freq_table.cond_prob({0: 0}, {1: 0}, True) == 0.5
+        assert_raises(ZeroDivisionError, freq_table.cond_prob,
+                      {0: 0}, {}, False)

@@ -41,6 +41,8 @@ class FrequencyTable(object):
         Returns:
             The number of occurences of the values in x.
         """
+        if self.sample is None:
+            return 0
         # Return from the cache, if available.
         if self.cache_size > 0:
             cache_key = hash(frozenset(x.items()))
@@ -68,12 +70,13 @@ class FrequencyTable(object):
         Returns:
             The conditional probability of x given y.
         """
+        if self.sample is None and not add_one_smoothing:
+            raise ZeroDivisionError
         z = dict(x.items() | y.items())
         num = self.count_freq(z)
         den = self.count_freq(y)
         if add_one_smoothing:
             num += 1
-            x_card = [len(self.domain[i]) for i in x.keys()]
-            den += reduce(mul, x_card)
+            den += reduce(mul, (len(self.domain[i]) for i in x.keys()))
         prob = num / den
         return prob
