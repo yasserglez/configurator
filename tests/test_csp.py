@@ -11,7 +11,7 @@ def australia():
     # Artificial Intelligence: A Modern Approach, 2nd edition.
     # http://aima.cs.berkeley.edu/2nd-ed/newchap05.pdf
     regions = ("WA", "NT", "Q", "NSW", "V", "T", "SA")
-    domains = [[0, 1, 2] for region in regions]
+    domains = [["red", "green", "blue"] for region in regions]
     must_have_distinct_colors = lambda _, color: color[0] != color[1]
     constraints = [
         ((0, 1), must_have_distinct_colors),
@@ -32,7 +32,7 @@ def australia():
 def australia_without_SA():
     # Constraint graph in Figure 5.1 (b).
     regions = ("WA", "NT", "Q", "NSW", "V", "T")
-    domains = [[0, 1] for region in regions]
+    domains = [["red", "green"] for region in regions]
     must_have_distinct_colors = lambda _, color: color[0] != color[1]
     constraints = [
         ((0, 1), must_have_distinct_colors),
@@ -57,14 +57,14 @@ class TestCSP(object):
     def test_reset(self, australia):
         csp = australia
         assert csp.pruned_domains == csp.domains
-        csp.assign_variable(0, 0)
+        csp.assign_variable(0, "red")
         assert csp.pruned_domains != csp.domains
         csp.reset()
         assert csp.pruned_domains == csp.domains
 
     def test_assign_variable(self, australia):
-        australia.assign_variable(5, 0, prune_domains=False)
-        assert australia.assignment == {5: 0}
+        australia.assign_variable(5, "red", prune_domains=False)
+        assert australia.assignment == {5: "red"}
 
     def test_is_acyclic(self):
         empty = igraph.Graph(6)
@@ -84,50 +84,51 @@ class TestCSP(object):
     def test_prune_domains(self, australia):
         # Using the consistent assignment on page 138.
         csp = australia
-        csp.assign_variable(5, 0)
-        assert csp.pruned_domains[0] == [0, 1, 2]
-        assert csp.pruned_domains[1] == [0, 1, 2]
-        assert csp.pruned_domains[6] == [0, 1, 2]
-        assert csp.pruned_domains[2] == [0, 1, 2]
-        assert csp.pruned_domains[3] == [0, 1, 2]
-        assert csp.pruned_domains[4] == [0, 1, 2]
-        assert csp.pruned_domains[5] == [0]
-        assert csp.assignment == {5: 0}
-        csp.assign_variable(0, 0)
-        assert csp.pruned_domains[0] == [0]
-        assert csp.pruned_domains[1] == [1, 2]
-        assert csp.pruned_domains[6] == [1, 2]
-        assert csp.pruned_domains[2] == [0]
-        assert csp.pruned_domains[3] == [1, 2]
-        assert csp.pruned_domains[4] == [0]
-        assert csp.pruned_domains[5] == [0]
-        assert csp.assignment == {0: 0, 2: 0, 4: 0, 5: 0}
-        csp.assign_variable(1, 1)
-        assert csp.pruned_domains[0] == [0]
-        assert csp.pruned_domains[1] == [1]
-        assert csp.pruned_domains[6] == [2]
-        assert csp.pruned_domains[2] == [0]
-        assert csp.pruned_domains[3] == [1]
-        assert csp.pruned_domains[4] == [0]
-        assert csp.pruned_domains[5] == [0]
-        assert csp.assignment == {0: 0, 1: 1, 6: 2, 2: 0,
-                                  3: 1, 4: 0, 5: 0}
+        csp.assign_variable(5, "red")
+        assert csp.pruned_domains[0] == ["red", "green", "blue"]
+        assert csp.pruned_domains[1] == ["red", "green", "blue"]
+        assert csp.pruned_domains[6] == ["red", "green", "blue"]
+        assert csp.pruned_domains[2] == ["red", "green", "blue"]
+        assert csp.pruned_domains[3] == ["red", "green", "blue"]
+        assert csp.pruned_domains[4] == ["red", "green", "blue"]
+        assert csp.pruned_domains[5] == ["red"]
+        assert csp.assignment == {5: "red"}
+        csp.assign_variable(0, "red")
+        assert csp.pruned_domains[0] == ["red"]
+        assert csp.pruned_domains[1] == ["green", "blue"]
+        assert csp.pruned_domains[6] == ["green", "blue"]
+        assert csp.pruned_domains[2] == ["red"]
+        assert csp.pruned_domains[3] == ["green", "blue"]
+        assert csp.pruned_domains[4] == ["red"]
+        assert csp.pruned_domains[5] == ["red"]
+        assert csp.assignment == {0: "red", 2: "red", 4: "red", 5: "red"}
+        csp.assign_variable(1, "green")
+        assert csp.pruned_domains[0] == ["red"]
+        assert csp.pruned_domains[1] == ["green"]
+        assert csp.pruned_domains[6] == ["blue"]
+        assert csp.pruned_domains[2] == ["red"]
+        assert csp.pruned_domains[3] == ["green"]
+        assert csp.pruned_domains[4] == ["red"]
+        assert csp.pruned_domains[5] == ["red"]
+        assert csp.assignment == {0: "red", 1: "green", 6: "blue", 2: "red",
+                                  3: "green", 4: "red", 5: "red"}
 
     def test_prune_domains_in_tree_csp(self, australia_without_SA):
         csp = australia_without_SA
-        csp.assign_variable(5, 0)
-        assert csp.pruned_domains[0] == [0, 1]
-        assert csp.pruned_domains[1] == [0, 1]
-        assert csp.pruned_domains[2] == [0, 1]
-        assert csp.pruned_domains[3] == [0, 1]
-        assert csp.pruned_domains[4] == [0, 1]
-        assert csp.pruned_domains[5] == [0]
-        assert csp.assignment == {5: 0}
-        csp.assign_variable(0, 0)
-        assert csp.pruned_domains[0] == [0]
-        assert csp.pruned_domains[1] == [1]
-        assert csp.pruned_domains[2] == [0]
-        assert csp.pruned_domains[3] == [1]
-        assert csp.pruned_domains[4] == [0]
-        assert csp.pruned_domains[5] == [0]
-        assert csp.assignment == {0: 0, 1: 1, 2: 0, 3: 1, 4: 0, 5: 0}
+        csp.assign_variable(5, "red")
+        assert csp.pruned_domains[0] == ["red", "green"]
+        assert csp.pruned_domains[1] == ["red", "green"]
+        assert csp.pruned_domains[2] == ["red", "green"]
+        assert csp.pruned_domains[3] == ["red", "green"]
+        assert csp.pruned_domains[4] == ["red", "green"]
+        assert csp.pruned_domains[5] == ["red"]
+        assert csp.assignment == {5: "red"}
+        csp.assign_variable(0, "red")
+        assert csp.pruned_domains[0] == ["red"]
+        assert csp.pruned_domains[1] == ["green"]
+        assert csp.pruned_domains[2] == ["red"]
+        assert csp.pruned_domains[3] == ["green"]
+        assert csp.pruned_domains[4] == ["red"]
+        assert csp.pruned_domains[5] == ["red"]
+        assert csp.assignment == {0: "red", 1: "green", 2: "red", 3:
+                                  "green", 4: "red", 5: "red"}

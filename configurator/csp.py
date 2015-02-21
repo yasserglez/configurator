@@ -86,7 +86,7 @@ class CSP(object):
             raise ValueError("The variable is already assigned")
         if var_value not in self.pruned_domains[var_index]:
             raise ValueError("Invalid assignment in the current state")
-        log.debug("assignning variable %d to %d", var_index, var_value)
+        log.debug("assignning variable %d to %r", var_index, var_value)
         log.debug("initial assignment:\n%s", pprint.pformat(self.assignment))
         self.assignment[var_index] = var_value
         if prune_domains:
@@ -130,7 +130,7 @@ class CSP(object):
                 for var_value in var_values:
                     tmp_domains[var_index] = [var_value]
                     if self._backtracking_solver(tmp_domains) is None:
-                        log.debug("invalid value %d for %d",
+                        log.debug("invalid value %r for %d",
                                   var_value, var_index)
                     else:
                         consistent_values.append(var_value)
