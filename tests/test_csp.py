@@ -54,6 +54,14 @@ class TestCSP(object):
             var_values = [solution[var_name] for var_name in var_names]
             assert constrain_fun(var_names, var_values)
 
+    def test_reset(self, australia):
+        csp = australia
+        assert csp.pruned_domains == csp.domains
+        csp.assign_variable(0, 0)
+        assert csp.pruned_domains != csp.domains
+        csp.reset()
+        assert csp.pruned_domains == csp.domains
+
     def test_assign_variable(self, australia):
         australia.assign_variable(5, 0, prune_domains=False)
         assert australia.assignment == {5: 0}

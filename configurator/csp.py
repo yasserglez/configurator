@@ -1,7 +1,6 @@
 """Constraint satisfaction problems.
 """
 
-import copy
 import pprint
 import logging
 
@@ -80,7 +79,7 @@ class CSP(object):
 
     def reset(self):
         self.assignment = {}
-        self.pruned_domains = copy.deepcopy(self.domains)
+        self.pruned_domains = self.domains.copy()
 
     def assign_variable(self, var_index, var_value, prune_domains=True):
         if var_index in self.assignment:
