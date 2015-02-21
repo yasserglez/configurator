@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 
 from configurator.rules import Rule
-from configurator.util import get_domains
+from configurator.util import get_domain
 
 
 TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -58,7 +58,7 @@ def email_client():
     csv_file = os.path.join(TESTS_DIR, "email_client.csv")
     sample = np.genfromtxt(csv_file, delimiter=",", skip_header=True,
                            dtype=np.dtype(str))
-    domains = get_domains(sample)
+    domain = get_domain(sample)
 
     # One rule obtained with confidence 0.9 (page 46).
     rules = [Rule({1: "lgi"}, {0: "no"})]
@@ -69,7 +69,7 @@ def email_client():
     # disp=no and only one question is needed.
     questions = [1]
 
-    fields = dict(domains=domains, rules=rules,
+    fields = dict(domain=domain, rules=rules,
                   constraints=constraints, sample=sample,
                   questions=questions)
     EmailClient = namedtuple("EmailClient", fields.keys())

@@ -299,7 +299,7 @@ class DialogEnvironment(Environment):
         var_index = int(action)
         # Simulate the user response.
         values = ([], [])
-        for var_value in self._freq_table.domains[var_index]:
+        for var_value in self._freq_table.domain[var_index]:
             response = {var_index: var_value}
             var_prob = self._freq_table.cond_prob(response, self.dialog.config)
             values[0].append(var_value)

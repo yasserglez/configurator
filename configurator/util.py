@@ -12,7 +12,7 @@ import pandas as pd
 from sklearn.cross_validation import KFold
 
 
-__all__ = ["load_config_sample", "get_domains",
+__all__ = ["load_config_sample", "get_domain",
            "simulate_dialog", "cross_validation",
            "measure_scalability"]
 
@@ -38,7 +38,7 @@ def load_config_sample(csv_file, dtype=np.uint8):
     return config_sample
 
 
-def get_domains(sample):
+def get_domain(sample):
     """Get the possible values of the variables from a sample.
 
     Arguments:
@@ -49,8 +49,8 @@ def get_domains(sample):
         A list with one entry for each variable containing an
         enumerable with all the possible values of the variable.
     """
-    domains = [list(set(sample[:, i])) for i in range(sample.shape[1])]
-    return domains
+    domain = [list(set(sample[:, i])) for i in range(sample.shape[1])]
+    return domain
 
 
 def iter_config_states(config_values, exclude_terminals=False):
@@ -132,7 +132,7 @@ def cross_validation(n_folds, builder_class, builder_kwargs,
         (normalized by the total number of questions).
     """
     if config_values is None:
-        config_values = get_domains(config_sample)
+        config_values = get_domain(config_sample)
     # Copy builder_kwargs to avoid inserting config_sample and
     # config_values into the original dict.
     builder_kwargs = builder_kwargs.copy()
@@ -196,7 +196,7 @@ def measure_scalability(builder_class, builder_kwargs,
         number of possible configurations.
     """
     if config_values is None:
-        config_values = get_domains(config_sample)
+        config_values = get_domain(config_sample)
     # Copy builder_kwargs to avoid inserting config_sample and
     # config_values into the original dict.
     builder_kwargs = builder_kwargs.copy()

@@ -35,9 +35,9 @@ class DialogBuilder(object):
     obtain a complete configuration.
 
     Arguments:
-         domains: A list with one entry for each variable containing
+         domain: A list with one entry for each variable containing
             an enumerable with all the possible values of the variable
-            (:func:`configurator.util.get_domains` can be used to get
+            (:func:`configurator.util.get_domain` can be used to get
             the domain of the variables from a sample). All the
             variables must be domain-consistent (i.e. there must exist
             at least one consistent configuration in which each value
@@ -62,13 +62,13 @@ class DialogBuilder(object):
             the configuration variables. Each column is expected to
             represent a discrete variable and each row a multivariate
             observation. The order of the columns must match the order
-            of the variables in `domains`.
+            of the variables in `domain`.
         validate: Whether or not to run some (generally costly) checks
             on the generated model and the resulting :class:`Dialog`
             instance (default: `False`). Mostly intended for testing
             purposes.
 
-    The `domains` argument must always be given, as it defines the
+    The `domain` argument must always be given, as it defines the
     domain of the variables. The `rules` argument is used with the
     rules-based specification and the `constraints` argument with the
     constraint-based specification. In both cases, it assumed that
@@ -86,12 +86,12 @@ class DialogBuilder(object):
     All the arguments are available as instance attributes.
     """
 
-    def __init__(self, domains, rules=None, constraints=None,
+    def __init__(self, domain, rules=None, constraints=None,
                  sample=None, validate=False):
         super().__init__()
-        self.domains = domains
+        self.domain = domain
         log.info("there are %d possible configurations of %d variables",
-                 reduce(mul, map(len, self.domains)), len(self.domains))
+                 reduce(mul, map(len, self.domain)), len(self.domain))
         # Validate and process the rules and constraints.
         if not (rules or constraints):
             raise ValueError("One of rules or constraints must be given")
@@ -113,13 +113,13 @@ class DialogBuilder(object):
         self.constraints = constraints
         if self.constraints is not None:
             log.info("using %d constraints", len(self.constraints))
-            self._csp = CSP(self.domains, self.constraints)
+            self._csp = CSP(self.domain, self.constraints)
         # Build the frequency table from the configuration sample.
         self.sample = sample
         if self.sample is not None:
             log.info("the configuration sample has %d observations",
                      self.sample.shape[0])
-        self._freq_table = FrequencyTable(self.domains, self.sample,
+        self._freq_table = FrequencyTable(self.domain, self.sample,
                                           cache_size=1000)
         self._validate = validate
 
@@ -148,7 +148,7 @@ class Dialog(object):
     different :class:`DialogBuilder` subclasses.
 
     Arguments:
-        domains: A list with one entry for each variable containing an
+        domain: A list with one entry for each variable containing an
             enumerable with all the possible values of the variable.
         rules: A list of :class:`configurator.rules.Rule` instances.
         constraints: A list of tuples with two components each: i) a
@@ -178,14 +178,14 @@ class Dialog(object):
     All the arguments are available as instance attributes.
     """
 
-    def __init__(self, domains, rules=None, constraints=None, validate=False):
+    def __init__(self, domain, rules=None, constraints=None, validate=False):
         super().__init__()
-        self.domains = domains
+        self.domain = domain
         self.rules = rules if rules is not None else []
         self.constraints = constraints
         if self.constraints is not None:
             log.info("using %d constraints", len(self.constraints))
-            self._csp = CSP(self.domains, self.constraints)
+            self._csp = CSP(self.domain, self.constraints)
         self.reset()
         if validate:
             self._validate()
@@ -227,8 +227,8 @@ class Dialog(object):
         """
         if var_index in self.config:
             raise ValueError("The question has already been answered")
-        possible_answers = (self.domains[var_index] if self.rules else
-                            self._csp.pruned_domains[var_index])
+        possible_answers = (self.domain[var_index] if self.rules else
+                            self._csp.pruned_domain[var_index])
         return possible_answers
 
     def set_answer(self, var_index, var_value):
@@ -264,4 +264,4 @@ class Dialog(object):
         Returns:
             `True` if all the variables has been set, `False` otherwise.
         """
-        return len(self.config) == len(self.domains)
+        return len(self.config) == len(self.domain)
