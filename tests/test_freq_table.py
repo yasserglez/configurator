@@ -6,8 +6,8 @@ from configurator.freq_table import FrequencyTable
 
 
 @pytest.fixture(scope="module")
-def freq_table(titanic_data):
-    domains, sample = get_domains(titanic_data), titanic_data
+def freq_table(titanic_sample):
+    domains, sample = get_domains(titanic_sample), titanic_sample
     freq_table = FrequencyTable(domains, sample)
     return freq_table
 

@@ -7,7 +7,8 @@ from collections import namedtuple
 import pytest
 import numpy as np
 
-from configurator.util import load_config_sample
+from configurator.rules import Rule
+from configurator.util import get_domains
 
 
 TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -15,10 +16,10 @@ TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
 
 @pytest.fixture(scope="function", autouse=True)
 def random_seed():
-    seed = 12345
-    random.seed(seed)
-    np.random.seed(seed)
-    return seed
+    random_seed = 12345
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    return random_seed
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -36,18 +37,12 @@ def logger():
 
 
 @pytest.fixture(scope="session")
-def titanic_data():
+def titanic_sample():
     # R's Titanic dataset. Contingency table expanded into explicit
     # form using the expand.table function from the epitools package.
     csv_file = os.path.join(TESTS_DIR, "titanic.csv")
     return np.genfromtxt(csv_file, delimiter=",", skip_header=True,
                          dtype=np.dtype(str))
-
-
-@pytest.fixture(scope="session")
-def titanic_sample():
-    fname = os.path.join(TESTS_DIR, "titanic.csv")
-    return load_config_sample(fname)
 
 
 @pytest.fixture(scope="session")
@@ -59,29 +54,26 @@ def email_client():
 
     # Table 2 - Contingency Table of preferences in Email Client Example.
     # (The entry {disp=no,ico=lgi} was incorrectly labelled as 540
-    # instead of 560 in the thesis. It was corrected in the CSV file.)
-    fname = os.path.join(TESTS_DIR, "email_client.csv")
-    config_sample = load_config_sample(fname)
-    # {yes = 1, no = 0}, {smi = 1, lgi = 0}
-    config_values = [[1, 0], [1, 0]]
-    config = {0: 0, 1: 0}
+    # instead of 560 in the thesis. It is corrected in the CSV file.)
+    csv_file = os.path.join(TESTS_DIR, "email_client.csv")
+    sample = np.genfromtxt(csv_file, delimiter=",", skip_header=True,
+                           dtype=np.dtype(str))
+    domains = get_domains(sample)
 
-    # Only one rule obtained with confidence 0.9 (page 46).
-    min_supp, min_conf = 0.5, 0.9
+    # One rule obtained with confidence 0.9 (page 46).
+    rules = [Rule({1: "lgi"}, {0: "no"})]
+    constraints = [((1, 0), lambda _, x: x[0] != "lgi" or x[1] == "no")]
 
     # The second question should be asked first. Then, if the user
-    # answers ico=lgi it is possible to use the discovered association
-    # rule to predict disp=no and only one question is needed.
+    # answers ico=lgi it is possible to use the rule to predict
+    # disp=no and only one question is needed.
     questions = [1]
 
-    field_names = ["config_sample", "config_values", "min_support",
-                   "min_confidence", "questions", "config"]
-    EmailClient = namedtuple("EmailClient", field_names)
-    email_client = EmailClient(config_sample=config_sample,
-                               config_values=config_values,
-                               min_support=min_supp,
-                               min_confidence=min_conf,
-                               questions=questions, config=config)
+    fields = dict(domains=domains, rules=rules,
+                  constraints=constraints, sample=sample,
+                  questions=questions)
+    EmailClient = namedtuple("EmailClient", fields.keys())
+    email_client = EmailClient(**fields)
     return email_client
 
 
@@ -147,12 +139,10 @@ def grid_world():
               up, up, down, down,
               up, right, right)
 
-    field_names = ["num_states", "num_actions", "transitions",
-                   "rewards", "initial_state", "terminal_state",
-                   "discount_factor", "policy"]
-    GridWorld = namedtuple("GridWorld", field_names)
-    grid_world = GridWorld(num_states=S, num_actions=A, transitions=P,
-                           rewards=R, initial_state=initial_state,
-                           terminal_state=terminal_state,
-                           discount_factor=gamma, policy=policy)
+    fields = dict(num_states=S, num_actions=A, transitions=P,
+                  rewards=R, initial_state=initial_state,
+                  terminal_state=terminal_state,
+                  discount_factor=gamma, policy=policy)
+    GridWorld = namedtuple("GridWorld", fields.keys())
+    grid_world = GridWorld(**fields)
     return grid_world

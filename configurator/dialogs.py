@@ -35,11 +35,13 @@ class DialogBuilder(object):
     obtain a complete configuration.
 
     Arguments:
-        domains: A list with one entry for each variable containing an
-            enumerable with all the possible values of the variable.
-            All the variables must be domain-consistent (i.e. there
-            must exist at least one consistent configuration in which
-            each value value occurs).
+         domains: A list with one entry for each variable containing
+            an enumerable with all the possible values of the variable
+            (:func:`configurator.util.get_domains` can be used to get
+            the domain of the variables from a sample). All the
+            variables must be domain-consistent (i.e. there must exist
+            at least one consistent configuration in which each value
+            value occurs).
         rules: A list of :class:`configurator.rules.Rule` instances.
             Rules with the same left-hand-side will be combined into a
             single rule by merging their right-hand-sides (values set
@@ -178,8 +180,12 @@ class Dialog(object):
 
     def __init__(self, domains, rules=None, constraints=None, validate=False):
         super().__init__()
-        self.config_values = config_values
-        self.rules = rules
+        self.domains = domains
+        self.rules = rules if rules is not None else []
+        self.constraints = constraints
+        if self.constraints is not None:
+            log.info("using %d constraints", len(self.constraints))
+            self._csp = CSP(self.domains, self.constraints)
         self.reset()
         if validate:
             self._validate()
@@ -195,6 +201,8 @@ class Dialog(object):
         any call to the other methds.
         """
         self.config = {}
+        if not self.rules:
+            self._csp.reset()
 
     def get_next_question(self):
         """Get the question that should be asked next.
@@ -217,6 +225,11 @@ class Dialog(object):
         Returns:
             A list with the possible answers.
         """
+        if var_index in self.config:
+            raise ValueError("The question has already been answered")
+        possible_answers = (self.domains[var_index] if self.rules else
+                            self._csp.pruned_domains[var_index])
+        return possible_answers
 
     def set_answer(self, var_index, var_value):
         """Set the value of a configuration variable.
@@ -228,21 +241,27 @@ class Dialog(object):
         Arguments:
             var_index: An integer, the variable index.
             var_value: The value of the variable. It must be one of
-                the possible values of the variable in the
-                :attr:`config_values` attribute.
+                the possible values of the variable returned by
+                :meth:`get_possible_answers`.
         """
-        assert var_index not in self.config, \
-            "Variable {0} is already set".format(var_index)
-        self.config[var_index] = var_value
-        for rule in self.rules:
-            if rule.is_applicable(self.config):
-                rule.apply_rule(self.config)
+        if var_index in self.config:
+            raise ValueError("The question has already been answered")
+        if self.rules:
+            prev_config_len = len(self.config)
+            self.config[var_index] = var_value
+            while len(self.config) > prev_config_len:
+                prev_config_len = len(self.config)
+                for rule in self.rules:
+                    if rule.is_applicable(self.config):
+                        rule.apply_rule(self.config)
+        else:
+            self._csp.assign_variable(var_index, var_value)
+            self.config.update(self._csp.assignment)
 
     def is_complete(self):
         """Check if the configuration is complete.
 
         Returns:
-            `True` if the values of all the variables has been set,
-            `False` otherwise.
+            `True` if all the variables has been set, `False` otherwise.
         """
-        return len(self.config) == len(self.config_values)
+        return len(self.config) == len(self.domains)

@@ -15,8 +15,8 @@ def rule():
 
 
 @pytest.fixture(scope="module")
-def miner(titanic_data):
-    miner = RuleMiner(titanic_data)
+def miner(titanic_sample):
+    miner = RuleMiner(titanic_sample)
     return miner
 
 
