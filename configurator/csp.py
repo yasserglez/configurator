@@ -124,10 +124,9 @@ class CSP(object):
     def _enforce_global_consistency(self):
         # Check that all possible answers for the next question lead
         # to a consistent assignment.
-        base_domains = copy.deepcopy(self.pruned_domains.copy())
         for var_index, var_values in enumerate(self.pruned_domains):
             if len(var_values) > 1:
-                tmp_domains = base_domains.copy()  # shallow copy is enough
+                tmp_domains = self.pruned_domains.copy()
                 consistent_values = []
                 for var_value in var_values:
                     tmp_domains[var_index] = [var_value]
