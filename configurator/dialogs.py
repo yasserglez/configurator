@@ -27,7 +27,7 @@ class DialogBuilder(object):
     and :mod:`configurator.rl` for concrete dialog builders.
 
     The dialog builders support representing the configuration problem
-    using a rule-based or a constraint-based specification (although
+    using a rules-based or a constraint-based specification (although
     all builders may not support both specifications). In both cases,
     :meth:`build_dialog` can be used to construct a configuration
     dialog that guides the users throught the configuration process
@@ -68,7 +68,7 @@ class DialogBuilder(object):
 
     The `domains` argument must always be given, as it defines the
     domain of the variables. The `rules` argument is used with the
-    rule-based specification and the `constraints` argument with the
+    rules-based specification and the `constraints` argument with the
     constraint-based specification. In both cases, it assumed that
     there are no contradictions in the configuration problem. The
     satisfiability of a constraint-based specification can be verified
@@ -87,28 +87,29 @@ class DialogBuilder(object):
     def __init__(self, domains, rules=None, constraints=None,
                  sample=None, validate=False):
         super().__init__()
-        self.domains = {var_index: list(set(var_values))
-                        for var_index, var_values in enumerate(domains)}
+        self.domains = domains
         log.info("there are %d possible configurations of %d variables",
                  reduce(mul, map(len, self.domains)), len(self.domains))
         # Validate and process the rules and constraints.
+        if not (rules or constraints):
+            raise ValueError("One of rules or constraints must be given")
         if rules and constraints:
             raise ValueError("Both rules and constraints " +
                              "cannot be given at the same time")
-        if rules is not None:
-            log.info("using %d rules", len(rules))
+        self.rules = rules if rules is not None else []
+        if self.rules:
+            log.info("using %d rules", len(self.rules))
             # Merge rules with the same lhs.
             rules_dict = defaultdict(list)
-            for rule in rules:
+            for rule in self.rules:
                 lhs_key = hash(frozenset(rule.lhs.items()))
                 rules_dict[lhs_key].add(rule)
-            rules = [reduce(self._merge_rules, grouped_rules)
-                     for grouped_rules in rules_dict.values()]
-            log.info("which turned into %d rules after merging", len(rules))
-            log.debug("merged rules:\n%s", pprint.pformat(rules))
-        self.rules = rules
+            self.rules = [reduce(self._merge_rules, grouped_rules)
+                          for grouped_rules in rules_dict.values()]
+            log.info("which turned %d rules after merging", len(self.rules))
+            log.debug("merged rules:\n%s", pprint.pformat(self.rules))
         self.constraints = constraints
-        if constraints is not None:
+        if self.constraints is not None:
             log.info("using %d constraints", len(self.constraints))
             self._csp = CSP(self.domains, self.constraints)
         # Build the frequency table from the configuration sample.
