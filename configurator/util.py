@@ -46,8 +46,8 @@ def get_domain(sample):
             the configuration variables.
 
     Returns:
-        A list with one entry for each variable containing an
-        enumerable with all the possible values of the variable.
+        A list with one entry for each variable containing a
+        sequence with all the possible values of the variable.
     """
     domain = [list(set(sample[:, i])) for i in range(sample.shape[1])]
     return domain
@@ -58,7 +58,7 @@ def iter_config_states(domain, exclude_terminals=False):
 
     Arguments:
          domain: A list with one entry for each variable containing
-            an enumerable with all the possible values of the variable.
+            a sequence with all the possible values of the variable.
         exclude_terminals: Exclude states where all the variables are known.
     """
     extended_var_values = [[None] + var_values for var_values in domain]
@@ -119,7 +119,7 @@ def cross_validation(n_folds, builder_class, builder_kwargs,
         config_sample: A two-dimensional numpy array containing a sample
             of the configuration variables.
         config_values: A list with one entry for each variable,
-            containing an enumerable with all the possible values of
+            containing a sequence with all the possible values of
             the variable. If it is not given, it is automatically
             computed from the columns of :obj:`config_sample`.
 
@@ -182,7 +182,7 @@ def measure_scalability(builder_class, builder_kwargs,
         config_sample: A two-dimensional numpy array containing a sample
             of the configuration variables.
         config_values: A list with one entry for each variable,
-            containing an enumerable with all the possible values of
+            containing a sequence with all the possible values of
             the variable. If it is not given, it is automatically
             computed from the columns of :obj:`config_sample`.
 

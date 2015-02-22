@@ -27,7 +27,7 @@ class DialogBuilder(object):
     and :mod:`configurator.rl` for concrete dialog builders.
 
     The dialog builders support representing the configuration problem
-    using a rules-based or a constraint-based specification (although
+    using a rule-based or a constraint-based specification (although
     all builders may not support both specifications). In both cases,
     :meth:`build_dialog` can be used to construct a configuration
     dialog that guides the users throught the configuration process
@@ -36,7 +36,7 @@ class DialogBuilder(object):
 
     Arguments:
          domain: A list with one entry for each variable containing
-            an enumerable with all the possible values of the variable
+            a sequence with all the possible values of the variable
             (:func:`configurator.util.get_domain` can be used to get
             the domain of the variables from a sample). All the
             variables must be domain-consistent (i.e. there must exist
@@ -70,7 +70,7 @@ class DialogBuilder(object):
 
     The `domain` argument must always be given, as it defines the
     domain of the variables. The `rules` argument is used with the
-    rules-based specification and the `constraints` argument with the
+    rule-based specification and the `constraints` argument with the
     constraint-based specification. In both cases, it assumed that
     there are no contradictions in the configuration problem. The
     satisfiability of a constraint-based specification can be verified
@@ -148,8 +148,8 @@ class Dialog(object):
     different :class:`DialogBuilder` subclasses.
 
     Arguments:
-        domain: A list with one entry for each variable containing an
-            enumerable with all the possible values of the variable.
+        domain: A list with one entry for each variable containing a
+            sequence with all the possible values of the variable.
         rules: A list of :class:`configurator.rules.Rule` instances.
         constraints: A list of tuples with two components each: i) a
             tuple with the indices of the variables involved in the

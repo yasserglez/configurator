@@ -18,8 +18,8 @@ class FrequencyTable(object):
 
     Arguments:
         sample: A two-dimensional numpy array.
-        domain: A list with one entry for each variable containing an
-            enumerable with all the possible values of the variable.
+        domain: A list with one entry for each variable containing a
+            sequence with all the possible values of the variable.
         cache_size: Size of the LRU cache for the frequencies.
 
     All the arguments are available as instance attributes.

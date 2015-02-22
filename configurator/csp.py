@@ -18,8 +18,8 @@ class CSP(object):
     """Finite-domain constraint satisfaction problem.
 
     Arguments:
-        domain: A list with one entry for each variable containing an
-            enumerable with all the possible values of the variable.
+        domain: A list with one entry for each variable containing a
+            sequence with all the possible values of the variable.
             All the variables must be domain-consistent (i.e. there
             must exist at least one consistent configuration in which
             each value value occurs).

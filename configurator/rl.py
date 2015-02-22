@@ -166,7 +166,7 @@ class DialogQTable(ActionValueTable):
 
     Arguments:
         config_values: A list with one entry for each variable,
-            containing an enumerable with all the possible values
+            containing a sequence with all the possible values
             of the variable.
     """
 
