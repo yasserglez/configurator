@@ -277,8 +277,8 @@ class PermutationDialog(Dialog):
     attributes and methods.
     """
 
-    def __init__(self, var_perm, domain, rules=None,
-                 constraints=None, validate=False):
+    def __init__(self, domain, var_perm,
+                 rules=None, constraints=None, validate=False):
         self._var_perm = var_perm
         super().__init__(domain, rules, constraints, validate)
 

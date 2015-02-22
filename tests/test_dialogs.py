@@ -44,7 +44,7 @@ class TestDialog(object):
 class TestPermutationDialog(object):
 
     def test_get_next_question_rules(self, email_client):
-        dialog = PermutationDialog([1, 0], email_client.domain,
+        dialog = PermutationDialog(email_client.domain, [1, 0],
                                    rules=email_client.rules,
                                    validate=True)
         dialog.reset()
@@ -53,7 +53,7 @@ class TestPermutationDialog(object):
         assert dialog.is_complete()
 
     def test_get_next_question_constraints(self, email_client):
-        dialog = PermutationDialog([1, 0], email_client.domain,
+        dialog = PermutationDialog(email_client.domain, [1, 0],
                                    constraints=email_client.constraints,
                                    validate=True)
         dialog.reset()

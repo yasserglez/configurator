@@ -34,7 +34,7 @@ class DPDialog(Dialog):
     remaining arguments, attributes and methods.
     """
 
-    def __init__(self, policy, domain, rules, validate=False):
+    def __init__(self, domain, rules, policy, validate=False):
         self._policy = policy
         super().__init__(domain, rules, None, validate)
 
@@ -129,7 +129,7 @@ class DPDialogBuilder(DialogBuilder):
                                     if a not in state)))
             state_key = frozenset(state.items())
             policy_dict[state_key] = action
-        dialog = DPDialog(policy_dict, self.domain, self.rules,
+        dialog = DPDialog(self.domain, self.rules, policy_dict,
                           validate=self._validate)
         return dialog
 
