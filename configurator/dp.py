@@ -21,39 +21,6 @@ __all__ = ["DPDialogBuilder"]
 log = logging.getLogger(__name__)
 
 
-class DPDialog(Dialog):
-    """Configuration dialog generated using dynamic programming.
-
-    Arguments:
-        policy: The MDP policy, i.e. a dictionary mapping
-            configuration states to variable indices. The
-            configuration states are represented as frozensets of
-            (index, value) tuples for each variable.
-
-    See `configurator.dialogs.Dialog` for information about the
-    remaining arguments, attributes and methods.
-    """
-
-    def __init__(self, domain, rules, policy, validate=False):
-        self._policy = policy
-        super().__init__(domain, rules, None, validate)
-
-    def _validate(self):
-        for state in iter_config_states(self.domain, True):
-            state_key = frozenset(state.items())
-            try:
-                if self._policy[state_key] in state:
-                    raise ValueError("The policy has invalid actions")
-            except KeyError:
-                # States that can be skipped using the association
-                # rules won't appear on the policy.
-                pass
-
-    def get_next_question(self):
-        next_question = self._policy[frozenset(self.config.items())]
-        return next_question
-
-
 class DPDialogBuilder(DialogBuilder):
     """Build a configuration dialog using dynamic programming.
 
@@ -412,6 +379,39 @@ class DPDialogBuilder(DialogBuilder):
             rewired_edges.append(e.index)
         # Remove the edges that were rewired.
         graph.delete_edges(rewired_edges)
+
+
+class DPDialog(Dialog):
+    """Configuration dialog generated using dynamic programming.
+
+    Arguments:
+        policy: The MDP policy, i.e. a dictionary mapping
+            configuration states to variable indices. The
+            configuration states are represented as frozensets of
+            (index, value) tuples for each variable.
+
+    See `configurator.dialogs.Dialog` for information about the
+    remaining arguments, attributes and methods.
+    """
+
+    def __init__(self, domain, rules, policy, validate=False):
+        self._policy = policy
+        super().__init__(domain, rules, None, validate)
+
+    def _validate(self):
+        for state in iter_config_states(self.domain, True):
+            state_key = frozenset(state.items())
+            try:
+                if self._policy[state_key] in state:
+                    raise ValueError("The policy has invalid actions")
+            except KeyError:
+                # States that can be skipped using the association
+                # rules won't appear on the policy.
+                pass
+
+    def get_next_question(self):
+        next_question = self._policy[frozenset(self.config.items())]
+        return next_question
 
 
 class MDP(object):
