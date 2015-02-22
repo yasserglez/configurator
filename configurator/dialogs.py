@@ -105,7 +105,7 @@ class DialogBuilder(object):
             rules_dict = defaultdict(list)
             for rule in self.rules:
                 lhs_key = hash(frozenset(rule.lhs.items()))
-                rules_dict[lhs_key].add(rule)
+                rules_dict[lhs_key].append(rule)
             self.rules = [reduce(self._merge_rules, grouped_rules)
                           for grouped_rules in rules_dict.values()]
             log.info("which turned %d rules after merging", len(self.rules))

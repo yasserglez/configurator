@@ -68,10 +68,11 @@ def email_client():
     # answers ico=lgi it is possible to use the rule to predict
     # disp=no and only one question is needed.
     questions = [1]
+    config = {1: "lgi", 0: "no"}
 
     fields = dict(domain=domain, rules=rules,
                   constraints=constraints, sample=sample,
-                  questions=questions)
+                  questions=questions, config=config)
     EmailClient = namedtuple("EmailClient", fields.keys())
     email_client = EmailClient(**fields)
     return email_client

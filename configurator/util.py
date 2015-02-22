@@ -53,21 +53,20 @@ def get_domain(sample):
     return domain
 
 
-def iter_config_states(config_values, exclude_terminals=False):
+def iter_config_states(domain, exclude_terminals=False):
     """Iterate through all configuration states.
 
     Arguments:
-        config_values: A list with one entry for each variable,
-            containing an enumerable with all the possible values of
-            the variable.
+         domain: A list with one entry for each variable containing
+            an enumerable with all the possible values of the variable.
         exclude_terminals: Exclude states where all the variables are known.
     """
-    extended_values = [[None] + values for values in config_values]
-    for state_values in itertools.product(*extended_values):
+    extended_var_values = [[None] + var_values for var_values in domain]
+    for state_values in itertools.product(*extended_var_values):
         state = {var_index: var_value
                  for var_index, var_value in enumerate(state_values)
                  if var_value is not None}
-        if len(state) != len(config_values) or not exclude_terminals:
+        if len(state) != len(domain) or not exclude_terminals:
             yield state
 
 

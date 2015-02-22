@@ -7,15 +7,14 @@ from configurator.dp import DPDialogBuilder, EpisodicMDP
 class TestDPDialogBuilder(object):
 
     def _test_builder(self, algorithm, improv, email_client):
-        builder = DPDialogBuilder(
-            config_sample=email_client.config_sample,
-            validate=True,
-            rule_min_support=email_client.min_support,
-            rule_min_confidence=email_client.min_confidence,
-            dp_algorithm=algorithm,
-            dp_discard_states=improv,
-            dp_partial_rules=improv,
-            dp_aggregate_terminals=improv)
+        builder = DPDialogBuilder(domain=email_client.domain,
+                                  rules=email_client.rules,
+                                  sample=email_client.sample,
+                                  dp_algorithm=algorithm,
+                                  dp_discard_states=improv,
+                                  dp_partial_rules=improv,
+                                  dp_aggregate_terminals=improv,
+                                  validate=True)
         dialog = builder.build_dialog()
         for var_index in email_client.questions:
             assert dialog.get_next_question() == var_index
@@ -29,16 +28,16 @@ class TestDPDialogBuilder(object):
     def _test_builder_with_improv(self, algorithm, email_client):
         self._test_builder(algorithm, True, email_client)
 
-    def test_value_iteration_without_improv(self, email_client):
+    def test_value_iteration_without_improvements(self, email_client):
         self._test_builder_without_improv("value-iteration", email_client)
 
-    def test_policy_iteration_without_improv(self, email_client):
+    def test_policy_iteration_without_improvements(self, email_client):
         self._test_builder_without_improv("policy-iteration", email_client)
 
-    def test_value_iteration_with_improv(self, email_client):
+    def test_value_iteration_with_improvements(self, email_client):
         self._test_builder_with_improv("value-iteration", email_client)
 
-    def test_policy_iteration_with_improv(self, email_client):
+    def test_policy_iteration_with_improvements(self, email_client):
         self._test_builder_with_improv("policy-iteration", email_client)
 
 

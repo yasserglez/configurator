@@ -25,21 +25,21 @@ class DPDialog(Dialog):
     """Configuration dialog generated using dynamic programming.
 
     Arguments:
-        policy: The MDP policy, i.e. a dict mapping configuration
-            states to variable indices. The configuration states
-            are represented as frozensets of (index, value) tuples
-            for each variable.
+        policy: The MDP policy, i.e. a dictionary mapping
+            configuration states to variable indices. The
+            configuration states are represented as frozensets of
+            (index, value) tuples for each variable.
 
-    See Dialog for information about the remaining arguments,
-    attributes and methods.
+    See `configurator.dialogs.Dialog` for information about the
+    remaining arguments, attributes and methods.
     """
 
-    def __init__(self, config_values, rules, policy, validate=False):
+    def __init__(self, policy, domain, rules, validate=False):
         self._policy = policy
-        super().__init__(config_values, rules, validate=validate)
+        super().__init__(domain, rules, None, validate)
 
     def _validate(self):
-        for state in iter_config_states(self.config_values, True):
+        for state in iter_config_states(self.domain, True):
             state_key = frozenset(state.items())
             try:
                 if self._policy[state_key] in state:
@@ -50,8 +50,8 @@ class DPDialog(Dialog):
                 pass
 
     def get_next_question(self):
-        next_var_index = self._policy[frozenset(self.config.items())]
-        return next_var_index
+        next_question = self._policy[frozenset(self.config.items())]
+        return next_question
 
 
 class DPDialogBuilder(DialogBuilder):
@@ -59,32 +59,33 @@ class DPDialogBuilder(DialogBuilder):
 
     Arguments:
         dp_algorithm: Algorithm for solving the MDP. Possible values
-            are: `'policy-iteration'` and `'value-iteration'`.
+            are: `'value-iteration'` (default) and `'policy-iteration'`.
         dp_max_iter: The maximum number of iterations of the algorithm
-            used to solve the MDP.
-        dp_discard_states: Indicates whether states that can't be
-            reached from the initial state after applying the
-            association rules should be discarded.
-        dp_partial_rules: Indicates whether the association
-            rules can be applied when some of the variables in the
-            right-hand-side are already set to the correct values.
-            (the opposite is to require that all variables in the
+            used to solve the MDP (default: 1000).
+        dp_discard_states: Indicates whether states that cannot be
+            reached from the initial state after applying the rules
+            should be discarded (default: `True`).
+        dp_partial_rules: Indicates whether the rules can be applied
+            when some of the variables in the right-hand-side are
+            already set to the correct values (default: `True`).
+            The opposite is to require that all variables in the
             left-hand-side are unknown).
         dp_aggregate_terminals: Indicates whether all terminal states
-            should be aggregated into a single state.
+            should be aggregated into a single state (default: `True`).
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
     """
 
-    def __init__(self, dp_algorithm="policy-iteration",
+    def __init__(self, domain, rules, sample=None,
+                 dp_algorithm="value-iteration",
                  dp_max_iter=1000,
                  dp_discard_states=True,
                  dp_partial_rules=True,
                  dp_aggregate_terminals=True,
-                 **kwargs):
-        super().__init__(**kwargs)
-        if dp_algorithm in ("policy-iteration", "value-iteration"):
+                 validate=False):
+        super().__init__(domain, rules, None, sample, validate)
+        if dp_algorithm in ("value-iteration", "policy-iteration"):
             self._dp_algorithm = dp_algorithm
         else:
             raise ValueError("Invalid dp_algorithm value")
@@ -99,23 +100,22 @@ class DPDialogBuilder(DialogBuilder):
         Returns:
             An instance of a :class:`configurator.dialogs.Dialog` subclass.
         """
-        rules = self._mine_rules()
         log.info("building the MDP")
         # Build the initial graph.
         graph = self._build_graph()
         # Update the graph using the association rules.
-        self._update_graph(graph, rules)
+        self._update_graph(graph, self.rules)
         # Transform the graph into MDP components.
         mdp = self._transform_graph_to_mdp(graph)
         log.info("finished building the MDP")
         log.info("solving the MDP")
-        if self._dp_algorithm == "policy-iteration":
-            policy_tuple = mdp.policy_iteration(max_iter=self._dp_max_iter)
-        else:
+        if self._dp_algorithm == "value-iteration":
             policy_tuple = mdp.value_iteration(max_iter=self._dp_max_iter)
+        else:
+            policy_tuple = mdp.policy_iteration(max_iter=self._dp_max_iter)
         log.info("finished solving the MDP")
         # Create the DPDialog instance.
-        num_vars = len(self._config_values)
+        num_vars = len(self.domain)
         policy_dict = {}
         for s in range(len(policy_tuple)):
             if graph.vs[s]["state_len"] == num_vars:
@@ -124,19 +124,19 @@ class DPDialogBuilder(DialogBuilder):
             action = policy_tuple[s]
             if action in state:
                 # Ensure that the policy doesn't suggest questions
-                # that have been already answered.
+                # that have already been answered.
                 action = next(iter((a for a in range(num_vars)
                                     if a not in state)))
             state_key = frozenset(state.items())
             policy_dict[state_key] = action
-        dialog = DPDialog(self._config_values, rules, policy_dict,
+        dialog = DPDialog(policy_dict, self.domain, self.rules,
                           validate=self._validate)
         return dialog
 
     def _build_graph(self):
         # Build the graph that is used to compute the transition and
         # reward matrices of the MDP. The initial graph built here is
-        # updated later using the association rules in _update_graph.
+        # updated later using the rules in _update_graph.
         log.debug("building the initial graph")
         graph = igraph.Graph(directed=True)
         self._add_graph_nodes(graph)
@@ -149,7 +149,7 @@ class DPDialogBuilder(DialogBuilder):
     def _transform_graph_to_mdp(self, graph):
         # Generate the transition and reward matrices from the graph.
         log.debug("transforming the graph into the MDP")
-        S, A = graph.vcount(), len(self._config_values)
+        S, A = graph.vcount(), len(self.domain)
         log.info("the MDP has %d states and %d actions", S, A)
         transitions = [sparse.lil_matrix((S, S)) for a in range(A)]
         rewards = [sparse.lil_matrix((S, S)) for a in range(A)]
@@ -180,8 +180,8 @@ class DPDialogBuilder(DialogBuilder):
     def _add_graph_nodes(self, graph):
         # Add one node for each possible configuration state.
         log.debug("adding nodes")
-        num_vars = len(self._config_values)
-        for state in iter_config_states(self._config_values):
+        num_vars = len(self.domain)
+        for state in iter_config_states(self.domain):
             # The first state will be an empty dict. It will be the
             # initial state in EpisodicMDP.
             state_len = len(state)  # cached to be used in igraph's queries
@@ -208,7 +208,7 @@ class DPDialogBuilder(DialogBuilder):
     def _add_loop_edges(self, graph):
         log.debug("adding loop edges")
         # Add loop edges for the known variables.
-        num_vars = len(self._config_values)
+        num_vars = len(self.domain)
         edges, actions, rewards = [], [], []
         for v in graph.vs:
             if v["state_len"] == num_vars:
@@ -242,7 +242,7 @@ class DPDialogBuilder(DialogBuilder):
         #   value, given the previous user responses, and
         # - a reward of zero (we asked one question and we got a
         #   response, no variables were automatically discovered).
-        num_vars = len(self._config_values)
+        num_vars = len(self.domain)
         # Build an index of the states by the number of known
         # variables to accelerate the igraph query in the nested for
         # loop. This could be moved to the _add_graph_nodes function
@@ -301,7 +301,7 @@ class DPDialogBuilder(DialogBuilder):
     def _update_graph(self, graph, rules):
         # Update the graph using the association rules.
         log.debug("updating the graph using the association rules")
-        num_vars = len(self._config_values)
+        num_vars = len(self.domain)
         inaccessible_vertices = set()
         for rule in rules:
             # It doesn't make sense to apply the rule in a terminal
@@ -364,7 +364,7 @@ class DPDialogBuilder(DialogBuilder):
     def _update_graph_cond_c(self, rule, s, sp):
         # (c) all other variables not mentioned in the rule are set to
         # the same values for both S and S'.
-        all_vars = set(range(len(self._config_values)))
+        all_vars = set(range(len(self.domain)))
         mentioned_vars = set(rule.lhs.keys()) | set(rule.rhs.keys())
         if sp is None:
             # S' is a aggregated terminal state and it has all the
@@ -417,20 +417,20 @@ class DPDialogBuilder(DialogBuilder):
 class MDP(object):
     """Finite Markov decision process.
 
-    Let S denote the number of states and A the number of actions.
+    Let `S` denote the number of states and `A` the number of actions.
 
     Arguments:
         transitions: Transition probability matrices. Either a
-            (A, S, S)-shaped numpy array or a list with A elements
-            containing (possibly sparse) (S, S) matrices. An entry
-            (a, s, s') gives the probability of transitioning from the
-            state s into state s' with the action a.
+            `(A, S, S)`-shaped numpy array or a list with `A` elements
+            containing (possibly sparse) `(S, S)` matrices. An entry
+            `(a, s, s')` gives the probability of transitioning from the
+            state `s` into state `s'` with the action `a`.
         rewards: Reward matrices. Same shape as transitions. An entry
-                (a, s, s') gives the reward for reaching the state s'
-                from the state s by taking the action a.
+                `(a, s, s')` gives the reward for reaching the state `s'`
+                from the state `s` by taking the action `a`.
         discount_factor: Discount factor in [0,1].
         validate: If set to `True`, the :meth:`validate` method will
-            be called upon creation (default: True).
+            be called upon creation (default: `True`).
     """
 
     def __init__(self, transitions, rewards, discount_factor, validate=True):
@@ -488,7 +488,7 @@ class MDP(object):
         # discount factor of 1.0.
         with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
             pi = PolicyIteration(P, R, gamma, max_iter=max_iter,
-                                  eval_type="iterative", skip_check=True)
+                                 eval_type="iterative", skip_check=True)
         # Monkey-patch the _evalPoicyIterative method to change the
         # default values for epsilon and max_iter.
         original = pi._evalPolicyIterative
@@ -524,7 +524,7 @@ class MDP(object):
         # discount factor of 1.0.
         with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
             vi = ValueIteration(P, R, gamma, epsilon,
-                                 max_iter, skip_check=True)
+                                max_iter, skip_check=True)
         vi.run()
         return vi.policy
 
@@ -533,8 +533,8 @@ class EpisodicMDP(MDP):
     """Episodic MDP.
 
     Arguments:
-        initial_state: Index of the initial state (default: 0).
-        terminal_state: Index of the terminal state (default: S - 1).
+        initial_state: Index of the initial state (default: `0`).
+        terminal_state: Index of the terminal state (default: `S - 1`).
 
     See :class:`MDP` for the remaining arguments.
     """
