@@ -16,7 +16,7 @@ TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
 
 @pytest.fixture(scope="function", autouse=True)
 def random_seed():
-    random_seed = 12345
+    random_seed = 42
     random.seed(random_seed)
     np.random.seed(random_seed)
     return random_seed

@@ -28,16 +28,16 @@ class TestDPDialogBuilder(object):
     def _test_builder_with_improv(self, algorithm, email_client):
         self._test_builder(algorithm, True, email_client)
 
-    def test_value_iteration_without_improvements(self, email_client):
+    def test_value_iteration_without_improv(self, email_client):
         self._test_builder_without_improv("value-iteration", email_client)
 
-    def test_policy_iteration_without_improvements(self, email_client):
+    def test_policy_iteration_without_improv(self, email_client):
         self._test_builder_without_improv("policy-iteration", email_client)
 
-    def test_value_iteration_with_improvements(self, email_client):
+    def test_value_iteration_with_improv(self, email_client):
         self._test_builder_with_improv("value-iteration", email_client)
 
-    def test_policy_iteration_with_improvements(self, email_client):
+    def test_policy_iteration_with_improv(self, email_client):
         self._test_builder_with_improv("policy-iteration", email_client)
 
 
