@@ -60,19 +60,20 @@ def email_client():
                            dtype=np.dtype(str))
     domain = get_domain(sample)
 
-    # One rule obtained with confidence 0.9 (page 46).
-    rules = [Rule({1: "lgi"}, {0: "no"})]
+    rules = [Rule({1: "lgi"}, {0: "no"}),
+             Rule({0: "yes"}, {1: "smi"})]
     constraints = [((1, 0), lambda _, x: x[0] != "lgi" or x[1] == "no")]
 
-    # The second question should be asked first. Then, if the user
-    # answers ico=lgi it is possible to use the rule to predict
-    # disp=no and only one question is needed.
-    questions = [1]
-    config = {1: "lgi", 0: "no"}
+    # The dialog must ask for the variable 1 first.
+    scenarios = [
+        [{0: "no", 1: "lgi"}, 1],
+        [{0: "yes", 1: "smi"}, 2],
+        [{0: "no", 1: "smi"}, 2],
+    ]
 
     fields = dict(domain=domain, rules=rules,
                   constraints=constraints, sample=sample,
-                  questions=questions, config=config)
+                  scenarios=scenarios)
     EmailClient = namedtuple("EmailClient", fields.keys())
     email_client = EmailClient(**fields)
     return email_client

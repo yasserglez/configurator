@@ -16,11 +16,13 @@ class TestDPDialogBuilder(object):
                                   dp_aggregate_terminals=improv,
                                   validate=True)
         dialog = builder.build_dialog()
-        for var_index in email_client.questions:
-            assert dialog.get_next_question() == var_index
-            dialog.set_answer(var_index, email_client.config[var_index])
-        assert dialog.is_complete()
-        assert dialog.config == email_client.config
+        for config, num_questions in email_client.scenarios:
+            dialog.reset()
+            for i in range(num_questions):
+                var_index = dialog.get_next_question()
+                dialog.set_answer(var_index, config[var_index])
+            assert dialog.is_complete()
+            assert dialog.config == config
 
     def _test_builder_without_improv(self, algorithm, email_client):
         self._test_builder(algorithm, False, email_client)

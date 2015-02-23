@@ -92,8 +92,8 @@ class DPDialogBuilder(DialogBuilder):
             if action in state:
                 # Ensure that the policy doesn't suggest questions
                 # that have already been answered.
-                action = next(iter((a for a in range(num_vars)
-                                    if a not in state)))
+                action = next(iter(a for a in range(num_vars)
+                                   if a not in state))
             state_key = frozenset(state.items())
             policy_dict[state_key] = action
         dialog = DPDialog(self.domain, self.rules, policy_dict,
@@ -326,7 +326,7 @@ class DPDialogBuilder(DialogBuilder):
         else:
             # (b-ii) variables in the rhs appear with all values set
             # to unknown in S.
-            return all((var_index not in s for var_index in rule.rhs.keys()))
+            return all(var_index not in s for var_index in rule.rhs.keys())
 
     def _update_graph_cond_c(self, rule, s, sp):
         # (c) all other variables not mentioned in the rule are set to
