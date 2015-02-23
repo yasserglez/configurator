@@ -90,7 +90,7 @@ class CSP(object):
         log.debug("assignning variable %d to %r", var_index, var_value)
         log.debug("initial assignment:\n%s", pprint.pformat(self.assignment))
         self.assignment[var_index] = var_value
-        if prune_domain:
+        if len(self.assignment) < len(self.domain) and prune_domain:
             self.prune_domain()
             # If the domain of a variable was reduced to a single
             # value, set it back in the assignment.
