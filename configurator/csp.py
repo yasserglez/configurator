@@ -1,6 +1,7 @@
 """Constraint satisfaction problems.
 """
 
+import copy
 import pprint
 import logging
 
@@ -39,11 +40,11 @@ class CSP(object):
     """
 
     def __init__(self, domain, constraints):
-        self.domain = domain
+        self.domain = [list(var_domain) for var_domain in domain]
         self._variables = list(range(len(self.domain)))  # cached for simpleai
         # Ensure that the constraints are normalized.
         constraint_support = set()
-        for var_indices, _ in constraints:
+        for var_indices, constraint_fun in constraints:
             var_indices = frozenset(var_indices)
             if var_indices in constraint_support:
                 raise ValueError("The constraints must be normalized")
@@ -79,7 +80,7 @@ class CSP(object):
 
     def reset(self):
         self.assignment = {}
-        self.pruned_domain = self.domain.copy()
+        self.pruned_domain = copy.deepcopy(self.domain)
 
     def assign_variable(self, var_index, var_value, prune_domain=True):
         if var_index in self.assignment:

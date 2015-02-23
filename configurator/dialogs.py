@@ -89,7 +89,7 @@ class DialogBuilder(object):
     def __init__(self, domain, rules=None, constraints=None,
                  sample=None, validate=False):
         super().__init__()
-        self.domain = domain
+        self.domain = [list(var_domain) for var_domain in domain]
         log.info("there are %d possible configurations of %d variables",
                  reduce(mul, map(len, self.domain)), len(self.domain))
         # Validate and process the rules and constraints.
