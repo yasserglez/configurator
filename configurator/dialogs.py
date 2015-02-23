@@ -113,7 +113,6 @@ class DialogBuilder(object):
         self.constraints = constraints
         if self.constraints is not None:
             log.info("using %d constraints", len(self.constraints))
-            self._csp = CSP(self.domain, self.constraints)
         # Build the frequency table from the configuration sample.
         self.sample = sample
         if self.sample is not None:
@@ -184,7 +183,6 @@ class Dialog(object):
         self.rules = rules if rules is not None else []
         self.constraints = constraints
         if self.constraints is not None:
-            log.info("using %d constraints", len(self.constraints))
             self._csp = CSP(self.domain, self.constraints)
         self.reset()
         if validate:
