@@ -24,11 +24,12 @@ class CSP(object):
             variable. All the variables must be domain-consistent
             (i.e. there must exist at least one consistent
             configuration in which each value value occurs).
+
         constraints: A list of tuples with two components each: i) a
             tuple with the indices of the variables involved in the
             constraint, and ii) a function that checks the constraint.
-            The constraint functions will receive a variables tuple
-            and a values tuple, both containing only the restricted
+            The constraint functions will receive an indices tuple and
+            a values tuple, both containing only the restricted
             variable indices and their values (in the same order
             provided in `constraints`). The function should return
             `True` if the values satisfy the constraint, `False`
