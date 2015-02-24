@@ -1,12 +1,7 @@
 numpy >= 1.9.1
 scipy >= 0.14.0
-scikit-learn >= 0.15.2
-pandas >= 0.15.2
 pylru >= 1.0.6
 python-igraph >= 0.7
-sortedcontainers >= 0.9.4
-lxml >= 3.4.2
-beautifulsoup4 >= 4.3.2
 https://github.com/sawcordwell/pymdptoolbox/zipball/master
 https://github.com/pybrain/pybrain/zipball/master
 https://github.com/yasserglez/simpleai/zipball/master
