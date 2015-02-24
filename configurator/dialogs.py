@@ -35,11 +35,11 @@ class DialogBuilder(object):
     obtain a complete configuration.
 
     Arguments:
-         domain: A list with one entry for each variable containing a
-            sequence with all the possible values of the variable All
-            the variables must be domain-consistent (i.e. there must
-            exist at least one consistent configuration in which each
-            value value occurs).
+         var_domains: A list with one entry for each variable
+            containing a sequence with all the possible values of the
+            variable. All the variables must be domain-consistent (i.e.
+            there must exist at least one consistent configuration in
+            which each value value occurs).
         rules: A list of :class:`configurator.rules.Rule` instances.
             Rules with the same left-hand-side will be combined into a
             single rule by merging their right-hand-sides (values set
@@ -60,12 +60,12 @@ class DialogBuilder(object):
             the configuration variables. Each column is expected to
             represent a discrete variable and each row a multivariate
             observation. The order of the columns must match the order
-            of the variables in `domain`.
+            of the variables in `var_domains`.
         validate: Whether or not to run some (generally costly) checks
             on the generated model and the resulting :class:`Dialog`
             instance. Mostly intended for testing purposes.
 
-    The `domain` argument must always be given, as it defines the
+    The `var_domains` argument must always be given, as it defines the
     domain of the variables. The `rules` argument is used with the
     rule-based specification and the `constraints` argument with the
     constraint-based specification. In both cases, it assumed that
@@ -83,13 +83,14 @@ class DialogBuilder(object):
     All the arguments are available as instance attributes.
     """
 
-    def __init__(self, domain, rules=None, constraints=None,
+    def __init__(self, var_domains, rules=None, constraints=None,
                  sample=None, validate=False):
         super().__init__()
-        self.domain = [list(var_domain) for var_domain in domain]
+        self.var_domains = [list(var_domain) for var_domain in var_domains]
         log.info("there are %d possible configurations of %d variables",
-                 reduce(mul, map(len, self.domain)), len(self.domain))
-        log.debug("variable domains:\n%s", pprint.pformat(self.domain))
+                 reduce(mul, map(len, self.var_domains)),
+                 len(self.var_domains))
+        log.debug("variable domains:\n%s", pprint.pformat(self.var_domains))
         # Validate and process the rules and constraints.
         if not (rules or constraints):
             raise ValueError("One of rules or constraints must be given")
@@ -116,7 +117,7 @@ class DialogBuilder(object):
         if self.sample is not None:
             log.info("the configuration sample has %d observations",
                      self.sample.shape[0])
-        self._freq_table = FrequencyTable(self.domain, self.sample,
+        self._freq_table = FrequencyTable(self.var_domains, self.sample,
                                           cache_size=1000)
         self._validate = validate
 
@@ -145,8 +146,8 @@ class Dialog(object):
     different :class:`DialogBuilder` subclasses.
 
     Arguments:
-        domain: A list with one entry for each variable containing a
-            sequence with all the possible values of the variable.
+        var_domains: A list with one entry for each variable containing
+            a sequence with all the possible values of the variable.
         rules: A list of :class:`configurator.rules.Rule` instances.
         constraints: A list of tuples with two components each: i) a
             tuple with the indices of the variables involved in the
@@ -175,9 +176,10 @@ class Dialog(object):
     All the arguments are available as instance attributes.
     """
 
-    def __init__(self, domain, rules=None, constraints=None, validate=False):
+    def __init__(self, var_domains,
+                 rules=None, constraints=None,  validate=False):
         super().__init__()
-        self.domain = domain
+        self.var_domains = var_domains
         if not (rules or constraints):
             raise ValueError("One of rules or constraints must be given")
         if rules and constraints:
@@ -186,7 +188,7 @@ class Dialog(object):
         self.rules = rules if rules is not None else []
         self.constraints = constraints
         if self.constraints is not None:
-            self._csp = CSP(self.domain, self.constraints)
+            self._csp = CSP(self.var_domains, self.constraints)
         self.reset()
         if validate:
             self._validate()
@@ -228,8 +230,8 @@ class Dialog(object):
         """
         if var_index in self.config:
             raise ValueError("The question has already been answered")
-        possible_answers = (self.domain[var_index] if self.rules else
-                            self._csp.pruned_domain[var_index])
+        possible_answers = (self.var_domains[var_index] if self.rules else
+                            self._csp.pruned_var_domains[var_index])
         return possible_answers
 
     def set_answer(self, var_index, var_value):
@@ -265,7 +267,7 @@ class Dialog(object):
         Returns:
             `True` if all the variables has been set, `False` otherwise.
         """
-        return len(self.config) == len(self.domain)
+        return len(self.config) == len(self.var_domains)
 
 
 class PermutationDialog(Dialog):
@@ -278,10 +280,10 @@ class PermutationDialog(Dialog):
     attributes and methods.
     """
 
-    def __init__(self, domain, var_perm,
+    def __init__(self, var_domains, var_perm,
                  rules=None, constraints=None, validate=False):
         self._var_perm = var_perm
-        super().__init__(domain, rules, constraints, validate)
+        super().__init__(var_domains, rules, constraints, validate)
 
     def _validate(self):
         if len(set(self._var_perm)) != len(self._var_perm):

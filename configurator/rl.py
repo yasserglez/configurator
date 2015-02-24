@@ -53,7 +53,7 @@ class RLDialogBuilder(DialogBuilder):
     arguments.
     """
 
-    def __init__(self, domain, rules=None, constraints=None, sample=None,
+    def __init__(self, var_domains, rules=None, constraints=None, sample=None,
                  rl_algorithm="q-learning",
                  rl_table="approximate",
                  rl_table_features=["known-variables"],
@@ -62,7 +62,7 @@ class RLDialogBuilder(DialogBuilder):
                  rl_epsilon_decay=0.99,
                  rl_max_episodes=1000,
                  validate=False):
-        super().__init__(domain, rules, constraints, sample, validate)
+        super().__init__(var_domains, rules, constraints, sample, validate)
         if rl_algorithm in ("q-learning", "sarsa"):
             self._rl_algorithm = rl_algorithm
         else:
@@ -91,13 +91,14 @@ class RLDialogBuilder(DialogBuilder):
         Returns:
             An instance of a :class:`configurator.dialogs.Dialog` subclass.
         """
-        dialog = Dialog(self.domain, self.rules, self.constraints)
+        dialog = Dialog(self.var_domains, self.rules, self.constraints)
         env = DialogEnvironment(dialog, self._freq_table)
         task = DialogTask(env)
         if self._rl_table == "exact":
-            table = DialogQTable(self.domain)
+            table = DialogQTable(self.var_domains)
         elif self._rl_table == "approximate":
-            table = ApproxDialogQTable(self.domain, self._rl_table_features)
+            table = ApproxDialogQTable(self.var_domains,
+                                       self._rl_table_features)
         if self._rl_algorithm == "q-learning":
             learner = QLearning(alpha=self._rl_learning_rate, gamma=1.0)
         elif self._rl_algorithm == "sarsa":
@@ -120,7 +121,7 @@ class RLDialogBuilder(DialogBuilder):
         log.info("terminated after %d episodes", curr_episode + 1)
         log.info("finished running the RL algorithm")
         # Create the RLDialog instance.
-        dialog = RLDialog(self.domain, table, self.rules,
+        dialog = RLDialog(self.var_domains, table, self.rules,
                           self.constraints, validate=self._validate)
         return dialog
 
@@ -135,10 +136,10 @@ class RLDialog(Dialog):
     remaining arguments, attributes and methods.
     """
 
-    def __init__(self, domain, table,
+    def __init__(self, var_domains, table,
                  rules=None, constraints=None, validate=False):
         self._table = table
-        super().__init__(domain, rules, constraints, validate)
+        super().__init__(var_domains, rules, constraints, validate)
 
     def reset(self):
         super().reset()
@@ -154,11 +155,11 @@ class RLDialog(Dialog):
 
 class DialogQTable(ActionValueTable):
 
-    def __init__(self, domain):
-        self.domain = domain
-        self._var_card = list(map(len, self.domain))
+    def __init__(self, var_domains):
+        self.var_domains = var_domains
+        self._var_card = list(map(len, self.var_domains))
         num_states = self._get_num_states()
-        num_actions = len(self.domain)
+        num_actions = len(self.var_domains)
         log.info("the action-value table has %d states and %d actions",
                  num_states, num_actions)
         super().__init__(num_states, num_actions)
@@ -168,7 +169,7 @@ class DialogQTable(ActionValueTable):
     def _get_num_states(self):
         # One variable value is added for the unknown state.
         all_states = reduce(mul, map(lambda x: x + 1, self._var_card))
-        terminal_states = reduce(mul, map(len, self.domain))
+        terminal_states = reduce(mul, map(len, self.var_domains))
         num_states = (all_states - terminal_states) + 1
         return num_states
 
@@ -177,7 +178,7 @@ class DialogQTable(ActionValueTable):
         # configuration states. This implementation is not efficient,
         # but the exact version won't work for many variables anyway.
         state_key = hash(frozenset(config.items()))
-        non_terminals = iter_config_states(self.domain, True)
+        non_terminals = iter_config_states(self.var_domains, True)
         for state_index, state in enumerate(non_terminals):
             if state_key == hash(frozenset(state.items())):
                 return state_index
@@ -199,16 +200,16 @@ class DialogQTable(ActionValueTable):
 
 class ApproxDialogQTable(DialogQTable):
 
-    def __init__(self, domain, table_features):
+    def __init__(self, var_domains, table_features):
         self._features = table_features
-        super().__init__(domain)
+        super().__init__(var_domains)
 
     def _get_num_states(self):
         self._known_vars_states, self._last_question_states = 1, 1
         if "known-variables" in self._features:
             # The empty configuration at the initial state is not
             # considered here. See num_states below.
-            self._known_vars_states = len(self.domain)
+            self._known_vars_states = len(self.var_domains)
         if "last-question" in self._features:
             # One state for every value of every variable.
             self._last_question_states = sum(self._var_card)
@@ -229,7 +230,7 @@ class ApproxDialogQTable(DialogQTable):
                 known_vars_index = len(config) - 1
             if "last-question" in self._features:
                 last_answer_index = sum(self._var_card[:last_question])
-                var_answers = self.domain[last_question]
+                var_answers = self.var_domains[last_question]
                 last_answer_index += var_answers.index(config[last_question])
             state_index = 1 + ((known_vars_index *
                                 self._last_question_states) +

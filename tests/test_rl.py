@@ -57,7 +57,7 @@ class BaseTestRLDialogBuilder(object):
 class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
 
     def _create_builder(self, algorithm, table, table_features, email_client):
-        return RLDialogBuilder(domain=email_client.domain,
+        return RLDialogBuilder(var_domains=email_client.var_domains,
                                rules=email_client.rules,
                                sample=email_client.sample,
                                rl_algorithm=algorithm,
@@ -69,7 +69,7 @@ class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
 class TestCSPRLDialogBuilder(BaseTestRLDialogBuilder):
 
     def _create_builder(self, algorithm, table, table_features, email_client):
-        return RLDialogBuilder(domain=email_client.domain,
+        return RLDialogBuilder(var_domains=email_client.var_domains,
                                constraints=email_client.constraints,
                                sample=email_client.sample,
                                rl_algorithm=algorithm,

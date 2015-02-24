@@ -44,14 +44,14 @@ class DPDialogBuilder(DialogBuilder):
     arguments.
     """
 
-    def __init__(self, domain, rules, sample=None,
+    def __init__(self, var_domains, rules, sample=None,
                  dp_algorithm="value-iteration",
                  dp_max_iter=1000,
                  dp_discard_states=True,
                  dp_partial_rules=True,
                  dp_aggregate_terminals=True,
                  validate=False):
-        super().__init__(domain, rules, None, sample, validate)
+        super().__init__(var_domains, rules, None, sample, validate)
         if dp_algorithm in ("value-iteration", "policy-iteration"):
             self._dp_algorithm = dp_algorithm
         else:
@@ -82,7 +82,7 @@ class DPDialogBuilder(DialogBuilder):
             policy_tuple = mdp.policy_iteration(max_iter=self._dp_max_iter)
         log.info("finished solving the MDP")
         # Create the DPDialog instance.
-        num_vars = len(self.domain)
+        num_vars = len(self.var_domains)
         policy_dict = {}
         for s in range(len(policy_tuple)):
             if graph.vs[s]["state_len"] == num_vars:
@@ -96,7 +96,7 @@ class DPDialogBuilder(DialogBuilder):
                                    if a not in state))
             state_key = frozenset(state.items())
             policy_dict[state_key] = action
-        dialog = DPDialog(self.domain, self.rules, policy_dict,
+        dialog = DPDialog(self.var_domains, self.rules, policy_dict,
                           validate=self._validate)
         return dialog
 
@@ -116,7 +116,7 @@ class DPDialogBuilder(DialogBuilder):
     def _transform_graph_to_mdp(self, graph):
         # Generate the transition and reward matrices from the graph.
         log.debug("transforming the graph into the MDP")
-        S, A = graph.vcount(), len(self.domain)
+        S, A = graph.vcount(), len(self.var_domains)
         log.info("the MDP has %d states and %d actions", S, A)
         transitions = [sparse.lil_matrix((S, S)) for a in range(A)]
         rewards = [sparse.lil_matrix((S, S)) for a in range(A)]
@@ -147,8 +147,8 @@ class DPDialogBuilder(DialogBuilder):
     def _add_graph_nodes(self, graph):
         # Add one node for each possible configuration state.
         log.debug("adding nodes")
-        num_vars = len(self.domain)
-        for state in iter_config_states(self.domain):
+        num_vars = len(self.var_domains)
+        for state in iter_config_states(self.var_domains):
             # The first state will be an empty dict. It will be the
             # initial state in EpisodicMDP.
             state_len = len(state)  # cached to be used in igraph's queries
@@ -175,7 +175,7 @@ class DPDialogBuilder(DialogBuilder):
     def _add_loop_edges(self, graph):
         log.debug("adding loop edges")
         # Add loop edges for the known variables.
-        num_vars = len(self.domain)
+        num_vars = len(self.var_domains)
         edges, actions, rewards = [], [], []
         for v in graph.vs:
             if v["state_len"] == num_vars:
@@ -209,7 +209,7 @@ class DPDialogBuilder(DialogBuilder):
         #   value, given the previous user responses, and
         # - a reward of zero (we asked one question and we got a
         #   response, no variables were automatically discovered).
-        num_vars = len(self.domain)
+        num_vars = len(self.var_domains)
         # Build an index of the states by the number of known
         # variables to accelerate the igraph query in the nested for
         # loop. This could be moved to the _add_graph_nodes function
@@ -268,7 +268,7 @@ class DPDialogBuilder(DialogBuilder):
     def _update_graph(self, graph, rules):
         # Update the graph using the association rules.
         log.debug("updating the graph using the association rules")
-        num_vars = len(self.domain)
+        num_vars = len(self.var_domains)
         inaccessible_vertices = set()
         for rule in rules:
             # It doesn't make sense to apply the rule in a terminal
@@ -331,7 +331,7 @@ class DPDialogBuilder(DialogBuilder):
     def _update_graph_cond_c(self, rule, s, sp):
         # (c) all other variables not mentioned in the rule are set to
         # the same values for both S and S'.
-        all_vars = set(range(len(self.domain)))
+        all_vars = set(range(len(self.var_domains)))
         mentioned_vars = set(rule.lhs.keys()) | set(rule.rhs.keys())
         if sp is None:
             # S' is a aggregated terminal state and it has all the
@@ -394,12 +394,12 @@ class DPDialog(Dialog):
     remaining arguments, attributes and methods.
     """
 
-    def __init__(self, domain, rules, policy, validate=False):
+    def __init__(self, var_domains, rules, policy, validate=False):
         self._policy = policy
-        super().__init__(domain, rules, None, validate)
+        super().__init__(var_domains, rules, None, validate)
 
     def _validate(self):
-        for state in iter_config_states(self.domain, True):
+        for state in iter_config_states(self.var_domains, True):
             state_key = frozenset(state.items())
             try:
                 if self._policy[state_key] in state:

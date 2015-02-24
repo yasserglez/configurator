@@ -18,15 +18,15 @@ class FrequencyTable(object):
 
     Arguments:
         sample: A two-dimensional numpy array.
-        domain: A list with one entry for each variable containing a
-            sequence with all the possible values of the variable.
+        var_domains: A list with one entry for each variable containing
+            a sequence with all the possible values of the variable.
         cache_size: Size of the LRU cache for the frequencies.
 
     All the arguments are available as instance attributes.
     """
 
-    def __init__(self, domain, sample, cache_size=0):
-        self.domain = domain
+    def __init__(self, var_domains, sample, cache_size=0):
+        self.var_domains = var_domains
         self.sample = sample
         self.cache_size = cache_size
         if self.cache_size > 0:
@@ -77,6 +77,6 @@ class FrequencyTable(object):
         den = self.count_freq(y)
         if add_one_smoothing:
             num += 1
-            den += reduce(mul, (len(self.domain[i]) for i in x.keys()))
+            den += reduce(mul, (len(self.var_domains[i]) for i in x.keys()))
         prob = num / den
         return prob

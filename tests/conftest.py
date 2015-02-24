@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 
 from configurator.rules import Rule
-from configurator.util import get_domain
+from configurator.util import get_var_domains
 
 
 TESTS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -58,7 +58,7 @@ def email_client():
     csv_file = os.path.join(TESTS_DIR, "email_client.csv")
     sample = np.genfromtxt(csv_file, delimiter=",", skip_header=True,
                            dtype=np.dtype(str))
-    domain = get_domain(sample)
+    var_domains = get_var_domains(sample)
 
     rules = [Rule({1: "lgi"}, {0: "no"}),
              Rule({0: "yes"}, {1: "smi"})]
@@ -71,7 +71,7 @@ def email_client():
         [{0: "no", 1: "smi"}, 2],
     ]
 
-    fields = dict(domain=domain, rules=rules,
+    fields = dict(var_domains=var_domains, rules=rules,
                   constraints=constraints, sample=sample,
                   scenarios=scenarios)
     EmailClient = namedtuple("EmailClient", fields.keys())

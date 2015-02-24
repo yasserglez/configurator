@@ -1,14 +1,14 @@
 import pytest
 from numpy.testing import assert_almost_equal, assert_raises
 
-from configurator.util import get_domain
+from configurator.util import get_var_domains
 from configurator.freq_table import FrequencyTable
 
 
 @pytest.fixture(scope="module")
 def freq_table(titanic_sample):
-    domain, sample = get_domain(titanic_sample), titanic_sample
-    freq_table = FrequencyTable(domain, sample)
+    var_domains, sample = get_var_domains(titanic_sample), titanic_sample
+    freq_table = FrequencyTable(var_domains, sample)
     return freq_table
 
 
@@ -31,8 +31,8 @@ class TestFrequencyTable(object):
         assert first_time == second_time
 
     def test_count_freq_no_sample(self):
-        domain, sample = [[0, 1]], None
-        freq_table = FrequencyTable(domain, sample)
+        var_domains, sample = [[0, 1]], None
+        freq_table = FrequencyTable(var_domains, sample)
         assert freq_table.count_freq({0: 0}) == 0
 
     def test_cond_prob_without_smoothing(self, freq_table):
@@ -46,8 +46,8 @@ class TestFrequencyTable(object):
         assert_almost_equal(prob, 1 / (885 + 2))
 
     def test_cond_prob_no_sample(self):
-        domain, sample = [[0, 1], [0, 1, 2]], None
-        freq_table = FrequencyTable(domain, sample)
+        var_domains, sample = [[0, 1], [0, 1, 2]], None
+        freq_table = FrequencyTable(var_domains, sample)
         assert freq_table.cond_prob({0: 0}, {}, True) == 0.5
         assert freq_table.cond_prob({0: 0}, {1: 0}, True) == 0.5
         assert_raises(ZeroDivisionError, freq_table.cond_prob,
