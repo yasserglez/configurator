@@ -4,7 +4,7 @@
 import itertools
 
 
-__all__ = ["get_domain", "simulate_dialog"]
+__all__ = []
 
 
 def iter_config_states(domain, exclude_terminals=False):
@@ -40,25 +40,3 @@ def get_domain(sample):
     domain = [list(sorted(set(sample[:, i])))
               for i in range(sample.shape[1])]
     return domain
-
-
-def simulate_dialog(dialog, config):
-    """Simulate a configuration dialog.
-
-    Simulate the use of the dialog according to the given configuration.
-
-    Arguments:
-        dialog: An instance of a :class:`configurator.dialogs.Dialog` subclass.
-        config: A complete configuration, i.e. a dictionary mapping
-            variable indices to their values.
-
-    Returns:
-        The number of questions that were asked.
-    """
-    num_questions = 0
-    dialog.reset()
-    while not dialog.is_complete():
-        var_index = dialog.get_next_question()
-        dialog.set_answer(var_index, config[var_index])
-        num_questions += 1
-    return num_questions

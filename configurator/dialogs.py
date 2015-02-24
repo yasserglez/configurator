@@ -35,13 +35,11 @@ class DialogBuilder(object):
     obtain a complete configuration.
 
     Arguments:
-         domain: A list with one entry for each variable containing
-            a sequence with all the possible values of the variable
-            (:func:`configurator.util.get_domain` can be used to get
-            the domain of the variables from a sample). All the
-            variables must be domain-consistent (i.e. there must exist
-            at least one consistent configuration in which each value
-            value occurs).
+         domain: A list with one entry for each variable containing a
+            sequence with all the possible values of the variable All
+            the variables must be domain-consistent (i.e. there must
+            exist at least one consistent configuration in which each
+            value value occurs).
         rules: A list of :class:`configurator.rules.Rule` instances.
             Rules with the same left-hand-side will be combined into a
             single rule by merging their right-hand-sides (values set
