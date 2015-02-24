@@ -13,5 +13,5 @@ before_install:
   - source activate test-env
 install:
   - pip install -r requirements.txt
-  - pip install -e .
+  - python setup.py install
 script: py.test --verbose
