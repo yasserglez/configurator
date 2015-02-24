@@ -92,6 +92,7 @@ class DialogBuilder(object):
         self.domain = [list(var_domain) for var_domain in domain]
         log.info("there are %d possible configurations of %d variables",
                  reduce(mul, map(len, self.domain)), len(self.domain))
+        log.debug("variable domains:\n%s", pprint.pformat(self.domain))
         # Validate and process the rules and constraints.
         if not (rules or constraints):
             raise ValueError("One of rules or constraints must be given")

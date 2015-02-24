@@ -49,7 +49,10 @@ def get_domain(sample):
         A list with one entry for each variable containing a
         sequence with all the possible values of the variable.
     """
-    domain = [list(set(sample[:, i])) for i in range(sample.shape[1])]
+    # sorted() called to return a stable order (it would be random
+    # otherwise because of Python's hash randomization).
+    domain = [list(sorted(set(sample[:, i])))
+              for i in range(sample.shape[1])]
     return domain
 
 
