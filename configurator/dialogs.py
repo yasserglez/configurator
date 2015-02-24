@@ -180,6 +180,11 @@ class Dialog(object):
     def __init__(self, domain, rules=None, constraints=None, validate=False):
         super().__init__()
         self.domain = domain
+        if not (rules or constraints):
+            raise ValueError("One of rules or constraints must be given")
+        if rules and constraints:
+            raise ValueError("Both rules and constraints " +
+                             "cannot be given at the same time")
         self.rules = rules if rules is not None else []
         self.constraints = constraints
         if self.constraints is not None:
@@ -199,7 +204,7 @@ class Dialog(object):
         any call to the other methds.
         """
         self.config = {}
-        if not self.rules:
+        if self.constraints:
             self._csp.reset()
 
     def get_next_question(self):
@@ -252,7 +257,7 @@ class Dialog(object):
                 for rule in self.rules:
                     if rule.is_applicable(self.config):
                         rule.apply_rule(self.config)
-        else:
+        if self.constraints:
             self._csp.assign_variable(var_index, var_value)
             self.config.update(self._csp.assignment)
 
