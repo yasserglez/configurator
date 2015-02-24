@@ -65,7 +65,7 @@ class DPDialogBuilder(DialogBuilder):
         """Construct a configuration dialog.
 
         Returns:
-            An instance of a :class:`configurator.dialogs.Dialog` subclass.
+            An instance of a `configurator.dialogs.Dialog` subclass.
         """
         log.info("building the MDP")
         # Build the initial graph.

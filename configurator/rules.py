@@ -135,7 +135,7 @@ class RuleMiner(object):
             max_len: Maximum number of items per item set (default: no limit).
 
         Returns:
-            A list of :class:`Rule` instances.
+            A list of `Rule` instances.
         """
         max_len = -1 if max_len is None else max_len
         min_support = 100 * min_support

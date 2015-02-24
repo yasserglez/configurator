@@ -89,7 +89,7 @@ class RLDialogBuilder(DialogBuilder):
         """Construct a configuration dialog.
 
         Returns:
-            An instance of a :class:`configurator.dialogs.Dialog` subclass.
+            An instance of a `configurator.dialogs.Dialog` subclass.
         """
         dialog = Dialog(self.var_domains, self.rules, self.constraints)
         env = DialogEnvironment(dialog, self._freq_table)
