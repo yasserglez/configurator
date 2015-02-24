@@ -26,19 +26,19 @@ class DPDialogBuilder(DialogBuilder):
 
     Arguments:
         dp_algorithm: Algorithm for solving the MDP. Possible values
-            are: `'value-iteration'` (default) and `'policy-iteration'`.
+            are: `'value-iteration'` and `'policy-iteration'`.
         dp_max_iter: The maximum number of iterations of the algorithm
-            used to solve the MDP (default: 1000).
+            used to solve the MDP.
         dp_discard_states: Indicates whether states that cannot be
             reached from the initial state after applying the rules
-            should be discarded (default: `True`).
+            should be discarded.
         dp_partial_rules: Indicates whether the rules can be applied
             when some of the variables in the right-hand-side are
-            already set to the correct values (default: `True`).
-            The opposite is to require that all variables in the
-            left-hand-side are unknown).
+            already set to the correct values. The opposite is to
+            require that all variables in the left-hand-side are
+            unknown).
         dp_aggregate_terminals: Indicates whether all terminal states
-            should be aggregated into a single state (default: `True`).
+            should be aggregated into a single state.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -430,7 +430,7 @@ class MDP(object):
                 from the state `s` by taking the action `a`.
         discount_factor: Discount factor in [0,1].
         validate: If set to `True`, the :meth:`validate` method will
-            be called upon creation (default: `True`).
+            be called upon creation.
     """
 
     def __init__(self, transitions, rewards, discount_factor, validate=True):

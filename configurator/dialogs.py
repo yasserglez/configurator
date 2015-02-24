@@ -65,8 +65,7 @@ class DialogBuilder(object):
             of the variables in `domain`.
         validate: Whether or not to run some (generally costly) checks
             on the generated model and the resulting :class:`Dialog`
-            instance (default: `False`). Mostly intended for testing
-            purposes.
+            instance. Mostly intended for testing purposes.
 
     The `domain` argument must always be given, as it defines the
     domain of the variables. The `rules` argument is used with the
@@ -155,7 +154,7 @@ class Dialog(object):
             tuple with the indices of the variables involved in the
             constraint, and ii) a function that checks the constraint.
         validate: Indicates whether the dialog initialization should
-            be validated or not (default: `False`).
+            be validated or not.
 
     The interaction with all subclasses must be as follows. First,
     :meth:`reset` should be called to begin at a state where all the

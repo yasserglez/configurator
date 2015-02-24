@@ -131,7 +131,7 @@ class RuleMiner(object):
         Arguments:
             min_support: Minimum rule support in [0,1].
             min_confidence: Minimum rule confidence in [0,1].
-            min_len: Minimum number of items per item set (default: 2).
+            min_len: Minimum number of items per item set.
             max_len: Maximum number of items per item set (default: no limit).
 
         Returns:
