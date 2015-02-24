@@ -8,10 +8,12 @@ before_install:
   - export PATH=/home/travis/miniconda/bin:$PATH
   - conda update --yes conda
   - conda create --yes -n test-env python=$TRAVIS_PYTHON_VERSION pip
-  - conda install --yes -n test-env "numpy >= 1.9.1"
-  - conda install --yes -n test-env "scipy >= 0.14.0"
   - source activate test-env
 install:
+  - conda install --yes -n test-env "numpy >= 1.9.1"
+  - conda install --yes -n test-env "scipy >= 0.14.0"
   - pip install -r requirements.txt
+  - pip install -r tests/requirements.txt
   - python setup.py install
-script: py.test --verbose
+script:
+  - py.test --verbose
