@@ -39,11 +39,11 @@ class CSP(object):
         self.var_domains = [list(var_domain) for var_domain in var_domains]
         # Ensure that the constraints are normalized.
         constraint_support = set()
-        for var_indices, constraint_fun in constraints:
-            var_indices = frozenset(var_indices)
-            if var_indices in constraint_support:
+        for unassigned_vars, constraint_fun in constraints:
+            unassigned_vars = frozenset(unassigned_vars)
+            if unassigned_vars in constraint_support:
                 raise ValueError("The constraints must be normalized")
-            constraint_support.add(var_indices)
+            constraint_support.add(unassigned_vars)
         self.constraints = constraints
         self.is_tree_csp = self._compute_is_tree_csp()
         self.reset()
@@ -63,8 +63,7 @@ class CSP(object):
         # AC-3 algorithm), with the minimum-remaining-values heuristic
         # for variable selection and the least-constraining-value
         # heuristic for value selection.
-        vars = list(range(len(self.var_domains)))
-        solution = backtrack(vars, var_domains, self.constraints)
+        solution = _backtracking_search({}, var_domains, self.constraints)
         return solution
 
     # The following are internal methods used to keep track of the
@@ -138,8 +137,8 @@ class CSP(object):
         return is_tree_csp
 
     def _is_binary_csp(self):
-        for var_indices, _ in self.constraints:
-            if len(var_indices) != 2:
+        for unassigned_vars, _ in self.constraints:
+            if len(unassigned_vars) != 2:
                 return False
         return True
 
@@ -147,8 +146,8 @@ class CSP(object):
         # _is_binary_csp must be called first.
         network = igraph.Graph(len(self.var_domains))
         edges = []
-        for var_indices, _ in self.constraints:
-            edges.append([var_index for var_index in var_indices])
+        for unassigned_vars, _ in self.constraints:
+            edges.append([var_index for var_index in unassigned_vars])
         network.add_edges(edges)
         is_acyclic = self._is_acyclic(network)
         return is_acyclic
@@ -173,110 +172,62 @@ class CSP(object):
         return True
 
 
-# Portions of the following code were derived from the
+# Portions of the following code are based on
 # https://github.com/simpleai-team/simpleai.
 
-
-def backtrack(variables, domains, constraints):
-    '''
-    Backtracking search.
-    variable_heuristic is the heuristic for variable choosing, can be
-    MOST_CONSTRAINED_VARIABLE, HIGHEST_DEGREE_VARIABLE, or blank for simple
-    ordered choosing.
-    value_heuristic is the heuristic for value choosing, can be
-    LEAST_CONSTRAINING_VALUE or blank for simple ordered choosing.
-    '''
-    assignment = {}
-    domains = copy.deepcopy(domains)
-    return _backtracking(variables, constraints,
-                         assignment,
-                         domains)
-
-
-def _backtracking(variables, constraints, assignment, domains):
-    '''
-    Internal recursive backtracking algorithm.
-    '''
-    if len(assignment) == len(variables):
+def _backtracking_search(assignment, var_domains, constraints):
+    if len(assignment) == len(var_domains):
         return assignment
 
-    variable_chooser = _most_constrained_variable_chooser
-    values_sorter = _least_constraining_values_sorter
-
-    pending = [v for v in variables
-               if v not in assignment]
-    variable = variable_chooser(pending, domains)
-
-    values = values_sorter(constraints, assignment, variable, domains)
-
-    for value in values:
-        new_assignment = copy.deepcopy(assignment)
-        new_assignment[variable] = value
-
-        if not _count_conflicts(constraints, new_assignment):
-            new_domains = copy.deepcopy(domains)
-            new_domains[variable] = [value]
-
-            if arc_consistency_3(new_domains, constraints):
-                result = _backtracking(variables, constraints,
-                                       new_assignment,
-                                       new_domains)
-                if result:
-                    return result
-
+    unassigned_vars = [v for v in range(len(var_domains))
+                       if v not in assignment]
+    var_index = _most_constrained_var(unassigned_vars, var_domains)
+    var_values = _order_var_values(assignment, var_index,
+                                   var_domains[var_index],
+                                   constraints)
+    for var_value in var_values:
+        new_assignment = assignment.copy()
+        new_assignment[var_index] = var_value
+        if not _count_conflicts(new_assignment, constraints):
+            new_var_domains = copy.deepcopy(var_domains)
+            new_var_domains[var_index] = [var_value]
+            if arc_consistency_3(new_var_domains, constraints):
+                solution = _backtracking_search(new_assignment,
+                                                new_var_domains,
+                                                constraints)
+                if solution:
+                    return solution
     return None
 
 
-
-def _most_constrained_variable_chooser(variables, domains):
-    '''
-    Choose the variable that has less available values.
-    '''
-    # the variable with fewer values available
-    return sorted(variables, key=lambda v: len(domains[v]))[0]
+def _most_constrained_var(unassigned_vars, domains):
+    # Choose the variable with fewer values available.
+    return min(unassigned_vars, key=lambda v: len(domains[v]))
 
 
-def _least_constraining_values_sorter(constraints, assignment, variable, domains):
-    '''
-    Sort values based on how many conflicts they generate if assigned.
-    '''
-    values = sorted(domains[variable][:],
-                    key=lambda v: _count_conflicts(constraints, assignment,
-                                                   variable, v))
+def _order_var_values(assignment, var_index, var_values, constraints):
+    # Sort values based on how many conflicts they generate.
+    def num_generated_conflicts(var_value):
+        new_assignment = assignment.copy()
+        new_assignment[var_index] = var_value
+        return _count_conflicts(new_assignment, constraints)
+    values = sorted(var_values, key=num_generated_conflicts)
     return values
 
 
-def _count_conflicts(constraints, assignment, variable=None, value=None):
-    '''
-    Count the number of violated constraints on a given assignment.
-    '''
-    return len(_find_conflicts(constraints, assignment, variable, value))
+def _count_conflicts(assignment, constraints):
+    # Count the number of violated constraints on a given assignment.
+    num_conflicts = 0
+    for neighbors, constraint in constraints:
+        if all(v in assignment for v in neighbors):
+            if not _call_constraint(assignment, neighbors, constraint):
+                num_conflicts += 1
+    return num_conflicts
 
 
 def _call_constraint(assignment, neighbors, constraint):
-    variables, values = zip(*[(n, assignment[n])
-                              for n in neighbors])
-    return constraint(variables, values)
-
-
-def _find_conflicts(constraints, assignment, variable=None, value=None):
-    '''
-    Find violated constraints on a given assignment, with the possibility
-    of specifying a new variable and value to add to the assignment before
-    checking.
-    '''
-    if variable is not None and value is not None:
-        assignment = copy.deepcopy(assignment)
-        assignment[variable] = value
-
-    conflicts = []
-    for neighbors, constraint in constraints:
-        # if all the neighbors on the constraint have values, check if conflict
-        if all(n in assignment for n in neighbors):
-            if not _call_constraint(assignment, neighbors, constraint):
-                conflicts.append((neighbors, constraint))
-
-    return conflicts
+    var_indices, var_values = zip(*[(v, assignment[v]) for v in neighbors])
+    return constraint(var_indices, var_values)
 
 
 def revise(domains, arc, constraints):
