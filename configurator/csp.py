@@ -6,10 +6,6 @@ import pprint
 import logging
 
 import igraph
-from simpleai.search import CspProblem
-from simpleai.search.arc import arc_consistency_3
-from simpleai.search.csp import (backtrack, MOST_CONSTRAINED_VARIABLE,
-                                 LEAST_CONSTRAINING_VALUE)
 
 
 log = logging.getLogger(__name__)
@@ -24,7 +20,6 @@ class CSP(object):
             variable. All the variables must be domain-consistent
             (i.e. there must exist at least one consistent
             configuration in which each value value occurs).
-
         constraints: A list of tuples with two components each: i) a
             tuple with the indices of the variables involved in the
             constraint, and ii) a function that checks the constraint.
@@ -42,7 +37,6 @@ class CSP(object):
 
     def __init__(self, var_domains, constraints):
         self.var_domains = [list(var_domain) for var_domain in var_domains]
-        self._vars = list(range(len(self.var_domains)))  # cached for simpleai
         # Ensure that the constraints are normalized.
         constraint_support = set()
         for var_indices, constraint_fun in constraints:
@@ -69,10 +63,8 @@ class CSP(object):
         # AC-3 algorithm), with the minimum-remaining-values heuristic
         # for variable selection and the least-constraining-value
         # heuristic for value selection.
-        csp = CspProblem(self._vars, var_domains, self.constraints)
-        solution = backtrack(csp, variable_heuristic=MOST_CONSTRAINED_VARIABLE,
-                             value_heuristic=LEAST_CONSTRAINING_VALUE,
-                             inference=True)
+        vars = list(range(len(self.var_domains)))
+        solution = backtrack(vars, var_domains, self.constraints)
         return solution
 
     # The following are internal methods used to keep track of the
@@ -179,3 +171,173 @@ class CSP(object):
                         stack.append(w.index)
                         parent[w.index] = v
         return True
+
+
+# Portions of the following code were derived from the
+# https://github.com/simpleai-team/simpleai.
+
+
+def backtrack(variables, domains, constraints):
+    '''
+    Backtracking search.
+    variable_heuristic is the heuristic for variable choosing, can be
+    MOST_CONSTRAINED_VARIABLE, HIGHEST_DEGREE_VARIABLE, or blank for simple
+    ordered choosing.
+    value_heuristic is the heuristic for value choosing, can be
+    LEAST_CONSTRAINING_VALUE or blank for simple ordered choosing.
+    '''
+    assignment = {}
+    domains = copy.deepcopy(domains)
+    return _backtracking(variables, constraints,
+                         assignment,
+                         domains)
+
+
+def _backtracking(variables, constraints, assignment, domains):
+    '''
+    Internal recursive backtracking algorithm.
+    '''
+    if len(assignment) == len(variables):
+        return assignment
+
+    variable_chooser = _most_constrained_variable_chooser
+    values_sorter = _least_constraining_values_sorter
+
+    pending = [v for v in variables
+               if v not in assignment]
+    variable = variable_chooser(pending, domains)
+
+    values = values_sorter(constraints, assignment, variable, domains)
+
+    for value in values:
+        new_assignment = copy.deepcopy(assignment)
+        new_assignment[variable] = value
+
+        if not _count_conflicts(constraints, new_assignment):
+            new_domains = copy.deepcopy(domains)
+            new_domains[variable] = [value]
+
+            if arc_consistency_3(new_domains, constraints):
+                result = _backtracking(variables, constraints,
+                                       new_assignment,
+                                       new_domains)
+                if result:
+                    return result
+
+    return None
+
+
+
+def _most_constrained_variable_chooser(variables, domains):
+    '''
+    Choose the variable that has less available values.
+    '''
+    # the variable with fewer values available
+    return sorted(variables, key=lambda v: len(domains[v]))[0]
+
+
+def _least_constraining_values_sorter(constraints, assignment, variable, domains):
+    '''
+    Sort values based on how many conflicts they generate if assigned.
+    '''
+    values = sorted(domains[variable][:],
+                    key=lambda v: _count_conflicts(constraints, assignment,
+                                                   variable, v))
+    return values
+
+
+def _count_conflicts(constraints, assignment, variable=None, value=None):
+    '''
+    Count the number of violated constraints on a given assignment.
+    '''
+    return len(_find_conflicts(constraints, assignment, variable, value))
+
+
+def _call_constraint(assignment, neighbors, constraint):
+    variables, values = zip(*[(n, assignment[n])
+                              for n in neighbors])
+    return constraint(variables, values)
+
+
+def _find_conflicts(constraints, assignment, variable=None, value=None):
+    '''
+    Find violated constraints on a given assignment, with the possibility
+    of specifying a new variable and value to add to the assignment before
+    checking.
+    '''
+    if variable is not None and value is not None:
+        assignment = copy.deepcopy(assignment)
+        assignment[variable] = value
+
+    conflicts = []
+    for neighbors, constraint in constraints:
+        # if all the neighbors on the constraint have values, check if conflict
+        if all(n in assignment for n in neighbors):
+            if not _call_constraint(assignment, neighbors, constraint):
+                conflicts.append((neighbors, constraint))
+
+    return conflicts
+
+
+def revise(domains, arc, constraints):
+    """
+    Given the arc X, Y (variables), removes the values from X's domain that
+    do not meet the constraint between X and Y.
+
+    That is, given x1 in X's domain, x1 will be removed from the domain, if
+    there is no value y in Y's domain that makes constraint(X,Y) True, for
+    those constraints affecting X and Y.
+    """
+    x, y = arc
+    related_constraints = [(neighbors, constraint)
+                           for neighbors, constraint in constraints
+                           if set(arc) == set(neighbors)]
+
+    modified = False
+
+    for neighbors, constraint in related_constraints:
+        for x_value in domains[x]:
+            constraint_results = (_call_constraint({x: x_value, y: y_value},
+                                                   neighbors, constraint)
+                                  for y_value in domains[y])
+
+            if not any(constraint_results):
+                domains[x].remove(x_value)
+                modified = True
+
+    return modified
+
+
+def all_arcs(constraints):
+    """
+    For each constraint ((X, Y), const) adds:
+        ((X, Y), const)
+        ((Y, X), const)
+    """
+    arcs = set()
+
+    for neighbors, constraint in constraints:
+        if len(neighbors) == 2:
+            x, y = neighbors
+            list(map(arcs.add, ((x, y), (y, x))))
+
+    return arcs
+
+
+def arc_consistency_3(domains, constraints):
+    """
+    Makes a CSP problem arc consistent.
+
+    Ignores any constraint that is not binary.
+    """
+    arcs = list(all_arcs(constraints))
+    pending_arcs = set(arcs)
+
+    while pending_arcs:
+        x, y = pending_arcs.pop()
+        if revise(domains, (x, y), constraints):
+            if len(domains[x]) == 0:
+                return False
+            pending_arcs = pending_arcs.union((x2, y2) for x2, y2 in arcs
+                                              if y2 == x)
+    return True
