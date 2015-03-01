@@ -56,7 +56,6 @@ setup(name="configurator",
           "python-igraph >= 0.7",
           "pymdptoolbox",
           "PyBrain",
-          "simpleai",
           "fim",
       ],
       dependency_links=[
