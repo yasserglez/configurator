@@ -36,14 +36,13 @@ class CSP(object):
 
     def __init__(self, var_domains, constraints):
         self.var_domains = [list(var_domain) for var_domain in var_domains]
-        # Ensure that the constraints are normalized.
-        constraints_index = set()
-        for var_indices, constraint_fun in constraints:
-            var_indices = frozenset(var_indices)
-            if var_indices in constraints_index:
-                raise ValueError("The constraints must be normalized")
-            constraints_index.add(var_indices)
         self.constraints = constraints
+        self._constraints_index = {}
+        for var_indices, constraint_fun in constraints:
+            key = frozenset(var_indices)
+            if key in self._constraints_index:
+                raise ValueError("The constraints must be normalized")
+            self._constraints_index[key] = var_indices, constraint_fun
         self.is_tree_csp = self._compute_is_tree_csp()
         self.reset()
 
@@ -62,8 +61,7 @@ class CSP(object):
         # AC-3 algorithm), with the minimum-remaining-values heuristic
         # for variable selection and the least-constraining-value
         # heuristic for value selection.
-        solution = _backtracking_search({}, var_domains, self.constraints)
-        return solution
+        return _backtracking_search({}, var_domains, self._constraints_index)
 
     # The following are internal methods used to keep track of the
     # assignments and enforce global consistency after each variable
@@ -106,7 +104,7 @@ class CSP(object):
             # Arc consistency is equivalent to global consistency in
             # normalized, tree-structured, binary CSPs.
             log.debug("it's a tree CSP, enforcing arc consistency")
-            _arc_consistency_3(self.pruned_var_domains, self.constraints)
+            _arc_consistency_3(self.pruned_var_domains, self._constraints_index)
         else:
             self._enforce_global_consistency()
         log.debug("finished enforcing global consistency")
@@ -136,8 +134,8 @@ class CSP(object):
         return is_tree_csp
 
     def _is_binary_csp(self):
-        for unassigned_vars, _ in self.constraints:
-            if len(unassigned_vars) != 2:
+        for var_indices, constraint_fun in self._constraints_index.values():
+            if len(var_indices) != 2:
                 return False
         return True
 
@@ -145,8 +143,8 @@ class CSP(object):
         # _is_binary_csp must be called first.
         network = igraph.Graph(len(self.var_domains))
         edges = []
-        for unassigned_vars, _ in self.constraints:
-            edges.append([var_index for var_index in unassigned_vars])
+        for var_indices, constraint_fun in self._constraints_index.values():
+            edges.append([v for v in var_indices])
         network.add_edges(edges)
         is_acyclic = self._is_acyclic(network)
         return is_acyclic
@@ -174,7 +172,7 @@ class CSP(object):
 # Portions of the following code are based on
 # https://github.com/simpleai-team/simpleai.
 
-def _backtracking_search(assignment, var_domains, constraints):
+def _backtracking_search(assignment, var_domains, constraints_index):
     if len(assignment) == len(var_domains):
         return assignment
 
@@ -183,17 +181,17 @@ def _backtracking_search(assignment, var_domains, constraints):
     var_index = _most_constrained_var(unassigned_vars, var_domains)
     var_values = _order_var_values(assignment, var_index,
                                    var_domains[var_index],
-                                   constraints)
+                                   constraints_index)
     for var_value in var_values:
         new_assignment = assignment.copy()
         new_assignment[var_index] = var_value
-        if not _has_conflicts(new_assignment, constraints):
+        if not _has_conflicts(new_assignment, constraints_index):
             new_var_domains = var_domains.copy()
             new_var_domains[var_index] = [var_value]
-            if _arc_consistency_3(new_var_domains, constraints):
+            if _arc_consistency_3(new_var_domains, constraints_index):
                 solution = _backtracking_search(new_assignment,
                                                 new_var_domains,
-                                                constraints)
+                                                constraints_index)
                 if solution:
                     return solution
     return None
@@ -204,29 +202,29 @@ def _most_constrained_var(unassigned_vars, domains):
     return min(unassigned_vars, key=lambda v: len(domains[v]))
 
 
-def _has_conflicts(assignment, constraints):
+def _has_conflicts(assignment, constraints_index):
     # Check if the given assignment generates at least one conflict.
-    for var_indices, constraint_fun in constraints:
+    for var_indices, constraint_fun in constraints_index.values():
         if all(v in assignment for v in var_indices):
             if not _call_constraint(assignment, var_indices, constraint_fun):
                 return True
     return False
 
 
-def _order_var_values(assignment, var_index, var_values, constraints):
+def _order_var_values(assignment, var_index, var_values, constraints_index):
     # Sort values based on how many conflicts they generate.
     def num_generated_conflicts(var_value):
         new_assignment = assignment.copy()
         new_assignment[var_index] = var_value
-        return _count_conflicts(new_assignment, constraints)
+        return _count_conflicts(new_assignment, constraints_index)
     values = sorted(var_values, key=num_generated_conflicts)
     return values
 
 
-def _count_conflicts(assignment, constraints):
+def _count_conflicts(assignment, constraints_index):
     # Count the number of violated constraints on a given assignment.
     num_conflicts = 0
-    for var_indices, constraint_fun in constraints:
+    for var_indices, constraint_fun in constraints_index.values():
         if all(v in assignment for v in var_indices):
             if not _call_constraint(assignment, var_indices, constraint_fun):
                 num_conflicts += 1
@@ -258,13 +256,11 @@ def _remove_inconsistent_values(var_domains, arc, constraints_index):
     return removed
 
 
-def _arc_consistency_3(var_domains, constraints):
-    # The arc-consistency algorithm AC3. Non-binary constraints are ignored.
-    constraints_index = {frozenset(var_indices): (var_indices, constraint_fun)
-                         for var_indices, constraint_fun in constraints
-                         if len(var_indices) == 2}
+def _arc_consistency_3(var_domains, constraints_index):
+    # The arc-consistency algorithm AC3.
     all_arcs = set()
-    for var_indices, constraint_fun in constraints:
+    for var_indices, constraint_fun in constraints_index.values():
+        # Non-binary constraints are ignored.
         if len(var_indices) == 2:
             xi, xj = var_indices
             all_arcs.add((xi, xj))
