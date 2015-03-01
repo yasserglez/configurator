@@ -59,8 +59,7 @@ class CSP(object):
     def _backtracking_solver(self, var_domains):
         # Backtracking solver maintaining arc consistency (using the
         # AC-3 algorithm), with the minimum-remaining-values heuristic
-        # for variable selection and the least-constraining-value
-        # heuristic for value selection.
+        # for variable selection.
         return _backtracking_search({}, var_domains, self._constraints_index)
 
     # The following are internal methods used to keep track of the
@@ -104,7 +103,8 @@ class CSP(object):
             # Arc consistency is equivalent to global consistency in
             # normalized, tree-structured, binary CSPs.
             log.debug("it's a tree CSP, enforcing arc consistency")
-            _arc_consistency_3(self.pruned_var_domains, self._constraints_index)
+            _arc_consistency_3(self.pruned_var_domains,
+                               self._constraints_index)
         else:
             self._enforce_global_consistency()
         log.debug("finished enforcing global consistency")
@@ -179,10 +179,7 @@ def _backtracking_search(assignment, var_domains, constraints_index):
     unassigned_vars = [v for v in range(len(var_domains))
                        if v not in assignment]
     var_index = _most_constrained_var(unassigned_vars, var_domains)
-    var_values = _order_var_values(assignment, var_index,
-                                   var_domains[var_index],
-                                   constraints_index)
-    for var_value in var_values:
+    for var_value in var_domains[var_index]:
         new_assignment = assignment.copy()
         new_assignment[var_index] = var_value
         if not _has_conflicts(new_assignment, constraints_index):
@@ -209,26 +206,6 @@ def _has_conflicts(assignment, constraints_index):
             if not _call_constraint(assignment, var_indices, constraint_fun):
                 return True
     return False
-
-
-def _order_var_values(assignment, var_index, var_values, constraints_index):
-    # Sort values based on how many conflicts they generate.
-    def num_generated_conflicts(var_value):
-        new_assignment = assignment.copy()
-        new_assignment[var_index] = var_value
-        return _count_conflicts(new_assignment, constraints_index)
-    values = sorted(var_values, key=num_generated_conflicts)
-    return values
-
-
-def _count_conflicts(assignment, constraints_index):
-    # Count the number of violated constraints on a given assignment.
-    num_conflicts = 0
-    for var_indices, constraint_fun in constraints_index.values():
-        if all(v in assignment for v in var_indices):
-            if not _call_constraint(assignment, var_indices, constraint_fun):
-                num_conflicts += 1
-    return num_conflicts
 
 
 def _call_constraint(assignment, var_indices, constraint_fun):
