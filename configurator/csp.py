@@ -38,12 +38,12 @@ class CSP(object):
     def __init__(self, var_domains, constraints):
         self.var_domains = [list(var_domain) for var_domain in var_domains]
         # Ensure that the constraints are normalized.
-        constraint_support = set()
-        for unassigned_vars, constraint_fun in constraints:
-            unassigned_vars = frozenset(unassigned_vars)
-            if unassigned_vars in constraint_support:
+        constraints_index = set()
+        for var_indices, constraint_fun in constraints:
+            var_indices = frozenset(var_indices)
+            if var_indices in constraints_index:
                 raise ValueError("The constraints must be normalized")
-            constraint_support.add(unassigned_vars)
+            constraints_index.add(var_indices)
         self.constraints = constraints
         self.is_tree_csp = self._compute_is_tree_csp()
         self.reset()
@@ -107,7 +107,7 @@ class CSP(object):
             # Arc consistency is equivalent to global consistency in
             # normalized, tree-structured, binary CSPs.
             log.debug("it's a tree CSP, enforcing arc consistency")
-            arc_consistency_3(self.pruned_var_domains, self.constraints)
+            _arc_consistency_3(self.pruned_var_domains, self.constraints)
         else:
             self._enforce_global_consistency()
         log.debug("finished enforcing global consistency")
@@ -191,7 +191,7 @@ def _backtracking_search(assignment, var_domains, constraints):
         if not _count_conflicts(new_assignment, constraints):
             new_var_domains = copy.deepcopy(var_domains)
             new_var_domains[var_index] = [var_value]
-            if arc_consistency_3(new_var_domains, constraints):
+            if _arc_consistency_3(new_var_domains, constraints):
                 solution = _backtracking_search(new_assignment,
                                                 new_var_domains,
                                                 constraints)
@@ -218,77 +218,55 @@ def _order_var_values(assignment, var_index, var_values, constraints):
 def _count_conflicts(assignment, constraints):
     # Count the number of violated constraints on a given assignment.
     num_conflicts = 0
-    for neighbors, constraint in constraints:
-        if all(v in assignment for v in neighbors):
-            if not _call_constraint(assignment, neighbors, constraint):
+    for var_indices, constraint_fun in constraints:
+        if all(v in assignment for v in var_indices):
+            if not _call_constraint(assignment, var_indices, constraint_fun):
                 num_conflicts += 1
     return num_conflicts
 
 
-def _call_constraint(assignment, neighbors, constraint):
-    var_indices, var_values = zip(*[(v, assignment[v]) for v in neighbors])
-    return constraint(var_indices, var_values)
+def _call_constraint(assignment, var_indices, constraint_fun):
+    var_values = [assignment[v] for v in var_indices]
+    return constraint_fun(var_indices, var_values)
 
 
-def revise(domains, arc, constraints):
-    """
-    Given the arc X, Y (variables), removes the values from X's domain that
-    do not meet the constraint between X and Y.
-
-    That is, given x1 in X's domain, x1 will be removed from the domain, if
-    there is no value y in Y's domain that makes constraint(X,Y) True, for
-    those constraints affecting X and Y.
-    """
-    x, y = arc
-    related_constraints = [(neighbors, constraint)
-                           for neighbors, constraint in constraints
-                           if set(arc) == set(neighbors)]
-
-    modified = False
-
-    for neighbors, constraint in related_constraints:
-        for x_value in domains[x]:
-            constraint_results = (_call_constraint({x: x_value, y: y_value},
-                                                   neighbors, constraint)
-                                  for y_value in domains[y])
-
-            if not any(constraint_results):
-                domains[x].remove(x_value)
-                modified = True
-
-    return modified
+def _remove_inconsistent_values(var_domains, arc, constraints_index):
+    # Given the arc (x, y), remove the values from X's domain that
+    # don't meet the constraint between X and Y.
+    xi, xj = arc
+    var_indices, constraint_fun = constraints_index[frozenset(arc)]
+    assignment = {}
+    inconsistent_values = []
+    for xi_value in var_domains[xi]:
+        assignment[xi] = xi_value
+        for xj_value in var_domains[xj]:
+            assignment[xj] = xj_value
+            if _call_constraint(assignment, var_indices, constraint_fun):
+                break
+        else:  # Watch out! it belongs to the for, not the if.
+            inconsistent_values.append(xi_value)
+    for xi_value in inconsistent_values:
+        var_domains[xi].remove(xi_value)
+    return bool(inconsistent_values)
 
 
-def all_arcs(constraints):
-    """
-    For each constraint ((X, Y), const) adds:
-        ((X, Y), const)
-        ((Y, X), const)
-    """
-    arcs = set()
-
-    for neighbors, constraint in constraints:
-        if len(neighbors) == 2:
-            x, y = neighbors
-            list(map(arcs.add, ((x, y), (y, x))))
-
-    return arcs
-
-
-def arc_consistency_3(domains, constraints):
-    """
-    Makes a CSP problem arc consistent.
-
-    Ignores any constraint that is not binary.
-    """
-    arcs = list(all_arcs(constraints))
-    pending_arcs = set(arcs)
-
+def _arc_consistency_3(var_domains, constraints):
+    # The arc-consistency algorithm AC3. Non-binary constraints are ignored.
+    constraints_index = {frozenset(var_indices): (var_indices, constraint_fun)
+                         for var_indices, constraint_fun in constraints
+                         if len(var_indices) == 2}
+    all_arcs = set()
+    for var_indices, constraint_fun in constraints:
+        if len(var_indices) == 2:
+            xi, xj = var_indices
+            all_arcs.add((xi, xj))
+            all_arcs.add((xj, xi))
+    pending_arcs = all_arcs.copy()
     while pending_arcs:
-        x, y = pending_arcs.pop()
-        if revise(domains, (x, y), constraints):
-            if len(domains[x]) == 0:
+        arc = pending_arcs.pop()
+        xi, xj = arc
+        if _remove_inconsistent_values(var_domains, arc, constraints_index):
+            if len(var_domains[xi]) == 0:
                 return False
-            pending_arcs = pending_arcs.union((x2, y2) for x2, y2 in arcs
-                                              if y2 == x)
+            pending_arcs.update((xk, xi) for xk, y in all_arcs if y == xi)
     return True
