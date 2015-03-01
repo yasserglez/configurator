@@ -112,6 +112,7 @@ class RLDialogBuilder(DialogBuilder):
             exp.doEpisodes(number=1)
             agent.learn(episodes=1)
             agent.reset()
+            log.info("finished episode #%d", curr_episode + 1)
             # Check the stopping criterion.
             V = table.Q.max(1)
             Verror = getSpan(V - Vprev)

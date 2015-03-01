@@ -87,7 +87,7 @@ class DialogBuilder(object):
                  sample=None, validate=False):
         super().__init__()
         self.var_domains = [list(var_domain) for var_domain in var_domains]
-        log.info("there are %d possible configurations of %d variables",
+        log.info("there are %g possible configurations of %d variables",
                  reduce(mul, map(len, self.var_domains)),
                  len(self.var_domains))
         log.debug("variable domains:\n%s", pprint.pformat(self.var_domains))
@@ -115,7 +115,7 @@ class DialogBuilder(object):
         # Build the frequency table from the configuration sample.
         self.sample = sample
         if self.sample is not None:
-            log.info("the configuration sample has %d observations",
+            log.info("the configuration sample has %g observations",
                      self.sample.shape[0])
         self._freq_table = FrequencyTable(self.var_domains, self.sample,
                                           cache_size=1000)
