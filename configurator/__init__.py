@@ -16,8 +16,9 @@ def _get_version(version=None):  # overwritten by setup.py
         git_args = ("git", "--work-tree", src_dir, "--git-dir",
                     git_dir, "describe", "--tags")
         output = subprocess.check_output(git_args)
-        output = output.decode("utf-8").strip()
-        version = output[:output.rfind("-")]
+        version = output.decode("utf-8").strip()
+        if version.rfind("-") >= 0:
+            version = version[:version.rfind("-")]
     return version
 
 __version__ = _get_version()
