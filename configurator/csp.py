@@ -1,7 +1,6 @@
 """Constraint satisfaction problems.
 """
 
-import copy
 import pprint
 import logging
 
@@ -72,7 +71,7 @@ class CSP(object):
 
     def reset(self):
         self.assignment = {}
-        self.pruned_var_domains = copy.deepcopy(self.var_domains)
+        self.pruned_var_domains = self.var_domains.copy()
 
     def assign_variable(self, var_index, var_value, prune_var_domains=True):
         if var_index in self.assignment:
@@ -189,7 +188,7 @@ def _backtracking_search(assignment, var_domains, constraints):
         new_assignment = assignment.copy()
         new_assignment[var_index] = var_value
         if not _count_conflicts(new_assignment, constraints):
-            new_var_domains = copy.deepcopy(var_domains)
+            new_var_domains = var_domains.copy()
             new_var_domains[var_index] = [var_value]
             if _arc_consistency_3(new_var_domains, constraints):
                 solution = _backtracking_search(new_assignment,
@@ -236,18 +235,18 @@ def _remove_inconsistent_values(var_domains, arc, constraints_index):
     xi, xj = arc
     var_indices, constraint_fun = constraints_index[frozenset(arc)]
     assignment = {}
-    inconsistent_values = []
+    consistent_values = []
     for xi_value in var_domains[xi]:
         assignment[xi] = xi_value
         for xj_value in var_domains[xj]:
             assignment[xj] = xj_value
             if _call_constraint(assignment, var_indices, constraint_fun):
-                break
-        else:  # Watch out! it belongs to the for, not the if.
-            inconsistent_values.append(xi_value)
-    for xi_value in inconsistent_values:
-        var_domains[xi].remove(xi_value)
-    return bool(inconsistent_values)
+                consistent_values.append(xi_value)
+                break  # We are looking for at least one match.
+    removed = len(consistent_values) < len(var_domains[xi])
+    if removed:
+        var_domains[xi] = consistent_values
+    return removed
 
 
 def _arc_consistency_3(var_domains, constraints):
