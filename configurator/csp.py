@@ -187,7 +187,7 @@ def _backtracking_search(assignment, var_domains, constraints):
     for var_value in var_values:
         new_assignment = assignment.copy()
         new_assignment[var_index] = var_value
-        if not _count_conflicts(new_assignment, constraints):
+        if not _has_conflicts(new_assignment, constraints):
             new_var_domains = var_domains.copy()
             new_var_domains[var_index] = [var_value]
             if _arc_consistency_3(new_var_domains, constraints):
@@ -202,6 +202,15 @@ def _backtracking_search(assignment, var_domains, constraints):
 def _most_constrained_var(unassigned_vars, domains):
     # Choose the variable with fewer values available.
     return min(unassigned_vars, key=lambda v: len(domains[v]))
+
+
+def _has_conflicts(assignment, constraints):
+    # Check if the given assignment generates at least one conflict.
+    for var_indices, constraint_fun in constraints:
+        if all(v in assignment for v in var_indices):
+            if not _call_constraint(assignment, var_indices, constraint_fun):
+                return True
+    return False
 
 
 def _order_var_values(assignment, var_index, var_values, constraints):
