@@ -36,6 +36,11 @@ class RLDialogBuilder(DialogBuilder):
         rl_table: Representation of the action-value table. Possible
             values are `'exact'` (full table) and `'approximate'`
             (approximate table using state aggregation).
+        rl_consistency: Type of consistency check used to filter the
+            domain of the remaining questions during the simulation of
+            the RL episodes. Possible values are: `'global'` and
+            `'local'` (only implemented for binary constraints). This
+            argument is ignored for rule-based dialogs.
         rl_learning_rate: Q-learning and SARSA learning rate.
         rl_epsilon: Initial epsilon value for the epsilon-greedy
             exploration strategy.
@@ -50,20 +55,25 @@ class RLDialogBuilder(DialogBuilder):
     def __init__(self, var_domains, rules=None, constraints=None, sample=None,
                  rl_algorithm="q-learning",
                  rl_table="approximate",
+                 rl_consistency="local",
                  rl_learning_rate=0.3,
                  rl_epsilon=0.5,
                  rl_epsilon_decay=0.99,
                  rl_max_episodes=1000,
                  validate=False):
         super().__init__(var_domains, rules, constraints, sample, validate)
-        if rl_algorithm in ("q-learning", "sarsa"):
+        if rl_algorithm in {"q-learning", "sarsa"}:
             self._rl_algorithm = rl_algorithm
         else:
             raise ValueError("Invalid rl_algorithm value")
-        if rl_table in ("exact", "approximate"):
+        if rl_table in {"exact", "approximate"}:
             self._rl_table = rl_table
         else:
             raise ValueError("Invalid rl_table value")
+        if rl_consistency in {"global", "local"}:
+            self._rl_consistency = rl_consistency
+        else:
+            raise ValueError("Invalid rl_consistency value")
         self._rl_learning_rate = rl_learning_rate
         self._rl_epsilon = rl_epsilon
         self._rl_epsilon_decay = rl_epsilon_decay
@@ -77,7 +87,7 @@ class RLDialogBuilder(DialogBuilder):
             An instance of a `configurator.dialogs.Dialog` subclass.
         """
         dialog = Dialog(self.var_domains, self.rules, self.constraints)
-        env = DialogEnvironment(dialog, self._freq_table)
+        env = DialogEnvironment(dialog, self._rl_consistency, self._freq_table)
         task = DialogTask(env)
         if self._rl_algorithm == "q-learning":
             learner = QLearning(alpha=self._rl_learning_rate, gamma=1.0)
@@ -92,11 +102,14 @@ class RLDialogBuilder(DialogBuilder):
         exp = EpisodicExperiment(task, agent)
         log.info("running the RL algorithm")
         Vprev = table.Q.max(1)
+        complete_episodes = 0
         for curr_episode in range(self._rl_max_episodes):
             exp.doEpisodes(number=1)
-            agent.learn(episodes=1)
-            agent.reset()
             log.info("finished episode #%d", curr_episode + 1)
+            if env.dialog.is_complete():
+                complete_episodes += 1
+                agent.learn(episodes=1)
+            agent.reset()
             # Check the stopping criterion.
             V = table.Q.max(1)
             Verror = getSpan(V - Vprev)
@@ -104,6 +117,7 @@ class RLDialogBuilder(DialogBuilder):
             if Verror < self._Vspan_threshold:
                 break
         log.info("terminated after %d episodes", curr_episode + 1)
+        log.info("learned from %d episodes", complete_episodes)
         log.info("finished running the RL algorithm")
         # Create the RLDialog instance.
         dialog = RLDialog(self.var_domains, table, self.rules,
@@ -125,12 +139,6 @@ class RLDialog(Dialog):
                  rules=None, constraints=None, validate=False):
         self._table = table
         super().__init__(var_domains, rules, constraints, validate)
-
-    def reset(self):
-        super().reset()
-
-    def set_answer(self, var_index, var_value):
-        super().set_answer(var_index, var_value)
 
     def get_next_question(self):
         next_question = self._table.get_next_question(self.config)
@@ -204,12 +212,14 @@ class DialogEnvironment(Environment):
 
     Arguments:
         dialog: A :class:`configurator.dialogs.Dialog` instance.
+        consistency: Whether to enforce `'global'` or `'local'`
+            consistency after each answer.
         freq_table: A :class:`configurator.freq_table.FrequencyTable` instance.
 
     The environment keeps track of the configuration state. It starts
     in a state where all the variables are unknown (and it can be
     reset at any time to this state using the reset method). An action
-    can be performed (a.e. asking a question) by calling
+    can be performed (i.e. asking a question) by calling
     :meth:`performAction`. Then, the user response is simulated and
     the configuration state is updated (including discovered
     variables). The current configuration state is returned by
@@ -219,9 +229,10 @@ class DialogEnvironment(Environment):
         dialog: A :class:`configurator.dialogs.Dialog` instance.
     """
 
-    def __init__(self, dialog, freq_table):
+    def __init__(self, dialog, consistency, freq_table):
         super().__init__()
         self.dialog = dialog
+        self._consistency = consistency
         self._freq_table = freq_table
 
     def reset(self):
@@ -246,7 +257,7 @@ class DialogEnvironment(Environment):
             values[1].append(prob)
         var_value = var_values[stats.rv_discrete(values=values).rvs()]
         log.debug("simulated user response %r", var_value)
-        self.dialog.set_answer(var_index, var_value)
+        self.dialog.set_answer(var_index, var_value, self._consistency)
         log.debug("new configuration in the environment:\n%s",
                   pprint.pformat(self.dialog.config))
         log.debug("finished performing action %d in the environment", action)
@@ -296,7 +307,8 @@ class DialogTask(EpisodicTask):
         return self.lastreward
 
     def isFinished(self):
-        is_finished = self.env.dialog.is_complete()
+        is_finished = (self.env.dialog.is_complete() or
+                       not self.env.dialog.is_consistent())
         if is_finished:
             log.debug("an episode finished, total reward %d", self.cumreward)
         return is_finished
