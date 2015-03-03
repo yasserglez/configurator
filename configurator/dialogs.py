@@ -170,8 +170,11 @@ class Dialog(object):
     :meth:`get_possible_answers` can be used to obtain the possible
     answers to a question, given the current partial configuration
     (answers given back to the dialog with :meth:`set_answer` must be
-    restricted to one of these values). :meth:`is_complete` can be
-    used to check whether all the variables have been set.
+    restricted to one of these values). :meth:`is_consistent` checks
+    if the current partial configuration is consistent (only relevant
+    if using local consistency checks with binary constraints).
+    :meth:`is_complete` can be used to check whether all the variables
+    have been set.
 
     All the arguments are available as instance attributes.
     """
@@ -234,7 +237,7 @@ class Dialog(object):
                             self._csp.pruned_var_domains[var_index])
         return possible_answers
 
-    def set_answer(self, var_index, var_value):
+    def set_answer(self, var_index, var_value, consistency="global"):
         """Set the value of a configuration variable.
 
         This method wil be usually called with a variable index
@@ -246,9 +249,18 @@ class Dialog(object):
             var_value: The value of the variable. It must be one of
                 the possible values of the variable returned by
                 :meth:`get_possible_answers`.
+            consistency: Type of consistency check used to filter the
+                domain of the remaining questions. Possible values
+                are: `'global'` and `'local'` (only implemented for
+                binary constraints). This argument is ignored for
+                rule-based dialogs.
         """
         if var_index in self.config:
             raise ValueError("The question has already been answered")
+        if var_value not in self.get_possible_answers(var_index):
+            raise ValueError("%r is not a valid answer for %d given " +
+                             "the current partial configuration",
+                             var_value, var_index)
         if self.rules:
             prev_config_len = len(self.config)
             self.config[var_index] = var_value
@@ -258,8 +270,22 @@ class Dialog(object):
                     if rule.is_applicable(self.config):
                         rule.apply_rule(self.config)
         if self.constraints:
-            self._csp.assign_variable(var_index, var_value)
+            self._csp.assign_variable(var_index, var_value, consistency)
             self.config.update(self._csp.assignment)
+
+    def is_consistent(self):
+        """Check if the current partial configuration is consistent.
+
+        Returns:
+            `True` if it's consistent, `False` otherwise.
+        """
+        if self.constraints:
+            for var_index in range(len(self.var_domains)):
+                if var_index not in self.config:
+                    possible_answers = self.get_possible_answers(var_index)
+                    if not possible_answers:
+                        return False
+        return True
 
     def is_complete(self):
         """Check if the configuration is complete.
