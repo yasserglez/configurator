@@ -4,8 +4,6 @@
 import pprint
 import logging
 
-import igraph
-
 
 log = logging.getLogger(__name__)
 
@@ -37,13 +35,15 @@ class CSP(object):
     def __init__(self, var_domains, constraints):
         self.var_domains = [list(var_domain) for var_domain in var_domains]
         self.constraints = constraints
+        self.is_binary = True
         self._constraints_index = {}
         for var_indices, constraint_fun in constraints:
+            if len(var_indices) != 2:
+                self.is_binary = False
             key = frozenset(var_indices)
             if key in self._constraints_index:
                 raise ValueError("The constraints must be normalized")
             self._constraints_index[key] = var_indices, constraint_fun
-        self.is_tree_csp = self._compute_is_tree_csp()
         self.reset()
 
     def solve(self):
@@ -53,33 +53,40 @@ class CSP(object):
             A dictionary with the values assigned to the variables if
             a solution was found, `None` otherwise.
         """
-        solution = self._backtracking_solver(self.var_domains)
-        return solution
+        return _backtracking_search({}, self.var_domains,
+                                    self._constraints_index)
 
     def _backtracking_solver(self, var_domains):
-        # Backtracking solver maintaining arc consistency (using the
-        # AC-3 algorithm), with the minimum-remaining-values heuristic
-        # for variable selection.
+
         return _backtracking_search({}, var_domains, self._constraints_index)
 
     # The following are internal methods used to keep track of the
-    # assignments and enforce global consistency after each variable
-    # is assigned when the dialog is being used.
+    # assignments and enforce global or local consistency after each
+    # variable is assigned when the dialog is being used.
 
     def reset(self):
         self.assignment = {}
         self.pruned_var_domains = self.var_domains.copy()
 
-    def assign_variable(self, var_index, var_value, prune_var_domains=True):
+    def assign_variable(self, var_index, var_value, consistency="global"):
         if var_index in self.assignment:
             raise ValueError("The variable is already assigned")
         if var_value not in self.pruned_var_domains[var_index]:
             raise ValueError("Invalid assignment in the current state")
         log.debug("assignning variable %d to %r", var_index, var_value)
         log.debug("initial assignment:\n%s", pprint.pformat(self.assignment))
+        log.debug("initial domains:\n%s",
+                  pprint.pformat(self.pruned_var_domains))
         self.assignment[var_index] = var_value
-        if len(self.assignment) < len(self.var_domains) and prune_var_domains:
-            self.prune_var_domains()
+        self.pruned_var_domains[var_index] = [var_value]
+        if len(self.assignment) < len(self.var_domains):
+            if consistency == "global":
+                self.enforce_global_consistency()
+            elif consistency == "local":
+                if not self.is_binary:
+                    raise ValueError("Local consistency only " +
+                                     "implemented for binary CSPs")
+                self.enforce_local_consistency()
             # If the domain of a variable was reduced to a single
             # value, set it back in the assignment.
             for var_index, var_values in enumerate(self.pruned_var_domains):
@@ -88,90 +95,37 @@ class CSP(object):
                     var_value = self.pruned_var_domains[var_index][0]
                     self.assignment[var_index] = var_value
         log.debug("final assignment:\n%s", pprint.pformat(self.assignment))
-
-    def prune_var_domains(self):
-        log.debug("pruning the variable domains")
-        log.debug("initial domains:\n%s",
-                  pprint.pformat(self.pruned_var_domains))
-        # Enforce unary constraints.
-        for var_index, var_value in self.assignment.items():
-            self.pruned_var_domains[var_index] = [var_value]
-        log.debug("after enforcing unary constraints:\n%s",
-                  pprint.pformat(self.pruned_var_domains))
-        log.debug("enforcing global consistency")
-        if self.is_tree_csp:
-            # Arc consistency is equivalent to global consistency in
-            # normalized, tree-structured, binary CSPs.
-            log.debug("it's a tree CSP, enforcing arc consistency")
-            _arc_consistency_3(self.pruned_var_domains,
-                               self._constraints_index)
-        else:
-            self._enforce_global_consistency()
-        log.debug("finished enforcing global consistency")
-        log.debug("finished pruning the variable domains")
         log.debug("final domains:\n%s",
                   pprint.pformat(self.pruned_var_domains))
 
-    def _enforce_global_consistency(self):
-        # Check that all possible answers for the next question lead
-        # to a consistent assignment.
-        for var_index, var_values in enumerate(self.pruned_var_domains):
-            if len(var_values) > 1:
+    def enforce_global_consistency(self):
+        log.debug("enforcing global consistency")
+        # Check that all possible answers for the remaining questions
+        # lead to consistent assignments.
+        for var_index in range(len(self.pruned_var_domains)):
+            if len(self.pruned_var_domains[var_index]) > 1:
                 tmp_var_domains = self.pruned_var_domains.copy()
                 consistent_values = []
-                for var_value in var_values:
+                for var_value in self.pruned_var_domains[var_index]:
                     tmp_var_domains[var_index] = [var_value]
-                    if self._backtracking_solver(tmp_var_domains) is None:
-                        log.debug("invalid value %r for %d",
-                                  var_value, var_index)
-                    else:
+                    solution = _backtracking_search({}, tmp_var_domains,
+                                                    self._constraints_index)
+                    if solution:
                         consistent_values.append(var_value)
-                self.pruned_var_domains[var_index] = consistent_values
+                if (len(consistent_values) <
+                        len(self.pruned_var_domains[var_index])):
+                    self.pruned_var_domains[var_index] = consistent_values
+                    # Propagate the changes locally to (hopefully)
+                    # save some time to the global consistency check.
+                    _arc_consistency_3(self.pruned_var_domains,
+                                       self._constraints_index)
 
-    def _compute_is_tree_csp(self):
-        is_tree_csp = self._is_binary_csp() and self._has_acyclic_network()
-        log.debug("it %s a tree CSP", "is" if is_tree_csp else "isn't")
-        return is_tree_csp
-
-    def _is_binary_csp(self):
-        for var_indices, constraint_fun in self._constraints_index.values():
-            if len(var_indices) != 2:
-                return False
-        return True
-
-    def _has_acyclic_network(self):
-        # _is_binary_csp must be called first.
-        network = igraph.Graph(len(self.var_domains))
-        edges = []
-        for var_indices, constraint_fun in self._constraints_index.values():
-            edges.append([v for v in var_indices])
-        network.add_edges(edges)
-        is_acyclic = self._is_acyclic(network)
-        return is_acyclic
-
-    @staticmethod
-    def _is_acyclic(graph):
-        # Check if a given undirected graph contains no cycles.
-        assert not graph.is_directed()
-        visited = [False] * graph.vcount()
-        parent = [None] * graph.vcount()
-        while not all(visited):
-            stack = [visited.index(False)]
-            while stack:
-                v = stack.pop()
-                visited[v] = True
-                for w in graph.vs[v].neighbors():
-                    if w.index != parent[v]:
-                        if visited[w.index]:
-                            return False
-                        stack.append(w.index)
-                        parent[w.index] = v
-        return True
+    def enforce_local_consistency(self):
+        pass
 
 
-# Portions of the following code are based on
-# https://github.com/simpleai-team/simpleai.
-
+# Backtracking search maintaining arc consistency (using AC-3), with
+# minimum-remaining-values heuristic for variable selection.
 def _backtracking_search(assignment, var_domains, constraints_index):
     if len(assignment) == len(var_domains):
         return assignment
