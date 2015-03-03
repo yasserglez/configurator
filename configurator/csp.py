@@ -56,10 +56,6 @@ class CSP(object):
         return _backtracking_search({}, self.var_domains,
                                     self._constraints_index)
 
-    def _backtracking_solver(self, var_domains):
-
-        return _backtracking_search({}, var_domains, self._constraints_index)
-
     # The following are internal methods used to keep track of the
     # assignments and enforce global or local consistency after each
     # variable is assigned when the dialog is being used.
@@ -99,10 +95,10 @@ class CSP(object):
                   pprint.pformat(self.pruned_var_domains))
 
     def enforce_global_consistency(self):
+        # Check that all possible answers to the remaining questions
+        # lead to at least one consistent assignment.
         log.debug("enforcing global consistency")
-        # Check that all possible answers for the remaining questions
-        # lead to consistent assignments.
-        for var_index in range(len(self.pruned_var_domains)):
+        for var_index in range(len(self.var_domains)):
             if len(self.pruned_var_domains[var_index]) > 1:
                 tmp_var_domains = self.pruned_var_domains.copy()
                 consistent_values = []
@@ -115,13 +111,38 @@ class CSP(object):
                 if (len(consistent_values) <
                         len(self.pruned_var_domains[var_index])):
                     self.pruned_var_domains[var_index] = consistent_values
-                    # Propagate the changes locally to (hopefully)
-                    # save some time to the global consistency check.
-                    _arc_consistency_3(self.pruned_var_domains,
-                                       self._constraints_index)
 
     def enforce_local_consistency(self):
-        pass
+        # Singleton arc consistency. Based on Figure 2 of Romuald
+        # Debruyne and Christian Bessiere (1997). Some practicable
+        # filtering techniques for the constraint satisfaction
+        # problem, IJCAI'97, 412-417.
+        log.debug("enforcing local consistency")
+        _arc_consistency_3(self.pruned_var_domains,
+                           self._constraints_index)
+        changed = True
+        while changed:
+            changed = False
+            for var_index in range(len(self.var_domains)):
+                if len(self.pruned_var_domains[var_index]) > 1:
+                    consistent_values = []
+                    for var_value in self.pruned_var_domains[var_index]:
+                        tmp_var_domains = self.pruned_var_domains.copy()
+                        tmp_var_domains[var_index] = [var_value]
+                        if _arc_consistency_3(tmp_var_domains,
+                                              self._constraints_index):
+                            consistent_values.append(var_value)
+                    if (len(consistent_values) <
+                            len(self.pruned_var_domains[var_index])):
+                        self.pruned_var_domains[var_index] = consistent_values
+                        # Ensuring arc consistency after all values
+                        # are checked (instead of doing it when an
+                        # inconsistent value is detected) in order to
+                        # avoid changing self.pruned_var_domains[var_index]
+                        # while it's being iterated.
+                        _arc_consistency_3(self.pruned_var_domains,
+                                           self._constraints_index)
+                        changed = True
 
 
 # Backtracking search maintaining arc consistency (using AC-3), with
