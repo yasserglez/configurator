@@ -98,19 +98,22 @@ class CSP(object):
         # Check that all possible answers to the remaining questions
         # lead to at least one consistent assignment.
         log.debug("enforcing global consistency")
+        _arc_consistency_3(self.pruned_var_domains,
+                           self._constraints_index)
         for var_index in range(len(self.var_domains)):
             if len(self.pruned_var_domains[var_index]) > 1:
-                tmp_var_domains = self.pruned_var_domains.copy()
                 consistent_values = []
                 for var_value in self.pruned_var_domains[var_index]:
+                    tmp_var_domains = self.pruned_var_domains.copy()
                     tmp_var_domains[var_index] = [var_value]
-                    solution = _backtracking_search({}, tmp_var_domains,
-                                                    self._constraints_index)
-                    if solution:
+                    if _backtracking_search({}, tmp_var_domains,
+                                            self._constraints_index):
                         consistent_values.append(var_value)
                 if (len(consistent_values) <
                         len(self.pruned_var_domains[var_index])):
                     self.pruned_var_domains[var_index] = consistent_values
+                    _arc_consistency_3(self.pruned_var_domains,
+                                       self._constraints_index)
 
     def enforce_local_consistency(self):
         # Singleton arc consistency. Based on Figure 2 of Romuald
