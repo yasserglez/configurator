@@ -339,7 +339,7 @@ class DialogAgent(LearningAgent):
         self.lastaction = None
         self.lastreward = None
         self._epsilon *= self._epsilon_decay
-        log.debug("the epsilon value is %g", self._epsilon)
+        log.info("the epsilon value is %g", self._epsilon)
 
     def integrateObservation(self, obs):  # Step 1
         self.lastconfig = obs
