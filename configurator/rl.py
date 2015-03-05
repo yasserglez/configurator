@@ -105,7 +105,6 @@ class RLDialogBuilder(DialogBuilder):
         complete_episodes = 0
         for curr_episode in range(self._rl_max_episodes):
             exp.doEpisodes(number=1)
-            log.info("finished episode #%d", curr_episode + 1)
             if env.dialog.is_complete():
                 complete_episodes += 1
                 agent.learn(episodes=1)
@@ -155,8 +154,9 @@ class DialogQTable(ActionValueTable):
         log.info("the action-value table has %d states and %d actions",
                  num_states, num_actions)
         super().__init__(num_states, num_actions)
-        self.initialize(-1)  # pessimistic initialization
+        self.initialize(0)
         self.Q = self.params.reshape(num_states, num_actions)
+        self.Q[num_states - 1, :] = 0
 
     def _get_num_states(self):
         # One variable value is added for the unknown state.
@@ -307,10 +307,13 @@ class DialogTask(EpisodicTask):
         return self.lastreward
 
     def isFinished(self):
-        is_finished = (self.env.dialog.is_complete() or
-                       not self.env.dialog.is_consistent())
-        if is_finished:
-            log.debug("an episode finished, total reward %d", self.cumreward)
+        is_finished = False
+        if self.env.dialog.is_complete():
+            log.info("finished an episode, total reward %d", self.cumreward)
+            is_finished = True
+        elif not self.env.dialog.is_consistent():
+            log.info("finished an episode, reached an inconsistent state")
+            is_finished = True
         return is_finished
 
 
@@ -349,7 +352,8 @@ class DialogAgent(LearningAgent):
     def getAction(self):  # Step 2
         log.debug("getting an action from the agent")
         # Epsilon-greedy exploration. It ensures that a valid action
-        # at the current configuration state is returned.
+        # at the current configuration state is always returned
+        # (i.e. a question that hasn't been answered).
         action = self.module.get_next_question(self.lastconfig)
         log.debug("the greedy action is %d", action)
         if np.random.uniform() < self._epsilon:
@@ -365,24 +369,25 @@ class DialogAgent(LearningAgent):
         self.history.addSample(self.lastobs, self.lastaction, self.lastreward)
 
 
-# Fix Q.learn and SARSA.learn for episodes with only one interaction.
 class _LearnFromLastMixin(object):
 
     def learn(self):
-        # Only works if episodes are processed one by one.
-        assert self.batchMode and self.dataset.getNumSequences() == 1
+        # We need to process the reward for entering the terminal state
+        # but Q.learn and SARSA.learn don't do it. Let Q and SARSA process
+        # the complete episode first, and then process the last observation.
+        # We assume Q is zero for the terminal state.
         super().learn()
+        # This will only work if episodes are processed one by
+        # one, so ensure there's only one sequence in the dataset.
+        assert self.batchMode and self.dataset.getNumSequences() == 1
         seq = next(iter(self.dataset))
-        for i, (state, action, reward) in enumerate(seq):
-            if i > 0:
-                break
-        else:
-            # This will run if seq has one element only.
-            state, action = int(state), int(action)
-            qvalue = self.module.getValue(state, action)
-            # Assume Q is zero for terminal states.
-            new_qvalue = qvalue + self.alpha * (reward - qvalue)
-            self.module.updateValue(state, action, new_qvalue)
+        for laststate, lastaction, lastreward in seq:
+            pass  # skip all the way to the last
+        laststate = int(laststate)
+        lastaction = int(lastaction)
+        qvalue = self.module.getValue(laststate, lastaction)
+        new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
+        self.module.updateValue(laststate, lastaction, new_qvalue)
 
 
 class QLearning(_LearnFromLastMixin, Q_):
