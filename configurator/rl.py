@@ -365,25 +365,24 @@ class DialogAgent(LearningAgent):
         self.history.addSample(self.lastobs, self.lastaction, self.lastreward)
 
 
+# Fix Q.learn and SARSA.learn for episodes with only one interaction.
 class _LearnFromLastMixin(object):
 
     def learn(self):
-        # We need to process the reward for entering the terminal state
-        # but Q.learn and SARSA.learn don't do it. Let Q and SARSA process
-        # the complete episode first, and then process the last observation.
-        # We assume Q is zero for the terminal state.
-        super().learn()
-        # This will only work if episodes are processed one by
-        # one, so ensure there's only one sequence in the dataset.
+        # Only works if episodes are processed one by one.
         assert self.batchMode and self.dataset.getNumSequences() == 1
+        super().learn()
         seq = next(iter(self.dataset))
-        for laststate, lastaction, lastreward in seq:
-            pass  # skip all the way to the last
-        laststate = int(laststate)
-        lastaction = int(lastaction)
-        qvalue = self.module.getValue(laststate, lastaction)
-        new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
-        self.module.updateValue(laststate, lastaction, new_qvalue)
+        for i, (state, action, reward) in enumerate(seq):
+            if i > 0:
+                break
+        else:
+            # This will run if seq has one element only.
+            state, action = int(state), int(action)
+            qvalue = self.module.getValue(state, action)
+            # Assume Q is zero for terminal states.
+            new_qvalue = qvalue + self.alpha * (reward - qvalue)
+            self.module.updateValue(state, action, new_qvalue)
 
 
 class QLearning(_LearnFromLastMixin, Q_):
