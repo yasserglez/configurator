@@ -253,8 +253,9 @@ class DialogEnvironment(Environment):
         for i, var_value in enumerate(var_values):
             response = {var_index: var_value}
             prob = self._freq_table.cond_prob(response, self.dialog.config)
-            values[0].append(i)
-            values[1].append(prob)
+            if var_value is not None and prob > 0:
+                values[0].append(i)
+                values[1].append(prob)
         var_value = var_values[stats.rv_discrete(values=values).rvs()]
         log.debug("simulated user response %r", var_value)
         self.dialog.set_answer(var_index, var_value, self._consistency)
