@@ -35,6 +35,8 @@ class RLDialogBuilder(DialogBuilder):
         rl_table: Representation of the action-value table. Possible
             values are `'exact'` (full table) and `'approximate'`
             (approximate table using state aggregation).
+        rl_table_initial_value: Value used to initialize the
+            action-value table.
         rl_consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the RL episodes. Possible values are: `'global'` and
@@ -54,6 +56,7 @@ class RLDialogBuilder(DialogBuilder):
     def __init__(self, var_domains, rules=None, constraints=None, sample=None,
                  rl_algorithm="q-learning",
                  rl_table="approximate",
+                 rl_table_initial_value=0,
                  rl_consistency="local",
                  rl_learning_rate=0.3,
                  rl_epsilon=0.5,
@@ -69,6 +72,7 @@ class RLDialogBuilder(DialogBuilder):
             self._rl_table = rl_table
         else:
             raise ValueError("Invalid rl_table value")
+        self._rl_table_initial_value = rl_table_initial_value
         if rl_consistency in {"global", "local"}:
             self._rl_consistency = rl_consistency
         else:
@@ -92,9 +96,11 @@ class RLDialogBuilder(DialogBuilder):
         elif self._rl_algorithm == "sarsa":
             learner = SARSA(alpha=self._rl_learning_rate, gamma=1.0)
         if self._rl_table == "exact":
-            table = DialogQTable(self.var_domains)
+            table = DialogQTable(self.var_domains,
+                                 self._rl_table_initial_value)
         elif self._rl_table == "approximate":
-            table = ApproxDialogQTable(self.var_domains)
+            table = ApproxDialogQTable(self.var_domains,
+                                       self._rl_table_initial_value)
         agent = DialogAgent(table, learner, self._rl_epsilon,
                             self._rl_epsilon_decay)
         exp = EpisodicExperiment(task, agent)
@@ -137,7 +143,7 @@ class RLDialog(Dialog):
 
 class DialogQTable(ActionValueTable):
 
-    def __init__(self, var_domains):
+    def __init__(self, var_domains, initial_value):
         self.var_domains = var_domains
         self._var_card = list(map(len, self.var_domains))
         num_states = self._get_num_states()
@@ -145,7 +151,7 @@ class DialogQTable(ActionValueTable):
         log.info("the action-value table has %d states and %d actions",
                  num_states, num_actions)
         super().__init__(num_states, num_actions)
-        self.initialize(0)
+        self.initialize(initial_value)
         self.Q = self.params.reshape(num_states, num_actions)
         self.Q[num_states - 1, :] = 0
 
@@ -183,8 +189,8 @@ class DialogQTable(ActionValueTable):
 
 class ApproxDialogQTable(DialogQTable):
 
-    def __init__(self, var_domains):
-        super().__init__(var_domains)
+    def __init__(self, var_domains, initial_value):
+        super().__init__(var_domains, initial_value)
 
     def _get_num_states(self):
         # Number of known variables. One added for the initial state
