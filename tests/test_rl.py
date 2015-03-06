@@ -22,6 +22,7 @@ class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
                                sample=email_client.sample,
                                rl_algorithm=algorithm,
                                rl_table=table,
+                               rl_num_episodes=50,
                                validate=True)
 
     def test_qlearning_exact(self, email_client):
@@ -54,6 +55,7 @@ class TestCSPRLDialogBuilder(BaseTestRLDialogBuilder):
                                rl_algorithm=algorithm,
                                rl_table=table,
                                rl_consistency=consistency,
+                               rl_num_episodes=50,
                                validate=True)
 
     def test_qlearning_exact_global(self, email_client):

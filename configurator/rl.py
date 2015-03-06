@@ -9,7 +9,6 @@ from operator import mul
 import numpy as np
 import numpy.ma as ma
 from scipy import stats
-from mdptoolbox.util import getSpan
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
 from pybrain.rl.agents import LearningAgent
@@ -45,8 +44,8 @@ class RLDialogBuilder(DialogBuilder):
         rl_epsilon: Initial epsilon value for the epsilon-greedy
             exploration strategy.
         rl_epsilon_decay: Epsilon decay rate. The epsilon value is
-            decayed after every episode.
-        rl_max_episodes: Maximum number of simulated episodes.
+            multiplied by this factor after every episode.
+        rl_num_episodes: Number of simulated episodes.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -59,7 +58,7 @@ class RLDialogBuilder(DialogBuilder):
                  rl_learning_rate=0.3,
                  rl_epsilon=0.5,
                  rl_epsilon_decay=0.99,
-                 rl_max_episodes=1000,
+                 rl_num_episodes=1000,
                  validate=False):
         super().__init__(var_domains, rules, constraints, sample, validate)
         if rl_algorithm in {"q-learning", "sarsa"}:
@@ -77,8 +76,7 @@ class RLDialogBuilder(DialogBuilder):
         self._rl_learning_rate = rl_learning_rate
         self._rl_epsilon = rl_epsilon
         self._rl_epsilon_decay = rl_epsilon_decay
-        self._rl_max_episodes = rl_max_episodes
-        self._Vspan_threshold = 0.01
+        self._rl_num_episodes = rl_num_episodes
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -101,21 +99,14 @@ class RLDialogBuilder(DialogBuilder):
                             self._rl_epsilon_decay)
         exp = EpisodicExperiment(task, agent)
         log.info("running the RL algorithm")
-        Vprev = table.Q.max(1)
         complete_episodes = 0
-        for curr_episode in range(self._rl_max_episodes):
+        for curr_episode in range(self._rl_num_episodes):
             exp.doEpisodes(number=1)
             if env.dialog.is_complete():
                 complete_episodes += 1
                 agent.learn(episodes=1)
             agent.reset()
-            # Check the stopping criterion.
-            V = table.Q.max(1)
-            Verror = getSpan(V - Vprev)
-            Vprev = V
-            if Verror < self._Vspan_threshold:
-                break
-        log.info("terminated after %d episodes", curr_episode + 1)
+        log.info("simulated %d episodes", self._rl_num_episodes)
         log.info("learned from %d episodes", complete_episodes)
         log.info("finished running the RL algorithm")
         # Create the RLDialog instance.
