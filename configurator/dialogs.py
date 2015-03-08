@@ -107,8 +107,7 @@ class DialogBuilder(object):
                 rules_dict[lhs_key].append(rule)
             self.rules = [reduce(self._merge_rules, grouped_rules)
                           for grouped_rules in rules_dict.values()]
-            log.debug("turned into %d merged rules:\n%s",
-                      len(self.rules), pprint.pformat(self.rules))
+            log.debug("merged rules:\n%s", pprint.pformat(self.rules))
         self.constraints = constraints
         if self.constraints is not None:
             log.info("using %d constraints", len(self.constraints))

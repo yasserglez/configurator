@@ -148,7 +148,7 @@ class DialogQTable(ActionValueTable):
         self._var_card = list(map(len, self.var_domains))
         num_states = self._get_num_states()
         num_actions = len(self.var_domains)
-        log.info("the action-value table has %d states and %d actions",
+        log.info("Q has %d states and %d actions",
                  num_states, num_actions)
         super().__init__(num_states, num_actions)
         self.initialize(initial_value)

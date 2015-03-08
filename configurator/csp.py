@@ -69,7 +69,7 @@ class CSP(object):
             raise ValueError("The variable is already assigned")
         if var_value not in self.pruned_var_domains[var_index]:
             raise ValueError("Invalid assignment in the current state")
-        log.debug("assignning variable %d to %r", var_index, var_value)
+        log.debug("assigning variable %d to %r", var_index, var_value)
         log.debug("initial assignment:\n%s", pprint.pformat(self.assignment))
         log.debug("initial domains:\n%s",
                   pprint.pformat(self.pruned_var_domains))
