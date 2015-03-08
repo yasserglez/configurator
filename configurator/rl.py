@@ -43,10 +43,7 @@ class RLDialogBuilder(DialogBuilder):
             `'local'` (only implemented for binary constraints). This
             argument is ignored for rule-based dialogs.
         rl_learning_rate: Q-learning and SARSA learning rate.
-        rl_epsilon: Initial epsilon value for the epsilon-greedy
-            exploration strategy.
-        rl_epsilon_decay: Epsilon decay rate. The epsilon value is
-            multiplied by this factor after every episode.
+        rl_epsilon: Epsilon value for the epsilon-greedy exploration.
         rl_num_episodes: Number of simulated episodes.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
@@ -60,7 +57,6 @@ class RLDialogBuilder(DialogBuilder):
                  rl_consistency="local",
                  rl_learning_rate=0.3,
                  rl_epsilon=0.1,
-                 rl_epsilon_decay=1.0,
                  rl_num_episodes=1000,
                  validate=False):
         super().__init__(var_domains, rules, constraints, sample, validate)
@@ -79,7 +75,6 @@ class RLDialogBuilder(DialogBuilder):
             raise ValueError("Invalid rl_consistency value")
         self._rl_learning_rate = rl_learning_rate
         self._rl_epsilon = rl_epsilon
-        self._rl_epsilon_decay = rl_epsilon_decay
         self._rl_num_episodes = rl_num_episodes
 
     def build_dialog(self):
@@ -101,8 +96,7 @@ class RLDialogBuilder(DialogBuilder):
         elif self._rl_table == "approximate":
             table = ApproxDialogQTable(self.var_domains,
                                        self._rl_table_initial_value)
-        agent = DialogAgent(table, learner, self._rl_epsilon,
-                            self._rl_epsilon_decay)
+        agent = DialogAgent(table, learner, self._rl_epsilon)
         exp = EpisodicExperiment(task, agent)
         log.info("running the RL algorithm")
         complete_episodes = 0
@@ -321,16 +315,12 @@ class DialogAgent(LearningAgent):
     Arguments:
         table: A `DialogQTable` instance.
         learner: A `Q` or `SARSA` instance.
-        epsilon: Initial epsilon value for the epsilon-greedy
-           exploration strategy.
-        epsilon_decay: Epsilon decay rate. The epsilon value is
-            decayed after every episode.
+        epsilon: Epsilon value for the epsilon-greedy exploration.
     """
 
-    def __init__(self, table, learner, epsilon, epsilon_decay):
+    def __init__(self, table, learner, epsilon):
         super().__init__(table, learner)  # self.module = table
-        self._epsilon = epsilon * (1 / epsilon_decay)  # it's decreased first
-        self._epsilon_decay = epsilon_decay
+        self._epsilon = epsilon
 
     def newEpisode(self):
         log.debug("new episode in the agent")
@@ -339,8 +329,6 @@ class DialogAgent(LearningAgent):
         self.lastobs = None
         self.lastaction = None
         self.lastreward = None
-        self._epsilon *= self._epsilon_decay
-        log.info("the epsilon value is %g", self._epsilon)
 
     def integrateObservation(self, obs):  # Step 1
         self.lastconfig = obs
