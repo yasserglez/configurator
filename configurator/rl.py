@@ -12,7 +12,7 @@ from scipy import stats
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
 from pybrain.rl.agents import LearningAgent
-from pybrain.rl.learners import Q as Q_, SARSA as SARSA_
+from pybrain.rl.learners import Q
 from pybrain.rl.learners.valuebased import ActionValueTable
 from pybrain.rl.experiments import EpisodicExperiment
 
@@ -30,17 +30,15 @@ class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
 
     Arguments:
-        rl_algorithm: The reinforcement learning algorithm. Possible
-            values are: `'q-learning'` and `'sarsa'`.
         rl_table: Representation of the action-value table. Possible
             values are `'exact'` (full table) and `'approximate'`
-            (approximate table using state aggregation).
+            (approximate representation using state aggregation).
         rl_consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the RL episodes. Possible values are: `'global'` and
             `'local'` (only implemented for binary constraints). This
             argument is ignored for rule-based dialogs.
-        rl_learning_rate: Q-learning and SARSA learning rate.
+        rl_learning_rate: Q-learning learning rate.
         rl_epsilon: Epsilon value for the epsilon-greedy exploration.
         rl_num_episodes: Number of simulated episodes.
 
@@ -49,7 +47,6 @@ class RLDialogBuilder(DialogBuilder):
     """
 
     def __init__(self, var_domains, rules=None, constraints=None, sample=None,
-                 rl_algorithm="q-learning",
                  rl_table="approximate",
                  rl_consistency="local",
                  rl_learning_rate=0.3,
@@ -57,10 +54,6 @@ class RLDialogBuilder(DialogBuilder):
                  rl_num_episodes=1000,
                  validate=False):
         super().__init__(var_domains, rules, constraints, sample, validate)
-        if rl_algorithm in {"q-learning", "sarsa"}:
-            self._rl_algorithm = rl_algorithm
-        else:
-            raise ValueError("Invalid rl_algorithm value")
         if rl_table in {"exact", "approximate"}:
             self._rl_table = rl_table
         else:
@@ -82,10 +75,7 @@ class RLDialogBuilder(DialogBuilder):
         dialog = Dialog(self.var_domains, self.rules, self.constraints)
         env = DialogEnvironment(dialog, self._rl_consistency, self._freq_table)
         task = DialogTask(env)
-        if self._rl_algorithm == "q-learning":
-            learner = QLearning(alpha=self._rl_learning_rate, gamma=1.0)
-        elif self._rl_algorithm == "sarsa":
-            learner = SARSA(alpha=self._rl_learning_rate, gamma=1.0)
+        learner = QLearning(alpha=self._rl_learning_rate, gamma=1.0)
         if self._rl_table == "exact":
             table = DialogQTable(self.var_domains)
         elif self._rl_table == "approximate":
@@ -308,7 +298,7 @@ class DialogAgent(LearningAgent):
 
     Arguments:
         table: A `DialogQTable` instance.
-        learner: A `Q` or `SARSA` instance.
+        learner: A `QLearning` instance.
         epsilon: Epsilon value for the epsilon-greedy exploration.
     """
 
@@ -349,16 +339,19 @@ class DialogAgent(LearningAgent):
         self.history.addSample(self.lastobs, self.lastaction, self.lastreward)
 
 
-class _LearnFromLastMixin(object):
+class QLearning(Q):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def learn(self):
-        # We need to process the reward for entering the terminal state
-        # but Q.learn and SARSA.learn don't do it. Let Q and SARSA process
-        # the complete episode first, and then process the last observation.
-        # We assume Q is zero for the terminal state.
+        # We need to process the reward for entering the terminal
+        # state but Q.learn doesn't do it. Let Q.learn process the
+        # complete episode first, and then process the last
+        # observation. We assume Q is zero for the terminal state.
         super().learn()
-        # This will only work if episodes are processed one by
-        # one, so ensure there's only one sequence in the dataset.
+        # This will only work if episodes are processed one by one,
+        # so ensure there's only one sequence in the dataset.
         assert self.batchMode and self.dataset.getNumSequences() == 1
         seq = next(iter(self.dataset))
         for laststate, lastaction, lastreward in seq:
@@ -368,15 +361,3 @@ class _LearnFromLastMixin(object):
         qvalue = self.module.getValue(laststate, lastaction)
         new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
         self.module.updateValue(laststate, lastaction, new_qvalue)
-
-
-class QLearning(_LearnFromLastMixin, Q_):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
-class SARSA(_LearnFromLastMixin, SARSA_):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
