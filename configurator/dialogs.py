@@ -258,8 +258,8 @@ class Dialog(object):
             raise ValueError("The question has already been answered")
         if var_value not in self.get_possible_answers(var_index):
             raise ValueError("%r is not a valid answer for %d given " +
-                             "the current partial configuration",
-                             var_value, var_index)
+                             "the current partial configuration" %
+                             (var_value, var_index))
         if self.rules:
             prev_config_len = len(self.config)
             self.config[var_index] = var_value
