@@ -297,7 +297,7 @@ class ExactQTable(ActionValueTable):
         self.Q = self.params.reshape(num_states, num_actions)
         self.Q[num_states - 1, :] = 0
 
-    def _transformInput(self, config=None, state=None):
+    def transformInput(self, config=None, state=None):
         # Find the position of the state among all the possible
         # configuration states. This isn't efficient, but the tabular
         # version doesn't work for many variables anyway.
@@ -312,47 +312,63 @@ class ExactQTable(ActionValueTable):
                 return cur_state
 
     def getState(self, config):
-        return self._transformInput(config=config)
+        return self.transformInput(config=config)
 
     def getMaxAction(self, state, config=None):
-        # Get the question that should be asked at the given state.
         if config is None:
-            config = self._transformInput(state=state)
-        invalid_actions = [a in config for a in range(self.numActions)]
-        action = ma.array(self.Q[state, :], mask=invalid_actions).argmax()
+            config = self.transformInput(state=state)
+        invalid_action = [a in config for a in range(self.numActions)]
+        action = ma.array(self.Q[state, :], mask=invalid_action).argmax()
         return action
 
 
-# Based on pybrain.rl.learners.valuebased.ActionValueNetwork.
 class ApproxQTable(Module, ActionValueInterface):
 
     def __init__(self, var_domains):
         self.var_domains = var_domains
-        super().__init__(len(self.var_domains), 1)
         self.numActions = len(self.var_domains)
+        super().__init__(sum(map(len, self.var_domains)), 1)
         self.network = self._buildNetwork()
         log.info("the neural network has %d parameters",
                  len(self.network.params))
 
     def _buildNetwork(self):
         n = FeedForwardNetwork()
-        n.addInputModule(TanhLayer(self.numActions, name="input"))
-        n.addModule(BiasUnit(name="input_bias"))
+        n.addInputModule(TanhLayer(self.indim, name="input"))
         n.addModule(TanhLayer(self.numActions, name="hidden"))
-        n.addModule(BiasUnit(name="hidden_bias"))
         n.addOutputModule(TanhLayer(self.numActions, name="output"))
+        n.addModule(BiasUnit(name="bias"))
         n.addConnection(FullConnection(n["input"], n["hidden"]))
-        n.addConnection(FullConnection(n["input_bias"], n["hidden"]))
+        n.addConnection(FullConnection(n["bias"], n["hidden"]))
         n.addConnection(FullConnection(n["hidden"], n["output"]))
-        n.addConnection(FullConnection(n["hidden_bias"], n["output"]))
+        n.addConnection(FullConnection(n["bias"], n["output"]))
         n.sortModules()  # N(0,1) weight initialization
         return n
 
-    def transformInput(self, config):
-        input_values = -1 * np.ones((self.numActions, ))
-        for var_index in config.keys():
-            input_values[var_index] = 1
-        return input_values
+    def transformInput(self, config=None, state=None):
+        # Encoded using dummy variables with 0 as -1 and 1 as 1.
+        assert config is None or state is None
+        if state is None:
+            state = []
+            for var_index, var_values in enumerate(self.var_domains):
+                input_values = -1 * np.ones((len(var_values), ))
+                if var_index in config:
+                    var_value = config[var_index]
+                    k = var_values.index(var_value)
+                    input_values[k] = 1
+                state.append(input_values)
+            return np.concatenate(state)
+        elif config is None:
+            config = {}
+            i = 0
+            for var_index, var_values in enumerate(self.var_domains):
+                input_values = state[i:i + len(var_values)]
+                k = np.flatnonzero(input_values == 1)
+                assert k.size in {0, 1}
+                if k.size == 1:
+                    config[var_index] = var_values[k]
+                i += len(var_values)
+            return config
 
     def transformOutput(self, Q=None, output=None):
         assert Q is None or output is None
@@ -368,7 +384,7 @@ class ApproxQTable(Module, ActionValueInterface):
         outbuf[0] = self.getMaxAction(inbuf)
 
     def getState(self, config):
-        return self.transformInput(config)
+        return self.transformInput(config=config)
 
     def getActionValues(self, state):
         output_values = self.network.activate(state)
@@ -380,9 +396,11 @@ class ApproxQTable(Module, ActionValueInterface):
         return Q_values[action]
 
     def getMaxAction(self, state, config=None):
+        if config is None:
+            config = self.transformInput(state=state)
+        invalid_action = [a in config for a in range(self.numActions)]
         Q_values = self.getActionValues(state)
-        invalid_actions = [state[a] == 1 for a in range(self.numActions)]
-        action = ma.array(Q_values, mask=invalid_actions).argmax()
+        action = ma.array(Q_values, mask=invalid_action).argmax()
         return action
 
 
@@ -422,15 +440,14 @@ class ApproxQLearning(ValueBasedLearner):
     def _backpropagate(self, Q_target, Q_output, action):
         Q_error = np.zeros((self.module.network.outdim, ))
         Q_error[action] = Q_target - Q_output
-        log.debug("backpropagating a Q error of %g for action %d",
-                  Q_error[action], action)
+        log.debug("backpropagating a Q error of %g", Q_error[action])
         # Transform the Q error values to error values of the
         # neural network and backpropagate the error.
         output_error = self.module.transformOutput(Q=Q_error)
         self.module.network.resetDerivatives()
         self.module.network.backActivate(output_error)
         gradient_descent = GradientDescent()
-        gradient_descent.alpha = 0.1
+        gradient_descent.alpha = 0.01
         gradient_descent.init(self.module.network.params)
         new_params = gradient_descent(self.module.network.derivs)
         self.module.network.params[:] = new_params
