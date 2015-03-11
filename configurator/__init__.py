@@ -18,7 +18,8 @@ def _get_version(version=None):  # overwritten by setup.py
         output = subprocess.check_output(git_args)
         version = output.decode("utf-8").strip()
         if version.rfind("-") >= 0:
-            version = version[:version.rfind("-")]
+            version = version[:version.rfind("-")]  # strip SHA1 hash
+            version = version.replace("-", ".post")  # PEP 440 compatible
     return version
 
 __version__ = _get_version()
