@@ -48,9 +48,10 @@ class TestCSP(object):
         australia.assign_variable(5, "red")
         assert australia.assignment == {5: "red"}
 
-    def _test_consistency(self, csp, consistency):
+    def test_global_consistency(self, australia):
+        csp = australia
         # Using the consistent assignment on page 138.
-        csp.assign_variable(5, "red", consistency)
+        csp.assign_variable(5, "red", "global")
         assert csp.pruned_var_domains[0] == ["red", "green", "blue"]
         assert csp.pruned_var_domains[1] == ["red", "green", "blue"]
         assert csp.pruned_var_domains[2] == ["red", "green", "blue"]
@@ -59,7 +60,7 @@ class TestCSP(object):
         assert csp.pruned_var_domains[5] == ["red"]
         assert csp.pruned_var_domains[6] == ["red", "green", "blue"]
         assert csp.assignment == {5: "red"}
-        csp.assign_variable(0, "red", consistency)
+        csp.assign_variable(0, "red", "global")
         assert csp.pruned_var_domains[0] == ["red"]
         assert csp.pruned_var_domains[1] == ["green", "blue"]
         assert csp.pruned_var_domains[2] == ["red"]
@@ -68,7 +69,7 @@ class TestCSP(object):
         assert csp.pruned_var_domains[5] == ["red"]
         assert csp.pruned_var_domains[6] == ["green", "blue"]
         assert csp.assignment == {0: "red", 2: "red", 4: "red", 5: "red"}
-        csp.assign_variable(1, "green", consistency)
+        csp.assign_variable(1, "green", "global")
         assert csp.pruned_var_domains[0] == ["red"]
         assert csp.pruned_var_domains[1] == ["green"]
         assert csp.pruned_var_domains[2] == ["red"]
@@ -79,12 +80,35 @@ class TestCSP(object):
         assert csp.assignment == {0: "red", 1: "green", 6: "blue", 2: "red",
                                   3: "green", 4: "red", 5: "red"}
 
-    # TODO: Use a different example where enforcing local and global
-    # consistency give different results.
-
-    def test_global_consistency(self, australia):
-        self._test_consistency(australia, "global")
-
     def test_local_consistency(self, australia):
-        assert australia.is_binary
-        self._test_consistency(australia, "local")
+        csp = australia
+        assert csp.is_binary
+        # Using the consistent assignment on page 138.
+        csp.assign_variable(5, "red", "local")
+        assert csp.pruned_var_domains[0] == ["red", "green", "blue"]
+        assert csp.pruned_var_domains[1] == ["red", "green", "blue"]
+        assert csp.pruned_var_domains[2] == ["red", "green", "blue"]
+        assert csp.pruned_var_domains[3] == ["red", "green", "blue"]
+        assert csp.pruned_var_domains[4] == ["red", "green", "blue"]
+        assert csp.pruned_var_domains[5] == ["red"]
+        assert csp.pruned_var_domains[6] == ["red", "green", "blue"]
+        assert csp.assignment == {5: "red"}
+        csp.assign_variable(0, "red", "local")
+        assert csp.pruned_var_domains[0] == ["red"]
+        assert csp.pruned_var_domains[1] == ["green", "blue"]
+        assert csp.pruned_var_domains[2] == ["red", "green", "blue"]
+        assert csp.pruned_var_domains[3] == ["red", "green", "blue"]
+        assert csp.pruned_var_domains[4] == ["red", "green", "blue"]
+        assert csp.pruned_var_domains[5] == ["red"]
+        assert csp.pruned_var_domains[6] == ["green", "blue"]
+        assert csp.assignment == {0: "red", 5: "red"}
+        csp.assign_variable(1, "green", "local")
+        assert csp.pruned_var_domains[0] == ["red"]
+        assert csp.pruned_var_domains[1] == ["green"]
+        assert csp.pruned_var_domains[2] == ["red"]
+        assert csp.pruned_var_domains[3] == ["green"]
+        assert csp.pruned_var_domains[4] == ["red"]
+        assert csp.pruned_var_domains[5] == ["red"]
+        assert csp.pruned_var_domains[6] == ["blue"]
+        assert csp.assignment == {0: "red", 1: "green", 6: "blue", 2: "red",
+                                  3: "green", 4: "red", 5: "red"}
