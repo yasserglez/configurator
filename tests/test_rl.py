@@ -42,8 +42,8 @@ class TestCSPRLDialogBuilder(BaseTestRLDialogBuilder):
         return RLDialogBuilder(var_domains=email_client.var_domains,
                                constraints=email_client.constraints,
                                sample=email_client.sample,
-                               rl_table=table,
                                rl_consistency=consistency,
+                               rl_table=table,
                                rl_num_episodes=50,
                                validate=True)
 

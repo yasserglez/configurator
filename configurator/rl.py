@@ -36,15 +36,15 @@ class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
 
     Arguments:
-        rl_table: Representation of the action-value table. Possible
-            values are `'exact'` (explicit representation of all the
-            configuration states) and `'approximate'` (approximate
-            representation using a neural network).
         rl_consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the RL episodes. Possible values are: `'global'` and
             `'local'` (only implemented for binary constraints). This
             argument is ignored for rule-based dialogs.
+        rl_table: Representation of the action-value table. Possible
+            values are `'exact'` (explicit representation of all the
+            configuration states) and `'approximate'` (approximate
+            representation using a neural network).
         rl_learning_rate: Q-learning learning rate.
         rl_epsilon: Epsilon value for the epsilon-greedy exploration.
         rl_num_episodes: Number of simulated episodes.
@@ -54,21 +54,21 @@ class RLDialogBuilder(DialogBuilder):
     """
 
     def __init__(self, var_domains, rules=None, constraints=None, sample=None,
-                 rl_table="approximate",
                  rl_consistency="local",
+                 rl_table="approximate",
                  rl_learning_rate=0.3,
                  rl_epsilon=0.1,
                  rl_num_episodes=1000,
                  validate=False):
         super().__init__(var_domains, rules, constraints, sample, validate)
-        if rl_table in {"exact", "approximate"}:
-            self._rl_table = rl_table
-        else:
-            raise ValueError("Invalid rl_table value")
         if rl_consistency in {"global", "local"}:
             self._rl_consistency = rl_consistency
         else:
             raise ValueError("Invalid rl_consistency value")
+        if rl_table in {"exact", "approximate"}:
+            self._rl_table = rl_table
+        else:
+            raise ValueError("Invalid rl_table value")
         self._rl_learning_rate = rl_learning_rate
         self._rl_epsilon = rl_epsilon
         self._rl_num_episodes = rl_num_episodes
@@ -438,16 +438,18 @@ class ApproxQLearning(ValueBasedLearner):
         self.alpha = rl_learning_rate
 
     def _backpropagate(self, Q_target, Q_output, action):
-        Q_error = np.zeros((self.module.network.outdim, ))
-        Q_error[action] = Q_target - Q_output
-        log.debug("backpropagating a Q error of %g", Q_error[action])
-        # Transform the Q error values to error values of the
-        # neural network and backpropagate the error.
-        output_error = self.module.transformOutput(Q=Q_error)
+        log.debug("backpropagating Q squared-error loss of %g",
+                  (Q_target - Q_output) ** 2)
+        # Transform the Q values to the output of the neural network,
+        # backpropagate the error, and update the network parameters
+        # using gradient descent.
+        output_error = np.zeros((self.module.network.outdim, ))
+        output_error[action] = (self.module.transformOutput(Q=Q_target) -
+                                self.module.transformOutput(Q=Q_output)) ** 2
         self.module.network.resetDerivatives()
         self.module.network.backActivate(output_error)
         gradient_descent = GradientDescent()
-        gradient_descent.alpha = 0.01
+        gradient_descent.alpha = 0.1
         gradient_descent.init(self.module.network.params)
         new_params = gradient_descent(self.module.network.derivs)
         self.module.network.params[:] = new_params
