@@ -84,7 +84,9 @@ class CSP(object):
                 if not self.is_binary:
                     raise ValueError("Local consistency only " +
                                      "implemented for binary CSPs")
-                self.enforce_local_consistency()
+                log.debug("enforcing local consistency")
+                _arc_consistency_3(self.pruned_var_domains,
+                                   self._constraints_index)
             # If the domain of a variable was reduced to a single
             # value, set it back in the assignment.
             for var_index, var_values in enumerate(self.pruned_var_domains):
@@ -118,38 +120,6 @@ class CSP(object):
                     self.pruned_var_domains[var_index] = consistent_values
                     _arc_consistency_3(self.pruned_var_domains,
                                        self._constraints_index)
-
-    def enforce_local_consistency(self):
-        # Singleton arc consistency. Based on Figure 2 of Romuald
-        # Debruyne and Christian Bessiere (1997). Some practicable
-        # filtering techniques for the constraint satisfaction
-        # problem, IJCAI'97, 412-417.
-        log.debug("enforcing local consistency")
-        _arc_consistency_3(self.pruned_var_domains,
-                           self._constraints_index)
-        changed = True
-        while changed:
-            changed = False
-            for var_index in range(len(self.var_domains)):
-                if len(self.pruned_var_domains[var_index]) > 1:
-                    consistent_values = []
-                    for var_value in self.pruned_var_domains[var_index]:
-                        tmp_var_domains = self.pruned_var_domains.copy()
-                        tmp_var_domains[var_index] = [var_value]
-                        if _arc_consistency_3(tmp_var_domains,
-                                              self._constraints_index):
-                            consistent_values.append(var_value)
-                    if (len(consistent_values) <
-                            len(self.pruned_var_domains[var_index])):
-                        self.pruned_var_domains[var_index] = consistent_values
-                        # Ensuring arc consistency after all values
-                        # are checked (instead of doing it when an
-                        # inconsistent value is detected) in order to
-                        # avoid changing self.pruned_var_domains[var_index]
-                        # while it's being iterated.
-                        _arc_consistency_3(self.pruned_var_domains,
-                                           self._constraints_index)
-                        changed = True
 
 
 # Backtracking search maintaining arc consistency (using AC-3), with
