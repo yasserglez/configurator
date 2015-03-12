@@ -53,6 +53,8 @@ class FrequencyTable(object):
         for var_index, var_value in x.items():
             var_filter = self.sample[:, var_index] == var_value
             cumul_filter = np.logical_and(cumul_filter, var_filter)
+            if not cumul_filter.any():
+                break  # all zero, no need to continue
         freq = cumul_filter.sum()
         # Store in the cache (if enabled) and return.
         if self.cache_size > 0:

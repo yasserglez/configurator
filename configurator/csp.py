@@ -188,7 +188,7 @@ def _remove_inconsistent_values(var_domains, arc, constraints_index):
 def _arc_consistency_3(var_domains, constraints_index):
     # The arc-consistency algorithm AC3.
     all_arcs = set()
-    for var_indices, constraint_fun in constraints_index.values():
+    for var_indices in constraints_index.keys():
         # Non-binary constraints are ignored.
         if len(var_indices) == 2:
             xi, xj = var_indices

@@ -8,7 +8,6 @@ from operator import mul
 
 import numpy as np
 import numpy.ma as ma
-from scipy import stats
 from pybrain.auxiliary import GradientDescent
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.environments.environment import Environment
@@ -168,8 +167,9 @@ class DialogEnvironment(Environment):
         self.dialog.reset()
 
     def getSensors(self):
-        log.debug("current configuration in the environment:\n%s",
-                  pprint.pformat(self.dialog.config))
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("current configuration in the environment:\n%s",
+                      pprint.pformat(self.dialog.config))
         return self.dialog.config
 
     def performAction(self, action):
@@ -177,18 +177,18 @@ class DialogEnvironment(Environment):
         var_index = int(action)
         var_values = self.dialog.get_possible_answers(var_index)
         # Simulate the user response.
-        values = ([], [])
+        probs = np.empty_like(var_values, dtype=np.float)
         for i, var_value in enumerate(var_values):
             response = {var_index: var_value}
-            prob = self._freq_table.cond_prob(response, self.dialog.config)
-            if prob > 0:
-                values[0].append(i)
-                values[1].append(prob)
-        var_value = var_values[stats.rv_discrete(values=values).rvs()]
+            probs[i] = self._freq_table.cond_prob(response, self.dialog.config)
+        sample = np.random.random((1, ))
+        bins = np.cumsum(probs / probs.sum())
+        var_value = var_values[int(np.digitize(sample, bins))]
         log.debug("simulated user response %r", var_value)
         self.dialog.set_answer(var_index, var_value, self._consistency)
-        log.debug("new configuration in the environment:\n%s",
-                  pprint.pformat(self.dialog.config))
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("new configuration in the environment:\n%s",
+                      pprint.pformat(self.dialog.config))
         log.debug("finished performing action %d in the environment", action)
 
 
