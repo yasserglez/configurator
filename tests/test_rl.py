@@ -16,30 +16,20 @@ class BaseTestRLDialogBuilder(object):
 
 class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
 
-    def _create_builder(self, algorithm, table, email_client):
+    def _create_builder(self, table, email_client):
         return RLDialogBuilder(var_domains=email_client.var_domains,
                                rules=email_client.rules,
                                sample=email_client.sample,
-                               rl_algorithm=algorithm,
                                rl_table=table,
                                rl_num_episodes=50,
                                validate=True)
 
-    def test_qlearning_exact(self, email_client):
-        builder = self._create_builder("q-learning", "exact", email_client)
+    def test_exact(self, email_client):
+        builder = self._create_builder("exact", email_client)
         self._test_builder(builder, email_client)
 
-    def test_sarsa_exact(self, email_client):
-        builder = self._create_builder("sarsa", "exact", email_client)
-        self._test_builder(builder, email_client)
-
-    def test_qlearning_approximate(self, email_client):
-        builder = self._create_builder("q-learning", "approximate",
-                                       email_client)
-        self._test_builder(builder, email_client)
-
-    def test_sarsa_approximate(self, email_client):
-        builder = self._create_builder("sarsa", "approximate", email_client)
+    def test_approximate(self, email_client):
+        builder = self._create_builder("approximate", email_client)
         self._test_builder(builder, email_client)
 
 
@@ -48,52 +38,27 @@ class TestCSPRLDialogBuilder(BaseTestRLDialogBuilder):
     # TODO: Use a different example where enforcing local and global
     # consistency give different results.
 
-    def _create_builder(self, algorithm, table, consistency, email_client):
+    def _create_builder(self, table, consistency, email_client):
         return RLDialogBuilder(var_domains=email_client.var_domains,
                                constraints=email_client.constraints,
                                sample=email_client.sample,
-                               rl_algorithm=algorithm,
                                rl_table=table,
                                rl_consistency=consistency,
                                rl_num_episodes=50,
                                validate=True)
 
-    def test_qlearning_exact_global(self, email_client):
-        builder = self._create_builder("q-learning", "exact",
-                                       "global", email_client)
+    def test_exact_global(self, email_client):
+        builder = self._create_builder("exact", "global", email_client)
         self._test_builder(builder, email_client)
 
-    def test_sarsa_exact_global(self, email_client):
-        builder = self._create_builder("sarsa", "exact", "global",
-                                       email_client)
+    def test_approximate_global(self, email_client):
+        builder = self._create_builder("approximate", "global", email_client)
         self._test_builder(builder, email_client)
 
-    def test_qlearning_approximate_global(self, email_client):
-        builder = self._create_builder("q-learning", "approximate",
-                                       "global", email_client)
+    def test_exact_local(self, email_client):
+        builder = self._create_builder("exact", "local", email_client)
         self._test_builder(builder, email_client)
 
-    def test_sarsa_approximate_global(self, email_client):
-        builder = self._create_builder("sarsa", "approximate",
-                                       "global", email_client)
-        self._test_builder(builder, email_client)
-
-    def test_qlearning_exact_local(self, email_client):
-        builder = self._create_builder("q-learning", "exact", "local",
-                                       email_client)
-        self._test_builder(builder, email_client)
-
-    def test_sarsa_exact_local(self, email_client):
-        builder = self._create_builder("sarsa", "exact", "local",
-                                       email_client)
-        self._test_builder(builder, email_client)
-
-    def test_qlearning_approximate_local(self, email_client):
-        builder = self._create_builder("q-learning", "approximate",
-                                       "local", email_client)
-        self._test_builder(builder, email_client)
-
-    def test_sarsa_approximate_local(self, email_client):
-        builder = self._create_builder("sarsa", "approximate",
-                                       "local", email_client)
+    def test_approximate_local(self, email_client):
+        builder = self._create_builder("approximate", "local", email_client)
         self._test_builder(builder, email_client)
