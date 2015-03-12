@@ -69,10 +69,12 @@ class CSP(object):
             raise ValueError("The variable is already assigned")
         if var_value not in self.pruned_var_domains[var_index]:
             raise ValueError("Invalid assignment in the current state")
-        log.debug("assigning variable %d to %r", var_index, var_value)
-        log.debug("initial assignment:\n%s", pprint.pformat(self.assignment))
-        log.debug("initial domains:\n%s",
-                  pprint.pformat(self.pruned_var_domains))
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("assigning variable %d to %r", var_index, var_value)
+            log.debug("initial assignment:\n%s",
+                      pprint.pformat(self.assignment))
+            log.debug("initial domains:\n%s",
+                      pprint.pformat(self.pruned_var_domains))
         self.assignment[var_index] = var_value
         self.pruned_var_domains[var_index] = [var_value]
         if len(self.assignment) < len(self.var_domains):
@@ -90,9 +92,11 @@ class CSP(object):
                 if len(var_values) == 1 and var_index not in self.assignment:
                     var_value = self.pruned_var_domains[var_index][0]
                     self.assignment[var_index] = var_value
-        log.debug("final assignment:\n%s", pprint.pformat(self.assignment))
-        log.debug("final domains:\n%s",
-                  pprint.pformat(self.pruned_var_domains))
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("final assignment:\n%s",
+                      pprint.pformat(self.assignment))
+            log.debug("final domains:\n%s",
+                      pprint.pformat(self.pruned_var_domains))
 
     def enforce_global_consistency(self):
         # Check that all possible answers to the remaining questions
