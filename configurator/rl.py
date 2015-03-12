@@ -36,7 +36,7 @@ class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
 
     Arguments:
-        rl_consistency: Type of consistency check used to filter the
+        consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the RL episodes. Possible values are: `'global'` and
             `'local'` (only implemented for binary constraints). This
@@ -45,6 +45,10 @@ class RLDialogBuilder(DialogBuilder):
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approximate'` (approximate
             representation using a neural network).
+        rl_backprop_step_size: Gradient descent step size used to
+            update the parameters of the neural network approximating
+            the action-value table (only relevant if `rl_table` is
+            `'approximate'`).
         rl_learning_rate: Q-learning learning rate.
         rl_epsilon: Epsilon value for the epsilon-greedy exploration.
         rl_num_episodes: Number of simulated episodes.
@@ -54,21 +58,23 @@ class RLDialogBuilder(DialogBuilder):
     """
 
     def __init__(self, var_domains, rules=None, constraints=None, sample=None,
-                 rl_consistency="local",
+                 consistency="local",
                  rl_table="approximate",
+                 rl_backprop_step_size=0.1,
                  rl_learning_rate=0.3,
                  rl_epsilon=0.1,
                  rl_num_episodes=1000,
                  validate=False):
         super().__init__(var_domains, rules, constraints, sample, validate)
-        if rl_consistency in {"global", "local"}:
-            self._rl_consistency = rl_consistency
+        if consistency in {"global", "local"}:
+            self._consistency = consistency
         else:
-            raise ValueError("Invalid rl_consistency value")
+            raise ValueError("Invalid consistency value")
         if rl_table in {"exact", "approximate"}:
             self._rl_table = rl_table
         else:
             raise ValueError("Invalid rl_table value")
+        self._rl_backprop_step_size = rl_backprop_step_size
         self._rl_learning_rate = rl_learning_rate
         self._rl_epsilon = rl_epsilon
         self._rl_num_episodes = rl_num_episodes
@@ -80,14 +86,15 @@ class RLDialogBuilder(DialogBuilder):
             An instance of a `configurator.dialogs.Dialog` subclass.
         """
         dialog = Dialog(self.var_domains, self.rules, self.constraints)
-        env = DialogEnvironment(dialog, self._rl_consistency, self._freq_table)
+        env = DialogEnvironment(dialog, self._consistency, self._freq_table)
         task = DialogTask(env)
         if self._rl_table == "exact":
-            learner = ExactQLearning(self._rl_learning_rate)
             table = ExactQTable(self.var_domains)
+            learner = ExactQLearning(self._rl_learning_rate)
         elif self._rl_table == "approximate":
-            learner = ApproxQLearning(self._rl_learning_rate)
             table = ApproxQTable(self.var_domains)
+            learner = ApproxQLearning(self._rl_learning_rate,
+                                      self._rl_backprop_step_size)
         agent = DialogAgent(table, learner, self._rl_epsilon)
         exp = EpisodicExperiment(task, agent)
         log.info("running the RL algorithm")
@@ -433,9 +440,10 @@ class ExactQLearning(Q):
 # Operations Research, Volume 35, Issue 6, June 2008, Pages 1999-2017.
 class ApproxQLearning(ValueBasedLearner):
 
-    def __init__(self, rl_learning_rate):
+    def __init__(self, rl_learning_rate, rl_backprop_step_size):
         super().__init__()
-        self.alpha = rl_learning_rate
+        self._rl_learning_rate = rl_learning_rate
+        self._rl_backprop_step_size = rl_backprop_step_size
 
     def _backpropagate(self, Q_target, Q_output, action):
         log.debug("backpropagating Q squared-error loss of %g",
@@ -449,7 +457,7 @@ class ApproxQLearning(ValueBasedLearner):
         self.module.network.resetDerivatives()
         self.module.network.backActivate(output_error)
         gradient_descent = GradientDescent()
-        gradient_descent.alpha = 0.1
+        gradient_descent.alpha = self._rl_backprop_step_size
         gradient_descent.init(self.module.network.params)
         new_params = gradient_descent(self.module.network.derivs)
         self.module.network.params[:] = new_params
@@ -468,8 +476,8 @@ class ApproxQLearning(ValueBasedLearner):
             # Calculate the error in the Q values.
             Q_output = self.module.getValue(laststate, lastaction)
             max_Q = self.module.getValue(state, self.module.getMaxAction(state))
-            Q_target = ((1 - self.alpha) * Q_output +
-                        self.alpha * (lastreward + max_Q))
+            Q_target = ((1 - self._rl_learning_rate) * Q_output +
+                        self._rl_learning_rate * (lastreward + max_Q))
             self._backpropagate(Q_target, Q_output, lastaction)
             # Update experience for the next iteration.
             laststate = state
@@ -478,5 +486,5 @@ class ApproxQLearning(ValueBasedLearner):
         # Process the reward for entering the terminal state.
         # We assume Q is zero for the terminal state.
         Q_output = self.module.getValue(laststate, lastaction)
-        Q_target = Q_output + self.alpha * (lastreward - Q_output)
+        Q_target = Q_output + self._rl_learning_rate * (lastreward - Q_output)
         self._backpropagate(Q_target, Q_output, lastaction)
