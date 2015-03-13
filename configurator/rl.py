@@ -449,40 +449,28 @@ class ApproxQLearning(ValueBasedLearner):
         self._rl_learning_rate = rl_learning_rate
         self._rl_backprop_step_size = rl_backprop_step_size
 
-    def _backpropagate(self, Q_target, Q_output, action):
-        log.debug("backpropagating Q squared-error loss of %g",
-                  (Q_target - Q_output) ** 2)
-        # Transform the Q values to the output of the neural network,
-        # backpropagate the error, and update the network parameters
-        # using gradient descent.
-        output_error = np.zeros((self.module.network.outdim, ))
-        output_error[action] = (self.module.transformOutput(Q=Q_target) -
-                                self.module.transformOutput(Q=Q_output)) ** 2
-        self.module.network.resetDerivatives()
-        self.module.network.backActivate(output_error)
-        gradient_descent = GradientDescent()
-        gradient_descent.alpha = self._rl_backprop_step_size
-        gradient_descent.init(self.module.network.params)
-        new_params = gradient_descent(self.module.network.derivs)
-        self.module.network.params[:] = new_params
-
     def learn(self):
         # Assume episodes are processed one by one.
         assert self.batchMode and self.dataset.getNumSequences() == 1
+        avg_error = np.zeros((self.module.network.outdim, ))
         laststate = None
-        seq = next(iter(self.dataset))
-        for state, action, reward in seq:
+        experience = list(next(iter(self.dataset)))
+        for state, action, reward in experience:
             if laststate is None:
                 laststate = state
                 lastaction = int(action)
                 lastreward = reward
                 continue
-            # Calculate the error in the Q values.
+            # Calculate the error in the Q values, scale it back to
+            # the network's output and update the average error.
             Q_output = self.module.getValue(laststate, lastaction)
-            max_Q = self.module.getValue(state, self.module.getMaxAction(state))
+            max_a = self.module.getMaxAction(state)
+            max_Q = self.module.getValue(state, max_a)
             Q_target = ((1 - self._rl_learning_rate) * Q_output +
                         self._rl_learning_rate * (lastreward + max_Q))
-            self._backpropagate(Q_target, Q_output, lastaction)
+            avg_error[lastaction] += \
+                0.5 * (self.module.transformOutput(Q=Q_target) -
+                       self.module.transformOutput(Q=Q_output)) ** 2
             # Update experience for the next iteration.
             laststate = state
             lastaction = int(action)
@@ -491,4 +479,18 @@ class ApproxQLearning(ValueBasedLearner):
         # We assume Q is zero for the terminal state.
         Q_output = self.module.getValue(laststate, lastaction)
         Q_target = Q_output + self._rl_learning_rate * (lastreward - Q_output)
-        self._backpropagate(Q_target, Q_output, lastaction)
+        avg_error[lastaction] += \
+            0.5 * (self.module.transformOutput(Q=Q_target) -
+                   self.module.transformOutput(Q=Q_output)) ** 2
+        avg_error /= len(experience)
+        self._backprop(avg_error)
+
+    def _backprop(self, avg_error):
+        log.debug("average prdiction error:\n%s", avg_error)
+        self.module.network.resetDerivatives()
+        self.module.network.backActivate(avg_error)
+        gradient_descent = GradientDescent()
+        gradient_descent.alpha = self._rl_backprop_step_size
+        gradient_descent.init(self.module.network.params)
+        new_params = gradient_descent(self.module.network.derivs)
+        self.module.network.params[:] = new_params
