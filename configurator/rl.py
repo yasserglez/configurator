@@ -50,7 +50,9 @@ class RLDialogBuilder(DialogBuilder):
             the action-value table (only relevant if `rl_table` is
             `'approximate'`).
         rl_learning_rate: Q-learning learning rate.
-        rl_epsilon: Epsilon value for the epsilon-greedy exploration.
+        rl_initial_epsilon: Initial epsilon value for the
+            epsilon-greedy exploration. The value decays linearly with
+            the number of simulated episodes.
         rl_num_episodes: Number of simulated episodes.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
@@ -62,7 +64,7 @@ class RLDialogBuilder(DialogBuilder):
                  rl_table="approximate",
                  rl_backprop_step_size=0.1,
                  rl_learning_rate=0.3,
-                 rl_epsilon=0.1,
+                 rl_initial_epsilon=0.5,
                  rl_num_episodes=1000,
                  validate=False):
         super().__init__(var_domains, rules, constraints, sample, validate)
@@ -76,7 +78,7 @@ class RLDialogBuilder(DialogBuilder):
             raise ValueError("Invalid rl_table value")
         self._rl_backprop_step_size = rl_backprop_step_size
         self._rl_learning_rate = rl_learning_rate
-        self._rl_epsilon = rl_epsilon
+        self._rl_initial_epsilon = rl_initial_epsilon
         self._rl_num_episodes = rl_num_episodes
 
     def build_dialog(self):
@@ -95,16 +97,20 @@ class RLDialogBuilder(DialogBuilder):
             table = ApproxQTable(self.var_domains)
             learner = ApproxQLearning(self._rl_learning_rate,
                                       self._rl_backprop_step_size)
-        agent = DialogAgent(table, learner, self._rl_epsilon)
+        agent = DialogAgent(table, learner, self._rl_initial_epsilon)
         exp = EpisodicExperiment(task, agent)
         log.info("running the RL algorithm")
         complete_episodes = 0
         for curr_episode in range(self._rl_num_episodes):
+            log.info("epsilon value is %g", agent.epsilon)
             exp.doEpisodes(number=1)
             if env.dialog.is_complete():
                 complete_episodes += 1
                 agent.learn(episodes=1)
             agent.reset()
+            agent.epsilon = (self._rl_initial_epsilon *
+                             (self._rl_num_episodes - curr_episode - 1) /
+                             self._rl_num_episodes)
         log.info("simulated %d episodes", self._rl_num_episodes)
         log.info("learned from %d episodes", complete_episodes)
         log.info("finished running the RL algorithm")
@@ -253,7 +259,7 @@ class DialogAgent(LearningAgent):
 
     def __init__(self, table, learner, epsilon):
         super().__init__(table, learner)  # self.module = table
-        self._epsilon = epsilon
+        self.epsilon = epsilon
 
     def newEpisode(self):
         log.debug("new episode in the agent")
@@ -274,7 +280,7 @@ class DialogAgent(LearningAgent):
         # (i.e. a question that hasn't been answered).
         action = self.module.getMaxAction(self.laststate, self.lastconfig)
         log.debug("the greedy action is %d", action)
-        if np.random.uniform() < self._epsilon:
+        if np.random.uniform() < self.epsilon:
             valid_actions = [a for a in range(self.module.numActions)
                              if a not in self.lastconfig]
             action = np.random.choice(valid_actions)
@@ -485,10 +491,10 @@ class ApproxQLearning(ValueBasedLearner):
         avg_error /= len(experience)
         self._backprop(avg_error)
 
-    def _backprop(self, avg_error):
-        log.debug("average prdiction error:\n%s", avg_error)
+    def _backprop(self, output_error):
+        log.info("neural network error:\n%s", output_error)
         self.module.network.resetDerivatives()
-        self.module.network.backActivate(avg_error)
+        self.module.network.backActivate(output_error)
         gradient_descent = GradientDescent()
         gradient_descent.alpha = self._rl_backprop_step_size
         gradient_descent.init(self.module.network.params)
