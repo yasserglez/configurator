@@ -18,8 +18,9 @@ from pybrain.rl.learners.valuebased import ActionValueTable
 from pybrain.rl.learners.valuebased.interface import ActionValueInterface
 from pybrain.rl.learners.valuebased.valuebased import ValueBasedLearner
 from pybrain.structure.modules import Module
-from pybrain.structure import (FeedForwardNetwork, TanhLayer,
-                               BiasUnit, FullConnection)
+from pybrain.structure import (FeedForwardNetwork, FullConnection,
+                               BiasUnit, LinearLayer, SigmoidLayer)
+
 
 from .dialogs import Dialog, DialogBuilder
 from .util import iter_config_states
@@ -341,9 +342,9 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def _buildNetwork(self):
         n = FeedForwardNetwork()
-        n.addInputModule(TanhLayer(self.indim, name="input"))
-        n.addModule(TanhLayer(self.numActions, name="hidden"))
-        n.addOutputModule(TanhLayer(self.numActions, name="output"))
+        n.addInputModule(LinearLayer(self.indim, name="input"))
+        n.addModule(SigmoidLayer(self.numActions, name="hidden"))
+        n.addOutputModule(SigmoidLayer(self.numActions, name="output"))
         n.addModule(BiasUnit(name="bias"))
         n.addConnection(FullConnection(n["input"], n["hidden"]))
         n.addConnection(FullConnection(n["bias"], n["hidden"]))
@@ -353,16 +354,19 @@ class ApproxQTable(Module, ActionValueInterface):
         return n
 
     def transformInput(self, config=None, state=None):
-        # Encoded using dummy variables with 0 as -1 and 1 as 1.
+        # Variables are represented using the 1-of-C encoding with -1
+        # for unset values and 1 for the set value. If a variable is
+        # not set, all the values are 0.
         assert config is None or state is None
         if state is None:
             state = []
             for var_index, var_values in enumerate(self.var_domains):
-                input_values = -1 * np.ones((len(var_values), ))
                 if var_index in config:
-                    var_value = config[var_index]
-                    k = var_values.index(var_value)
+                    input_values = -1 * np.ones((len(var_values), ))
+                    k = var_values.index(config[var_index])
                     input_values[k] = 1
+                else:
+                    input_values = np.zeros((len(var_values), ))
                 state.append(input_values)
             return np.concatenate(state)
         elif config is None:
@@ -381,10 +385,10 @@ class ApproxQTable(Module, ActionValueInterface):
         assert Q is None or output is None
         Q_max = self.numActions - 1
         if Q is None:
-            Q_values = Q_max * (output + 1) / 2
+            Q_values = output * Q_max
             return Q_values
         else:
-            output_values = 2 * (Q / Q_max) - 1
+            output_values = Q / Q_max
             return output_values
 
     def _forwardImplementation(self, inbuf, outbuf):
