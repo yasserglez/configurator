@@ -136,7 +136,7 @@ class RLDialog(Dialog):
         super().__init__(var_domains, rules, constraints, validate)
 
     def get_next_question(self):
-        state = self._table.getState(self.config)
+        state = self._table.transformInput(config=self.config)
         action = self._table.getMaxAction(state, self.config)
         return action
 
@@ -271,7 +271,7 @@ class DialogAgent(LearningAgent):
 
     def integrateObservation(self, config):  # Step 1
         self.lastconfig = config
-        self.laststate = self.module.getState(config)
+        self.laststate = self.module.transformInput(config=config)
 
     def getAction(self):  # Step 2
         log.debug("getting an action from the agent")
@@ -309,7 +309,6 @@ class ExactQTable(ActionValueTable):
         super().__init__(num_states, num_actions)
         self.initialize(0)
         self.Q = self.params.reshape(num_states, num_actions)
-        self.Q[num_states - 1, :] = 0
 
     def transformInput(self, config=None, state=None):
         # Find the position of the state among all the possible
@@ -324,9 +323,6 @@ class ExactQTable(ActionValueTable):
                 return cur_config
             elif config_key == hash(frozenset(cur_config.items())):
                 return cur_state
-
-    def getState(self, config):
-        return self.transformInput(config=config)
 
     def getMaxAction(self, state, config=None):
         if config is None:
@@ -399,9 +395,6 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def _forwardImplementation(self, inbuf, outbuf):
         outbuf[0] = self.getMaxAction(inbuf)
-
-    def getState(self, config):
-        return self.transformInput(config=config)
 
     def getActionValues(self, state):
         output_values = self.network.activate(state)
