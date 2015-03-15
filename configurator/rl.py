@@ -8,7 +8,8 @@ from operator import mul
 
 import numpy as np
 import numpy.ma as ma
-from pybrain.auxiliary import GradientDescent
+from pybrain.datasets import SupervisedDataSet
+from pybrain.supervised.trainers.rprop import RPropMinusTrainer
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
@@ -19,7 +20,7 @@ from pybrain.rl.learners.valuebased.interface import ActionValueInterface
 from pybrain.rl.learners.valuebased.valuebased import ValueBasedLearner
 from pybrain.structure.modules import Module
 from pybrain.structure import (FeedForwardNetwork, FullConnection,
-                               BiasUnit, LinearLayer, SigmoidLayer)
+                               BiasUnit, LinearLayer, TanhLayer)
 
 
 from .dialogs import Dialog, DialogBuilder
@@ -36,6 +37,7 @@ class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
 
     Arguments:
+
         consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the RL episodes. Possible values are: `'global'` and
@@ -45,10 +47,6 @@ class RLDialogBuilder(DialogBuilder):
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approximate'` (approximate
             representation using a neural network).
-        rl_backprop_step_size: Gradient descent step size used to
-            update the parameters of the neural network approximating
-            the action-value table (only relevant if `rl_table` is
-            `'approximate'`).
         rl_learning_rate: Q-learning learning rate.
         rl_initial_epsilon: Initial epsilon value for the
             epsilon-greedy exploration. The value decays linearly with
@@ -62,7 +60,6 @@ class RLDialogBuilder(DialogBuilder):
     def __init__(self, var_domains, sample, rules=None, constraints=None,
                  consistency="local",
                  rl_table="approximate",
-                 rl_backprop_step_size=0.1,
                  rl_learning_rate=0.3,
                  rl_initial_epsilon=0.5,
                  rl_num_episodes=1000,
@@ -76,7 +73,6 @@ class RLDialogBuilder(DialogBuilder):
             self._rl_table = rl_table
         else:
             raise ValueError("Invalid rl_table value")
-        self._rl_backprop_step_size = rl_backprop_step_size
         self._rl_learning_rate = rl_learning_rate
         self._rl_initial_epsilon = rl_initial_epsilon
         self._rl_num_episodes = rl_num_episodes
@@ -95,8 +91,7 @@ class RLDialogBuilder(DialogBuilder):
             learner = ExactQLearning(self._rl_learning_rate)
         elif self._rl_table == "approximate":
             table = ApproxQTable(self.var_domains)
-            learner = ApproxQLearning(self._rl_learning_rate,
-                                      self._rl_backprop_step_size)
+            learner = ApproxQLearning()
         agent = DialogAgent(table, learner, self._rl_initial_epsilon)
         exp = EpisodicExperiment(task, agent)
         log.info("running the RL algorithm")
@@ -336,65 +331,54 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def __init__(self, var_domains):
         self.var_domains = var_domains
+        super().__init__(len(self.var_domains), 1)
         self.numActions = len(self.var_domains)
-        super().__init__(sum(map(len, self.var_domains)), 1)
         self.network = self._buildNetwork()
-        log.info("the neural network has %d parameters",
+        log.info("the neural network has %d weights",
                  len(self.network.params))
 
     def _buildNetwork(self):
-        n = FeedForwardNetwork()
-        n.addInputModule(LinearLayer(self.indim, name="input"))
-        n.addModule(SigmoidLayer(self.numActions, name="hidden"))
-        n.addOutputModule(SigmoidLayer(self.numActions, name="output"))
-        n.addModule(BiasUnit(name="bias"))
-        n.addConnection(FullConnection(n["input"], n["hidden"]))
-        n.addConnection(FullConnection(n["bias"], n["hidden"]))
-        n.addConnection(FullConnection(n["hidden"], n["output"]))
-        n.addConnection(FullConnection(n["bias"], n["output"]))
-        n.sortModules()  # N(0,1) weight initialization
-        return n
+        net = FeedForwardNetwork()
+        net.addInputModule(LinearLayer(self.indim, name="input"))
+        net.addModule(TanhLayer(len(self.var_domains), name="hidden"))
+        net.addOutputModule(TanhLayer(self.numActions, name="output"))
+        net.addModule(BiasUnit(name="bias"))
+        net.addConnection(FullConnection(net["input"], net["hidden"]))
+        net.addConnection(FullConnection(net["bias"], net["hidden"]))
+        net.addConnection(FullConnection(net["hidden"], net["output"]))
+        net.addConnection(FullConnection(net["bias"], net["output"]))
+        net.sortModules()
+        return net
 
     def transformInput(self, config=None, state=None):
-        # Variables are represented using the 1-of-C encoding with -1
-        # for unset values and 1 for the set value. If a variable is
-        # not set, all the values are 0.
+        # The state is represented as a vector with a binary value
+        # (encoded as -1 for 0 and 1 for 1) for each variable
+        # indicating whether the variable has been set or not.
         assert config is None or state is None
         if state is None:
-            state = []
-            for var_index, var_values in enumerate(self.var_domains):
-                if var_index in config:
-                    input_values = -1 * np.ones((len(var_values), ))
-                    k = var_values.index(config[var_index])
-                    input_values[k] = 1
-                else:
-                    input_values = np.zeros((len(var_values), ))
-                state.append(input_values)
-            return np.concatenate(state)
-        elif config is None:
+            input_values = -1 * np.ones((len(self.var_domains), ))
+            for var_index in config:
+                input_values[var_index] = 1
+            return input_values
+        else:
             config = {}
-            i = 0
-            for var_index, var_values in enumerate(self.var_domains):
-                input_values = state[i:i + len(var_values)]
-                k = np.flatnonzero(input_values == 1)
-                assert k.size in {0, 1}
-                if k.size == 1:
-                    config[var_index] = var_values[k]
-                i += len(var_values)
+            for var_index in range(len(self.var_domains)):
+                if state[var_index] == 1:
+                    # Knowing that the variable was set is enough,
+                    # we don't need to know the actual value.
+                    config[var_index] = None
             return config
 
     def transformOutput(self, Q=None, output=None):
+        # One Q value in [-1,1] for each action.
         assert Q is None or output is None
-        Q_max = self.numActions - 1
+        Q_max = len(self.var_domains) - 1  # at least one question asked
         if Q is None:
-            Q_values = output * Q_max
+            Q_values = Q_max * (output + 1) / 2
             return Q_values
         else:
-            output_values = Q / Q_max
+            output_values = 2 * (Q / Q_max) - 1
             return output_values
-
-    def _forwardImplementation(self, inbuf, outbuf):
-        outbuf[0] = self.getMaxAction(inbuf)
 
     def getActionValues(self, state):
         output_values = self.network.activate(state)
@@ -438,58 +422,58 @@ class ExactQLearning(Q):
         self.module.updateValue(laststate, lastaction, new_qvalue)
 
 
-# Based on Nees Jan van Eck, Michiel van Wezel, Application of
-# reinforcement learning to the game of Othello, Computers &
-# Operations Research, Volume 35, Issue 6, June 2008, Pages 1999-2017.
 class ApproxQLearning(ValueBasedLearner):
 
-    def __init__(self, rl_learning_rate, rl_backprop_step_size):
+    def __init__(self, rl_rprop_epochs=100, rl_rprop_error=0.1):
         super().__init__()
-        self._rl_learning_rate = rl_learning_rate
-        self._rl_backprop_step_size = rl_backprop_step_size
+        self._rl_rprop_epochs = rl_rprop_epochs
+        self._rl_rprop_error = rl_rprop_error
 
     def learn(self):
-        # Assume episodes are processed one by one.
-        assert self.batchMode and self.dataset.getNumSequences() == 1
-        avg_error = np.zeros((self.module.network.outdim, ))
-        laststate = None
-        experience = list(next(iter(self.dataset)))
-        for state, action, reward in experience:
-            if laststate is None:
+        log.info("training the neural network using Rprop")
+        # Create the training set.
+        dataset = SupervisedDataSet(self.module.network.indim,
+                                    self.module.network.outdim)
+        for episode in self.dataset:
+            laststate = None
+            for state, action, reward in episode:
+                if laststate is None:
+                    laststate = state
+                    lastaction = int(action)
+                    lastreward = reward
+                    continue
+                # Build Q(s,a) = r(s,a) + max Q(s',a') from
+                # (laststate, lastaction, lastreward, state).
+                Q_values = self.module.getActionValues(laststate)
+                max_action = self.module.getMaxAction(state)
+                Q_values[lastaction] = \
+                    lastreward + self.module.getValue(state, max_action)
+                target_values = self.module.transformOutput(Q=Q_values)
+                dataset.addSample(laststate, target_values)
+                # Prepare for the next iteration.
                 laststate = state
                 lastaction = int(action)
                 lastreward = reward
-                continue
-            # Calculate the error in the Q values, scale it back to
-            # the network's output and update the average error.
-            Q_output = self.module.getValue(laststate, lastaction)
-            max_a = self.module.getMaxAction(state)
-            max_Q = self.module.getValue(state, max_a)
-            Q_target = ((1 - self._rl_learning_rate) * Q_output +
-                        self._rl_learning_rate * (lastreward + max_Q))
-            avg_error[lastaction] += \
-                0.5 * (self.module.transformOutput(Q=Q_target) -
-                       self.module.transformOutput(Q=Q_output)) ** 2
-            # Update experience for the next iteration.
-            laststate = state
-            lastaction = int(action)
-            lastreward = reward
-        # Process the reward for entering the terminal state.
-        # We assume Q is zero for the terminal state.
-        Q_output = self.module.getValue(laststate, lastaction)
-        Q_target = Q_output + self._rl_learning_rate * (lastreward - Q_output)
-        avg_error[lastaction] += \
-            0.5 * (self.module.transformOutput(Q=Q_target) -
-                   self.module.transformOutput(Q=Q_output)) ** 2
-        avg_error /= len(experience)
-        self._backprop(avg_error)
-
-    def _backprop(self, output_error):
-        log.info("neural network error:\n%s", output_error)
-        self.module.network.resetDerivatives()
-        self.module.network.backActivate(output_error)
-        gradient_descent = GradientDescent()
-        gradient_descent.alpha = self._rl_backprop_step_size
-        gradient_descent.init(self.module.network.params)
-        new_params = gradient_descent(self.module.network.derivs)
-        self.module.network.params[:] = new_params
+            # Add the reward for entering the terminal state.
+            # We assume Q is zero for the terminal state.
+            Q_values = self.module.getActionValues(laststate)
+            Q_values[lastaction] = lastreward
+            target_values = self.module.transformOutput(Q=Q_values)
+            dataset.addSample(laststate, target_values)
+        # Add a sample with zero future reward at the terminal state.
+        laststate = np.ones((self.module.network.indim, ))
+        Q_values = np.zeros((self.module.network.outdim, ))
+        target_values = self.module.transformOutput(Q=Q_values)
+        dataset.addSample(laststate, target_values)
+        # Train the neural network.
+        log.info("the training set contains %d samples", len(dataset))
+        trainer = RPropMinusTrainer(self.module.network, dataset=dataset,
+                                    batchlearning=True, verbose=False)
+        for epoch in range(1, self._rl_rprop_epochs + 1):
+            error = trainer.train()
+            log.debug("the Rprop error at epoch %d is %g", epoch, error)
+            if error < self._rl_rprop_error:
+                log.info("Rprop reached the specified error threshold")
+                break
+        else:
+            log.info("Rprop reached the maximum epochs")
