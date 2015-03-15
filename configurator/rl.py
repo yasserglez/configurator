@@ -37,7 +37,6 @@ class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
 
     Arguments:
-
         consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the RL episodes. Possible values are: `'global'` and
@@ -47,10 +46,9 @@ class RLDialogBuilder(DialogBuilder):
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approximate'` (approximate
             representation using a neural network).
-        rl_learning_rate: Q-learning learning rate.
-        rl_initial_epsilon: Initial epsilon value for the
-            epsilon-greedy exploration. The value decays linearly with
-            the number of simulated episodes.
+        rl_learning_rate: Q-learning learning rate. Only used with the
+            exact action-value table representation.
+        rl_epsilon: Epsilon value in the epsilon-greedy exploration.
         rl_num_episodes: Number of simulated episodes.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
@@ -61,7 +59,7 @@ class RLDialogBuilder(DialogBuilder):
                  consistency="local",
                  rl_table="approximate",
                  rl_learning_rate=0.3,
-                 rl_initial_epsilon=0.5,
+                 rl_epsilon=0.1,
                  rl_num_episodes=1000,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
@@ -74,7 +72,7 @@ class RLDialogBuilder(DialogBuilder):
         else:
             raise ValueError("Invalid rl_table value")
         self._rl_learning_rate = rl_learning_rate
-        self._rl_initial_epsilon = rl_initial_epsilon
+        self._rl_epsilon = rl_epsilon
         self._rl_num_episodes = rl_num_episodes
 
     def build_dialog(self):
@@ -92,20 +90,16 @@ class RLDialogBuilder(DialogBuilder):
         elif self._rl_table == "approximate":
             table = ApproxQTable(self.var_domains)
             learner = ApproxQLearning()
-        agent = DialogAgent(table, learner, self._rl_initial_epsilon)
+        agent = DialogAgent(table, learner, self._rl_epsilon)
         exp = EpisodicExperiment(task, agent)
         log.info("running the RL algorithm")
         complete_episodes = 0
         for curr_episode in range(self._rl_num_episodes):
-            log.info("epsilon value is %g", agent.epsilon)
             exp.doEpisodes(number=1)
             if env.dialog.is_complete():
                 complete_episodes += 1
                 agent.learn(episodes=1)
             agent.reset()
-            agent.epsilon = (self._rl_initial_epsilon *
-                             (self._rl_num_episodes - curr_episode - 1) /
-                             self._rl_num_episodes)
         log.info("simulated %d episodes", self._rl_num_episodes)
         log.info("learned from %d episodes", complete_episodes)
         log.info("finished running the RL algorithm")
@@ -249,7 +243,7 @@ class DialogAgent(LearningAgent):
     Arguments:
         table: A `ExactQTable` or `ApproxQTable` instance.
         learner: A `ExactQLearning` or `ApproxQLearning` instance.
-        epsilon: Epsilon value for the epsilon-greedy exploration.
+        epsilon: Epsilon value in the epsilon-greedy exploration.
     """
 
     def __init__(self, table, learner, epsilon):
@@ -424,10 +418,10 @@ class ExactQLearning(Q):
 
 class ApproxQLearning(ValueBasedLearner):
 
-    def __init__(self, rl_rprop_epochs=100, rl_rprop_error=0.1):
+    def __init__(self, rprop_epochs=100, rprop_error=0.1):
         super().__init__()
-        self._rl_rprop_epochs = rl_rprop_epochs
-        self._rl_rprop_error = rl_rprop_error
+        self._rprop_epochs = rprop_epochs
+        self._rprop_error = rprop_error
 
     def learn(self):
         log.info("training the neural network using Rprop")
@@ -469,10 +463,10 @@ class ApproxQLearning(ValueBasedLearner):
         log.info("the training set contains %d samples", len(dataset))
         trainer = RPropMinusTrainer(self.module.network, dataset=dataset,
                                     batchlearning=True, verbose=False)
-        for epoch in range(1, self._rl_rprop_epochs + 1):
+        for epoch in range(1, self._rprop_epochs + 1):
             error = trainer.train()
             log.debug("the Rprop error at epoch %d is %g", epoch, error)
-            if error < self._rl_rprop_error:
+            if error < self._rprop_error:
                 log.info("Rprop reached the specified error threshold")
                 break
         else:
