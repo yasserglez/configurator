@@ -8,8 +8,7 @@ from operator import mul
 
 import numpy as np
 import numpy.ma as ma
-from pybrain.datasets import SupervisedDataSet
-from pybrain.supervised.trainers.rprop import RPropMinusTrainer
+from fann2 import libfann
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
@@ -19,9 +18,6 @@ from pybrain.rl.learners.valuebased import ActionValueTable
 from pybrain.rl.learners.valuebased.interface import ActionValueInterface
 from pybrain.rl.learners.valuebased.valuebased import ValueBasedLearner
 from pybrain.structure.modules import Module
-from pybrain.structure import (FeedForwardNetwork, FullConnection,
-                               BiasUnit, LinearLayer, TanhLayer)
-
 
 from .dialogs import Dialog, DialogBuilder
 from .util import iter_config_states
@@ -330,21 +326,27 @@ class ApproxQTable(Module, ActionValueInterface):
         super().__init__(sum(map(len, self.var_domains)), 1)
         self.numActions = len(self.var_domains)
         self.network = self._buildNetwork()
-        log.info("the neural network has %d weights",
-                 len(self.network.params))
 
     def _buildNetwork(self):
-        net = FeedForwardNetwork()
-        indim = self.indim + len(self.var_domains)
-        net.addInputModule(LinearLayer(indim, name="input"))
-        net.addModule(TanhLayer(len(self.var_domains), name="hidden"))
-        net.addOutputModule(TanhLayer(self.outdim, name="output"))
-        net.addModule(BiasUnit(name="bias"))
-        net.addConnection(FullConnection(net["input"], net["hidden"]))
-        net.addConnection(FullConnection(net["bias"], net["hidden"]))
-        net.addConnection(FullConnection(net["hidden"], net["output"]))
-        net.addConnection(FullConnection(net["bias"], net["output"]))
-        net.sortModules()  # N(0,1) weight initialization
+        num_input = self.indim + len(self.var_domains)
+        num_hidden = len(self.var_domains)
+        num_output = self.outdim
+        net = libfann.neural_net()
+        net.create_standard_array((num_input, num_hidden, num_output))
+        net.set_training_algorithm(libfann.TRAIN_RPROP)
+        net.set_activation_function_hidden(libfann.SIGMOID_SYMMETRIC)
+        net.set_activation_function_output(libfann.SIGMOID_SYMMETRIC)
+        net.set_training_algorithm(libfann.TRAIN_RPROP)
+        net.set_train_error_function(libfann.ERRORFUNC_LINEAR)
+        net.set_train_stop_function(libfann.STOPFUNC_MSE)
+        # TODO: Couldn't get set_weight_array to work.
+        total_neurons = net.get_total_neurons()
+        for i in range(total_neurons):
+            for j in range(i + 1, total_neurons):
+                weight = np.random.uniform(-0.1, 0.1)
+                net.set_weight(i, j, weight)
+        log.info("the neural network has %d weights",
+                 net.get_total_connections())
         return net
 
     def transformState(self, config=None, state=None):
@@ -394,7 +396,7 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def getValue(self, state, action):
         input_values = self.transformInput(state, action)
-        output_value = self.network.activate(input_values)
+        output_value = self.network.run(input_values)[0]
         Q_value = self.transformOutput(output=output_value)
         return Q_value
 
@@ -450,9 +452,7 @@ class ApproxQLearning(ValueBasedLearner):
 
     def learn(self):
         log.info("training the neural network using Rprop")
-        # Create the training set.
-        dataset = SupervisedDataSet(self.module.network.indim,
-                                    self.module.network.outdim)
+        input_values, target_values = [], []
         for episode in self.dataset:
             laststate = None
             for state, action, reward in episode:
@@ -463,28 +463,27 @@ class ApproxQLearning(ValueBasedLearner):
                     continue
                 # Build Q(s,a) = r(s,a) + max Q(s',a') from
                 # (laststate, lastaction, lastreward, state).
-                input_values = self.module.transformInput(laststate, lastaction)
+                input_value = self.module.transformInput(laststate, lastaction)
                 Q_value = lastreward + self.module.getMaxValue(state)
                 target_value = self.module.transformOutput(Q=Q_value)
-                dataset.addSample(input_values, target_value)
+                input_values.append(input_value)
+                target_values.append([target_value])
                 # Prepare for the next iteration.
                 laststate = state
                 lastaction = int(action)
                 lastreward = reward
             # Add the reward for entering the terminal state.
             # Assuming Q is zero for the terminal state.
-            input_values = self.module.transformInput(laststate, lastaction)
+            input_value = self.module.transformInput(laststate, lastaction)
             target_value = self.module.transformOutput(Q=lastreward)
-            dataset.addSample(input_values, target_value)
+            input_values.append(input_value)
+            target_values.append([target_value])
         # Train the neural network.
-        log.info("the training set contains %d samples", len(dataset))
-        trainer = RPropMinusTrainer(self.module.network, dataset=dataset,
-                                    batchlearning=True, verbose=False)
-        for epoch in range(1, self._rprop_epochs + 1):
-            error = trainer.train()
-            log.debug("the Rprop error at epoch %d is %g", epoch, error)
-            if error < self._rprop_error:
-                log.info("Rprop reached the specified error threshold")
-                break
-        else:
-            log.info("Rprop reached the maximum epochs")
+        data = libfann.training_data()
+        data.set_train_data(input_values, target_values)
+        log.info("the training set contains %d samples",
+                 data.length_train_data())
+        net = self.module.network
+        net.reset_MSE()
+        net.train_on_data(data, self._rprop_epochs, 0, self._rprop_error)
+        log.info("training MSE is %g", net.get_MSE())
