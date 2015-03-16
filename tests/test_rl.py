@@ -21,6 +21,7 @@ class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
                                email_client.sample,
                                rules=email_client.rules,
                                rl_table=table,
+                               rl_learning_batch=10,
                                rl_num_episodes=50,
                                validate=True)
 
@@ -35,15 +36,13 @@ class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
 
 class TestCSPRLDialogBuilder(BaseTestRLDialogBuilder):
 
-    # TODO: Use a different example where enforcing local and global
-    # consistency give different results.
-
     def _create_builder(self, table, consistency, email_client):
         return RLDialogBuilder(email_client.var_domains,
                                email_client.sample,
                                constraints=email_client.constraints,
                                consistency=consistency,
                                rl_table=table,
+                               rl_learning_batch=10,
                                rl_num_episodes=50,
                                validate=True)
 

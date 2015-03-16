@@ -46,10 +46,23 @@ class RLDialogBuilder(DialogBuilder):
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approximate'` (approximate
             representation using a neural network).
-        rl_learning_rate: Q-learning learning rate. Only used with the
-            exact action-value table representation.
-        rl_epsilon: Epsilon value in the epsilon-greedy exploration.
         rl_num_episodes: Number of simulated episodes.
+        rl_epsilon: Epsilon value in the epsilon-greedy exploration.
+        rl_learning_batch: Collect experience from this many episodes
+            before updating the action-value table. This argument is
+            ignored for the exact action-value table representation,
+            where learning always occurs after every episode.
+        rl_learning_rate: Q-learning learning rate. This argument is
+            used only with the exact action-value table
+            representation. The approximate representation is learned
+            in a fitted Q-iteration fashion.
+        rl_rprop_epochs: Maximum number of epochs of Rprop training.
+            This argument is used only with the approximate
+            action-value table representation (which uses fitted
+            Q-iteration).
+        rl_rprop_error: Rprop error threshold. This argument is used
+            only with the approximate action-value table
+            representation (which uses fitted Q-iteration).
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -58,22 +71,29 @@ class RLDialogBuilder(DialogBuilder):
     def __init__(self, var_domains, sample, rules=None, constraints=None,
                  consistency="local",
                  rl_table="approximate",
-                 rl_learning_rate=0.3,
-                 rl_epsilon=0.1,
                  rl_num_episodes=1000,
+                 rl_epsilon=0.1,
+                 rl_learning_batch=10,
+                 rl_learning_rate=0.3,
+                 rl_rprop_epochs=100,
+                 rl_rprop_error=0.01,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency in {"global", "local"}:
             self._consistency = consistency
         else:
             raise ValueError("Invalid consistency value")
-        if rl_table in {"exact", "approximate"}:
-            self._rl_table = rl_table
-        else:
+        if rl_table not in {"exact", "approximate"}:
             raise ValueError("Invalid rl_table value")
-        self._rl_learning_rate = rl_learning_rate
-        self._rl_epsilon = rl_epsilon
+        self._consistency = consistency
+        self._rl_table = rl_table
         self._rl_num_episodes = rl_num_episodes
+        self._rl_epsilon = rl_epsilon
+        self._rl_learning_batch = (1 if self._rl_table == "exact" else
+                                   rl_learning_batch)
+        self._rl_learning_rate = rl_learning_rate
+        self._rl_rprop_epochs = rl_rprop_epochs
+        self._rl_rprop_error = rl_rprop_error
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -89,18 +109,20 @@ class RLDialogBuilder(DialogBuilder):
             learner = ExactQLearning(self._rl_learning_rate)
         elif self._rl_table == "approximate":
             table = ApproxQTable(self.var_domains)
-            learner = ApproxQLearning()
+            learner = ApproxQLearning(self._rl_rprop_epochs,
+                                      self._rl_rprop_error)
         agent = DialogAgent(table, learner, self._rl_epsilon)
-        exp = EpisodicExperiment(task, agent)
+        exp = DialogExperiment(task, agent)
         log.info("running the RL algorithm")
+        simulated_episodes = 0
         complete_episodes = 0
-        for curr_episode in range(self._rl_num_episodes):
-            exp.doEpisodes(number=1)
-            if env.dialog.is_complete():
-                complete_episodes += 1
-                agent.learn(episodes=1)
-            agent.reset()
-        log.info("simulated %d episodes", self._rl_num_episodes)
+        while simulated_episodes < self._rl_num_episodes:
+            exp.doEpisodes(number=self._rl_learning_batch)
+            simulated_episodes += self._rl_learning_batch
+            complete_episodes += agent.history.getNumSequences()
+            agent.learn()
+            agent.reset()  # clear the previous batch
+        log.info("simulated %d episodes", simulated_episodes)
         log.info("learned from %d episodes", complete_episodes)
         log.info("finished running the RL algorithm")
         # Create the RLDialog instance.
@@ -130,27 +152,21 @@ class RLDialog(Dialog):
         return action
 
 
+class DialogExperiment(EpisodicExperiment):
+
+    def doEpisodes(self, number):
+        # Overriding to handle skipping inconsistent episodes.
+        for episode in range(number):
+            self.agent.newEpisode()
+            self.task.reset()
+            while not self.task.isFinished():
+                self._oneInteraction()
+            if not self.task.env.dialog.is_consistent():
+                index = self.agent.history.getNumSequences() - 1
+                self.agent.history.removeSequence(index)
+
+
 class DialogEnvironment(Environment):
-    """Represents a configuration dialog in PyBrain's RL model.
-
-    Arguments:
-        dialog: A :class:`configurator.dialogs.Dialog` instance.
-        consistency: Whether to enforce `'global'` or `'local'`
-            consistency after each answer.
-        freq_table: A :class:`configurator.freq_table.FrequencyTable` instance.
-
-    The environment keeps track of the configuration state. It starts
-    in a state where all the variables are unknown (and it can be
-    reset at any time to this state using the reset method). An action
-    can be performed (i.e. asking a question) by calling
-    :meth:`performAction`. Then, the user response is simulated and
-    the configuration state is updated (including discovered
-    variables). The current configuration state is returned by
-    :meth:`getSensors`.
-
-    Attributes:
-        dialog: A :class:`configurator.dialogs.Dialog` instance.
-    """
 
     def __init__(self, dialog, consistency, freq_table):
         super().__init__()
@@ -189,11 +205,6 @@ class DialogEnvironment(Environment):
 
 
 class DialogTask(EpisodicTask):
-    """Represents the configuration goal in PyBrain's RL model.
-
-    Arguments:
-        env: A `DialogEnvironment` instance.
-    """
 
     def __init__(self, env):
         super().__init__(env)
@@ -228,23 +239,16 @@ class DialogTask(EpisodicTask):
 
     def isFinished(self):
         is_finished = False
-        if self.env.dialog.is_complete():
-            log.info("finished an episode, total reward %d", self.cumreward)
-            is_finished = True
-        elif not self.env.dialog.is_consistent():
+        if not self.env.dialog.is_consistent():
             log.info("finished an episode, reached an inconsistent state")
+            is_finished = True
+        elif self.env.dialog.is_complete():
+            log.info("finished an episode, total reward %d", self.cumreward)
             is_finished = True
         return is_finished
 
 
 class DialogAgent(LearningAgent):
-    """A learning agent in PyBrain's RL model.
-
-    Arguments:
-        table: A `ExactQTable` or `ApproxQTable` instance.
-        learner: A `ExactQLearning` or `ApproxQLearning` instance.
-        epsilon: Epsilon value in the epsilon-greedy exploration.
-    """
 
     def __init__(self, table, learner, epsilon):
         super().__init__(table, learner)  # self.module = table
@@ -279,9 +283,7 @@ class DialogAgent(LearningAgent):
 
     def giveReward(self, reward):  # Step 3
         self.lastreward = reward
-        if self.logging:
-            self.history.addSample(self.laststate, self.lastaction,
-                                   self.lastreward)
+        self.history.addSample(self.laststate, self.lastaction, self.lastreward)
 
 
 class ExactQTable(ActionValueTable):
@@ -341,7 +343,7 @@ class ApproxQTable(Module, ActionValueInterface):
         net.addConnection(FullConnection(net["bias"], net["hidden"]))
         net.addConnection(FullConnection(net["hidden"], net["output"]))
         net.addConnection(FullConnection(net["bias"], net["output"]))
-        net.sortModules()
+        net.sortModules()  # N(0,1) weight initialization
         return net
 
     def transformInput(self, config=None, state=None):
@@ -358,7 +360,7 @@ class ApproxQTable(Module, ActionValueInterface):
             config = {}
             for var_index in range(len(self.var_domains)):
                 if state[var_index] == 1:
-                    # Knowing that the variable was set is enough,
+                    # Knowing that the variable is set is enough,
                     # we don't need to know the actual value.
                     config[var_index] = None
             return config
@@ -398,19 +400,19 @@ class ExactQLearning(Q):
         super().__init__(alpha=rl_learning_rate, gamma=1.0)
 
     def learn(self):
-        # We need to process the reward for entering the terminal
-        # state but Q.learn doesn't do it. Let Q.learn process the
-        # complete episode first, and then process the last
-        # observation. We assume Q is zero for the terminal state.
-        super().learn()
-        # This will only work if episodes are processed one by one,
-        # so ensure there's only one sequence in the dataset.
+        # Q.learn doesn't process the reward for entering the terminal
+        # state. Let Q.learn process the complete episode first, and
+        # then process the last observation. This will work only if
+        # episodes are processed one by one, so ensure there's only
+        # one sequence in the dataset.
         assert self.batchMode and self.dataset.getNumSequences() == 1
+        super().learn()
         seq = next(iter(self.dataset))
         for laststate, lastaction, lastreward in seq:
-            pass  # skip all the way to the last
+            pass  # skip all the way to the end
         laststate = int(laststate)
         lastaction = int(lastaction)
+        # Assuming Q is zero for the terminal state.
         qvalue = self.module.getValue(laststate, lastaction)
         new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
         self.module.updateValue(laststate, lastaction, new_qvalue)
@@ -418,7 +420,7 @@ class ExactQLearning(Q):
 
 class ApproxQLearning(ValueBasedLearner):
 
-    def __init__(self, rprop_epochs=100, rprop_error=0.1):
+    def __init__(self, rprop_epochs, rprop_error):
         super().__init__()
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
@@ -449,7 +451,7 @@ class ApproxQLearning(ValueBasedLearner):
                 lastaction = int(action)
                 lastreward = reward
             # Add the reward for entering the terminal state.
-            # We assume Q is zero for the terminal state.
+            # Assuming Q is zero for the terminal state.
             Q_values = self.module.getActionValues(laststate)
             Q_values[lastaction] = lastreward
             target_values = self.module.transformOutput(Q=Q_values)
