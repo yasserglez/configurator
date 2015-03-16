@@ -468,12 +468,6 @@ class ApproxQLearning(ValueBasedLearner):
             input_values = self.module.transformInput(laststate, lastaction)
             target_value = self.module.transformOutput(Q=lastreward)
             dataset.addSample(input_values, target_value)
-        # Add samples with zero future reward at the terminal state.
-        laststate = np.ones((len(self.module.var_domains), ))
-        target_value = self.module.transformOutput(Q=0)
-        for action in range(self.module.numActions):
-            input_values = self.module.transformInput(laststate, action)
-            dataset.addSample(input_values, target_value)
         # Train the neural network.
         log.info("the training set contains %d samples", len(dataset))
         trainer = RPropMinusTrainer(self.module.network, dataset=dataset,
