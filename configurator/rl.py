@@ -390,17 +390,23 @@ class ApproxQTable(Module, ActionValueInterface):
         Q_value = self.transformOutput(output=output_value)
         return Q_value
 
-    def getMaxAction(self, state, config=None):
+    def _getMaxActionValue(self, state, config=None):
         if config is None:
             config = self.transformState(state=state)
-        max_action, max_Q_value = None, None
+        max_action, max_value = None, None
         for action in range(len(self.var_domains)):
             if action not in config:
-                Q_value = self.getValue(state, action)
-                if max_action is None or Q_value > max_Q_value:
+                value = self.getValue(state, action)
+                if max_action is None or value > max_value:
                     max_action = action
-                    max_Q_value = Q_value
-        return max_action
+                    max_value = value
+        return max_action, max_value
+
+    def getMaxAction(self, state, config=None):
+        return self._getMaxActionValue(state, config)[0]
+
+    def getMaxValue(self, state, config=None):
+        return self._getMaxActionValue(state, config)[1]
 
 
 class ExactQLearning(Q):
@@ -450,8 +456,7 @@ class ApproxQLearning(ValueBasedLearner):
                 # Build Q(s,a) = r(s,a) + max Q(s',a') from
                 # (laststate, lastaction, lastreward, state).
                 input_values = self.module.transformInput(laststate, lastaction)
-                max_action = self.module.getMaxAction(state)
-                Q_value = lastreward + self.module.getValue(state, max_action)
+                Q_value = lastreward + self.module.getMaxValue(state)
                 target_value = self.module.transformOutput(Q=Q_value)
                 dataset.addSample(input_values, target_value)
                 # Prepare for the next iteration.
