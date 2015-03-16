@@ -21,7 +21,7 @@ class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
                                email_client.sample,
                                rules=email_client.rules,
                                rl_table=table,
-                               rl_learning_batch=10,
+                               rl_learning_batch=5,
                                rl_num_episodes=50,
                                validate=True)
 
@@ -42,7 +42,7 @@ class TestCSPRLDialogBuilder(BaseTestRLDialogBuilder):
                                constraints=email_client.constraints,
                                consistency=consistency,
                                rl_table=table,
-                               rl_learning_batch=10,
+                               rl_learning_batch=5,
                                rl_num_episodes=50,
                                validate=True)
 

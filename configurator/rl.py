@@ -327,7 +327,7 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def __init__(self, var_domains):
         self.var_domains = var_domains
-        super().__init__(len(self.var_domains), 1)
+        super().__init__(sum(map(len, self.var_domains)), 1)
         self.numActions = len(self.var_domains)
         self.network = self._buildNetwork()
         log.info("the neural network has %d weights",
@@ -335,9 +335,10 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def _buildNetwork(self):
         net = FeedForwardNetwork()
-        net.addInputModule(LinearLayer(2 * len(self.var_domains), name="input"))
+        indim = self.indim + len(self.var_domains)
+        net.addInputModule(LinearLayer(indim, name="input"))
         net.addModule(TanhLayer(len(self.var_domains), name="hidden"))
-        net.addOutputModule(TanhLayer(1, name="output"))
+        net.addOutputModule(TanhLayer(self.outdim, name="output"))
         net.addModule(BiasUnit(name="bias"))
         net.addConnection(FullConnection(net["input"], net["hidden"]))
         net.addConnection(FullConnection(net["bias"], net["hidden"]))
@@ -347,22 +348,29 @@ class ApproxQTable(Module, ActionValueInterface):
         return net
 
     def transformState(self, config=None, state=None):
-        # The state is represented as a vector with a binary value
-        # (encoded as -1 for 0 and 1 for 1) for each variable
-        # indicating whether the variable has been set or not.
+        # Each variable is represented using dummy variables
+        # (1-of-C encoding) with 0 as -1 and 1 as 1.
         assert config is None or state is None
         if state is None:
-            state = -1 * np.ones((len(self.var_domains), ))
-            for var_index in config:
-                state[var_index] = 1
-            return state
-        else:
+            state = []
+            for var_index, var_values in enumerate(self.var_domains):
+                input_values = -1 * np.ones((len(var_values), ))
+                if var_index in config:
+                    var_value = config[var_index]
+                    k = var_values.index(var_value)
+                    input_values[k] = 1
+                state.append(input_values)
+            return np.concatenate(state)
+        elif config is None:
+            i = 0
             config = {}
-            for var_index in range(len(self.var_domains)):
-                if state[var_index] == 1:
-                    # Knowing that the variable is set is enough,
-                    # we don't need to know the actual value.
-                    config[var_index] = None
+            for var_index, var_values in enumerate(self.var_domains):
+                input_values = state[i:i + len(var_values)]
+                k = np.flatnonzero(input_values == 1)
+                assert k.size in {0, 1}
+                if k.size == 1:
+                    config[var_index] = var_values[k]
+                i += len(var_values)
             return config
 
     def transformInput(self, state, action):
