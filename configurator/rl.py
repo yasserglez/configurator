@@ -147,7 +147,7 @@ class RLDialog(Dialog):
         super().__init__(var_domains, rules, constraints, validate)
 
     def get_next_question(self):
-        state = self._table.transformInput(config=self.config)
+        state = self._table.transformState(config=self.config)
         action = self._table.getMaxAction(state, self.config)
         return action
 
@@ -264,7 +264,7 @@ class DialogAgent(LearningAgent):
 
     def integrateObservation(self, config):  # Step 1
         self.lastconfig = config
-        self.laststate = self.module.transformInput(config=config)
+        self.laststate = self.module.transformState(config=config)
 
     def getAction(self):  # Step 2
         log.debug("getting an action from the agent")
@@ -301,7 +301,7 @@ class ExactQTable(ActionValueTable):
         self.initialize(0)
         self.Q = self.params.reshape(num_states, num_actions)
 
-    def transformInput(self, config=None, state=None):
+    def transformState(self, config=None, state=None):
         # Find the position of the state among all the possible
         # configuration states. This isn't efficient, but the tabular
         # version doesn't work for many variables anyway.
@@ -317,7 +317,7 @@ class ExactQTable(ActionValueTable):
 
     def getMaxAction(self, state, config=None):
         if config is None:
-            config = self.transformInput(state=state)
+            config = self.transformState(state=state)
         invalid_action = [a in config for a in range(self.numActions)]
         action = ma.array(self.Q[state, :], mask=invalid_action).argmax()
         return action
@@ -335,9 +335,9 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def _buildNetwork(self):
         net = FeedForwardNetwork()
-        net.addInputModule(LinearLayer(self.indim, name="input"))
+        net.addInputModule(LinearLayer(2 * len(self.var_domains), name="input"))
         net.addModule(TanhLayer(len(self.var_domains), name="hidden"))
-        net.addOutputModule(TanhLayer(self.numActions, name="output"))
+        net.addOutputModule(TanhLayer(1, name="output"))
         net.addModule(BiasUnit(name="bias"))
         net.addConnection(FullConnection(net["input"], net["hidden"]))
         net.addConnection(FullConnection(net["bias"], net["hidden"]))
@@ -346,16 +346,16 @@ class ApproxQTable(Module, ActionValueInterface):
         net.sortModules()  # N(0,1) weight initialization
         return net
 
-    def transformInput(self, config=None, state=None):
+    def transformState(self, config=None, state=None):
         # The state is represented as a vector with a binary value
         # (encoded as -1 for 0 and 1 for 1) for each variable
         # indicating whether the variable has been set or not.
         assert config is None or state is None
         if state is None:
-            input_values = -1 * np.ones((len(self.var_domains), ))
+            state = -1 * np.ones((len(self.var_domains), ))
             for var_index in config:
-                input_values[var_index] = 1
-            return input_values
+                state[var_index] = 1
+            return state
         else:
             config = {}
             for var_index in range(len(self.var_domains)):
@@ -365,8 +365,16 @@ class ApproxQTable(Module, ActionValueInterface):
                     config[var_index] = None
             return config
 
+    def transformInput(self, state, action):
+        # The action is represented using dummy variables
+        # (1-of-C encoding) with 0 as -1 and 1 as 1.
+        action_values = -1 * np.ones((len(self.var_domains), ))
+        action_values[action] = 1
+        input_values = np.concatenate([state, action_values])
+        return input_values
+
     def transformOutput(self, Q=None, output=None):
-        # One Q value in [-1,1] for each action.
+        # Scale neural net output from [-1, 1] to [0, Q_max].
         assert Q is None or output is None
         Q_max = len(self.var_domains) - 1  # at least one question asked
         if Q is None:
@@ -376,22 +384,23 @@ class ApproxQTable(Module, ActionValueInterface):
             output_values = 2 * (Q / Q_max) - 1
             return output_values
 
-    def getActionValues(self, state):
-        output_values = self.network.activate(state)
-        Q_values = self.transformOutput(output=output_values)
-        return Q_values
-
     def getValue(self, state, action):
-        Q_values = self.getActionValues(state)
-        return Q_values[action]
+        input_values = self.transformInput(state, action)
+        output_value = self.network.activate(input_values)
+        Q_value = self.transformOutput(output=output_value)
+        return Q_value
 
     def getMaxAction(self, state, config=None):
         if config is None:
-            config = self.transformInput(state=state)
-        invalid_action = [a in config for a in range(self.numActions)]
-        Q_values = self.getActionValues(state)
-        action = ma.array(Q_values, mask=invalid_action).argmax()
-        return action
+            config = self.transformState(state=state)
+        max_action, max_Q_value = None, None
+        for action in range(len(self.var_domains)):
+            if action not in config:
+                Q_value = self.getValue(state, action)
+                if max_action is None or Q_value > max_Q_value:
+                    max_action = action
+                    max_Q_value = Q_value
+        return max_action
 
 
 class ExactQLearning(Q):
@@ -440,27 +449,26 @@ class ApproxQLearning(ValueBasedLearner):
                     continue
                 # Build Q(s,a) = r(s,a) + max Q(s',a') from
                 # (laststate, lastaction, lastreward, state).
-                Q_values = self.module.getActionValues(laststate)
+                input_values = self.module.transformInput(laststate, lastaction)
                 max_action = self.module.getMaxAction(state)
-                Q_values[lastaction] = \
-                    lastreward + self.module.getValue(state, max_action)
-                target_values = self.module.transformOutput(Q=Q_values)
-                dataset.addSample(laststate, target_values)
+                Q_value = lastreward + self.module.getValue(state, max_action)
+                target_value = self.module.transformOutput(Q=Q_value)
+                dataset.addSample(input_values, target_value)
                 # Prepare for the next iteration.
                 laststate = state
                 lastaction = int(action)
                 lastreward = reward
             # Add the reward for entering the terminal state.
             # Assuming Q is zero for the terminal state.
-            Q_values = self.module.getActionValues(laststate)
-            Q_values[lastaction] = lastreward
-            target_values = self.module.transformOutput(Q=Q_values)
-            dataset.addSample(laststate, target_values)
-        # Add a sample with zero future reward at the terminal state.
-        laststate = np.ones((self.module.network.indim, ))
-        Q_values = np.zeros((self.module.network.outdim, ))
-        target_values = self.module.transformOutput(Q=Q_values)
-        dataset.addSample(laststate, target_values)
+            input_values = self.module.transformInput(laststate, lastaction)
+            target_value = self.module.transformOutput(Q=lastreward)
+            dataset.addSample(input_values, target_value)
+        # Add samples with zero future reward at the terminal state.
+        laststate = np.ones((len(self.module.var_domains), ))
+        target_value = self.module.transformOutput(Q=0)
+        for action in range(self.module.numActions):
+            input_values = self.module.transformInput(laststate, action)
+            dataset.addSample(input_values, target_value)
         # Train the neural network.
         log.info("the training set contains %d samples", len(dataset))
         trainer = RPropMinusTrainer(self.module.network, dataset=dataset,
