@@ -1,5 +1,7 @@
 import pytest
 
+import igraph
+
 from configurator.csp import CSP
 
 
@@ -82,7 +84,6 @@ class TestCSP(object):
 
     def test_local_consistency(self, australia):
         csp = australia
-        assert csp.is_binary
         # Using the consistent assignment on page 138.
         csp.assign_variable(5, "red", "local")
         assert csp.pruned_var_domains[0] == ["red", "green", "blue"]
@@ -112,3 +113,14 @@ class TestCSP(object):
         assert csp.pruned_var_domains[6] == ["blue"]
         assert csp.assignment == {0: "red", 1: "green", 6: "blue", 2: "red",
                                   3: "green", 4: "red", 5: "red"}
+
+    def test_is_acyclic(self):
+        empty = igraph.Graph(6)
+        tree = igraph.Graph.Tree(6, 2**6 - 1)
+        full = igraph.Graph.Full(6)
+        assert CSP._is_acyclic(empty)
+        assert CSP._is_acyclic(tree)
+        assert CSP._is_acyclic(empty + tree)
+        assert not CSP._is_acyclic(full)
+        assert not CSP._is_acyclic(empty + full)
+        assert not CSP._is_acyclic(tree + full)

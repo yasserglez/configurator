@@ -4,6 +4,8 @@
 import pprint
 import logging
 
+import igraph
+
 
 log = logging.getLogger(__name__)
 
@@ -35,15 +37,17 @@ class CSP(object):
     def __init__(self, var_domains, constraints):
         self.var_domains = [list(var_domain) for var_domain in var_domains]
         self.constraints = constraints
-        self.is_binary = True
+        self._is_binary = True
         self._constraints_index = {}
         for var_indices, constraint_fun in constraints:
             if len(var_indices) != 2:
-                self.is_binary = False
+                self._is_binary = False
             key = frozenset(var_indices)
             if key in self._constraints_index:
                 raise ValueError("The constraints must be normalized")
             self._constraints_index[key] = var_indices, constraint_fun
+        self._is_tree_csp = self._compute_is_tree_csp()
+        log.debug("it %s a tree CSP", "is" if self._is_tree_csp else "isn't")
         self.reset()
 
     def solve(self):
@@ -59,6 +63,34 @@ class CSP(object):
     # The following are internal methods used to keep track of the
     # assignments and enforce global or local consistency after each
     # variable is assigned when the dialog is being used.
+
+    def _compute_is_tree_csp(self):
+        if not self._is_binary:
+            return False
+        network = igraph.Graph(len(self.var_domains))
+        edges = []
+        for var_indices, constraint_fun in self._constraints_index.values():
+            edges.append(var_indices)
+        network.add_edges(edges)
+        return self._is_acyclic(network)
+
+    @staticmethod
+    def _is_acyclic(graph):
+        # Run DFS to look for back edges.
+        visited = [False] * graph.vcount()
+        parent = [None] * graph.vcount()
+        while not all(visited):
+            stack = [visited.index(False)]
+            while stack:
+                v = stack.pop()
+                visited[v] = True
+                for w in graph.vs[v].neighbors():
+                    if w.index != parent[v]:
+                        if visited[w.index]:
+                            return False
+                        stack.append(w.index)
+                        parent[w.index] = v
+        return True
 
     def reset(self):
         self.assignment = {}
@@ -81,7 +113,7 @@ class CSP(object):
             if consistency == "global":
                 self.enforce_global_consistency()
             elif consistency == "local":
-                if not self.is_binary:
+                if not self._is_binary:
                     raise ValueError("Local consistency only " +
                                      "implemented for binary CSPs")
                 log.debug("enforcing local consistency")
