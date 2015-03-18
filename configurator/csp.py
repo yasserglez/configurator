@@ -111,7 +111,14 @@ class CSP(object):
         self.pruned_var_domains[var_index] = [var_value]
         if len(self.assignment) < len(self.var_domains):
             if consistency == "global":
-                self.enforce_global_consistency()
+                log.debug("enforcing global consistency")
+                if self._is_tree_csp:
+                    # Arc consistency implies global consistency in an
+                    # acyclic network of binary constraints.
+                    _arc_consistency_3(self.pruned_var_domains,
+                                       self._constraints_index)
+                else:
+                    self.enforce_global_consistency()
             elif consistency == "local":
                 if not self._is_binary:
                     raise ValueError("Local consistency only " +
@@ -135,7 +142,6 @@ class CSP(object):
     def enforce_global_consistency(self):
         # Check that all possible answers to the remaining questions
         # lead to at least one consistent assignment.
-        log.debug("enforcing global consistency")
         _arc_consistency_3(self.pruned_var_domains,
                            self._constraints_index)
         for var_index in range(len(self.var_domains)):
