@@ -148,14 +148,21 @@ class DialogExperiment(EpisodicExperiment):
 
     def doEpisodes(self, number):
         # Overriding to handle skipping inconsistent episodes.
+        log.info("simulating %d episodes", number)
+        cumrewards = []
         for episode in range(number):
             self.agent.newEpisode()
             self.task.reset()
             while not self.task.isFinished():
                 self._oneInteraction()
-            if not self.task.env.dialog.is_consistent():
+            if self.task.env.dialog.is_consistent():
+                cumrewards.append(self.task.cumreward)
+            else:
                 index = self.agent.history.getNumSequences() - 1
                 self.agent.history.removeSequence(index)
+        log.info("finished %d complete episodes, average total reward %g",
+                 len(cumrewards), np.mean(cumrewards))
+        return cumrewards
 
 
 class DialogEnvironment(Environment):
@@ -232,10 +239,10 @@ class DialogTask(EpisodicTask):
     def isFinished(self):
         is_finished = False
         if not self.env.dialog.is_consistent():
-            log.info("finished an episode, reached an inconsistent state")
+            log.debug("finished an episode, reached an inconsistent state")
             is_finished = True
         elif self.env.dialog.is_complete():
-            log.info("finished an episode, total reward %d", self.cumreward)
+            log.debug("finished an episode, total reward %d", self.cumreward)
             is_finished = True
         return is_finished
 
