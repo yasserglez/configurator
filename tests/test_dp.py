@@ -1,3 +1,5 @@
+import pytest
+
 import numpy as np
 from numpy.testing import assert_raises
 
@@ -6,14 +8,13 @@ from configurator.dp import DPDialogBuilder, EpisodicMDP
 
 class TestDPDialogBuilder(object):
 
-    def _test_builder(self, algorithm, improv, email_client):
+    def _test_builder(self, email_client, with_improvements):
         builder = DPDialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   rules=email_client.rules,
-                                  dp_algorithm=algorithm,
-                                  dp_discard_states=improv,
-                                  dp_partial_rules=improv,
-                                  dp_aggregate_terminals=improv,
+                                  dp_discard_states=with_improvements,
+                                  dp_partial_rules=with_improvements,
+                                  dp_aggregate_terminals=with_improvements,
                                   validate=True)
         dialog = builder.build_dialog()
         for config, num_questions in email_client.scenarios:
@@ -24,23 +25,10 @@ class TestDPDialogBuilder(object):
             assert dialog.is_complete()
             assert dialog.config == config
 
-    def _test_builder_without_improv(self, algorithm, email_client):
-        self._test_builder(algorithm, False, email_client)
-
-    def _test_builder_with_improv(self, algorithm, email_client):
-        self._test_builder(algorithm, True, email_client)
-
-    def test_value_iteration_without_improv(self, email_client):
-        self._test_builder_without_improv("value-iteration", email_client)
-
-    def test_policy_iteration_without_improv(self, email_client):
-        self._test_builder_without_improv("policy-iteration", email_client)
-
-    def test_value_iteration_with_improv(self, email_client):
-        self._test_builder_with_improv("value-iteration", email_client)
-
-    def test_policy_iteration_with_improv(self, email_client):
-        self._test_builder_with_improv("policy-iteration", email_client)
+    @pytest.mark.parametrize("with_improvements", (True, False),
+                             ids=("with_improvements", "without_improvements"))
+    def test_build_dialog(self, email_client, with_improvements):
+        self._test_builder(email_client, with_improvements)
 
 
 class TestEpisodicMDP(object):
@@ -60,20 +48,11 @@ class TestEpisodicMDP(object):
         invalid_gamma = 2
         assert_raises(ValueError, EpisodicMDP, P, R, invalid_gamma, S0, Sn)
 
-    def test_policy_iteration(self, grid_world):
+    def test_solve(self, grid_world):
         P = grid_world.transitions
         R = grid_world.rewards
         gamma = grid_world.discount_factor
         mdp = EpisodicMDP(P, R, gamma)
-        policy = mdp.policy_iteration()
-        assert all([policy[i] == grid_world.policy[i]
-                    for i in range(len(grid_world.policy))])
-
-    def test_value_iteration(self, grid_world):
-        P = grid_world.transitions
-        R = grid_world.rewards
-        gamma = grid_world.discount_factor
-        mdp = EpisodicMDP(P, R, gamma)
-        policy = mdp.value_iteration()
+        policy = mdp.solve()
         assert all([policy[i] == grid_world.policy[i]
                     for i in range(len(grid_world.policy))])

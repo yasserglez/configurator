@@ -2,14 +2,13 @@
 """
 
 import os
-import types
 import logging
 from contextlib import redirect_stdout
 
 import igraph
 from scipy import sparse
 import mdptoolbox.util
-from mdptoolbox.mdp import PolicyIteration, ValueIteration
+from mdptoolbox.mdp import ValueIteration
 
 from .dialogs import Dialog, DialogBuilder
 from .util import iter_config_states
@@ -25,10 +24,9 @@ class DPDialogBuilder(DialogBuilder):
     """Build a configuration dialog using dynamic programming.
 
     Arguments:
-        dp_algorithm: Algorithm for solving the MDP. Possible values
-            are: `'value-iteration'` and `'policy-iteration'`.
-        dp_max_iter: The maximum number of iterations of the algorithm
-            used to solve the MDP.
+        dp_max_iter: The MDP is solved using value iteration. This
+            argument sets the maximum number of iterations of the
+            algorithm.
         dp_discard_states: Indicates whether states that cannot be
             reached from the initial state after applying the rules
             should be discarded.
@@ -45,17 +43,12 @@ class DPDialogBuilder(DialogBuilder):
     """
 
     def __init__(self, var_domains, sample, rules,
-                 dp_algorithm="value-iteration",
                  dp_max_iter=1000,
                  dp_discard_states=True,
                  dp_partial_rules=True,
                  dp_aggregate_terminals=True,
                  validate=False):
         super().__init__(var_domains, sample, rules=rules, validate=validate)
-        if dp_algorithm in ("value-iteration", "policy-iteration"):
-            self._dp_algorithm = dp_algorithm
-        else:
-            raise ValueError("Invalid dp_algorithm value")
         self._dp_max_iter = dp_max_iter
         self._dp_discard_states = dp_discard_states
         self._dp_partial_rules = dp_partial_rules
@@ -76,10 +69,7 @@ class DPDialogBuilder(DialogBuilder):
         mdp = self._transform_graph_to_mdp(graph)
         log.info("finished building the MDP")
         log.info("solving the MDP")
-        if self._dp_algorithm == "value-iteration":
-            policy_tuple = mdp.value_iteration(max_iter=self._dp_max_iter)
-        else:
-            policy_tuple = mdp.policy_iteration(max_iter=self._dp_max_iter)
+        policy_tuple = mdp.solve(max_iter=self._dp_max_iter)
         log.info("finished solving the MDP")
         # Create the DPDialog instance.
         num_vars = len(self.var_domains)
@@ -456,60 +446,16 @@ class MDP(object):
         except mdptoolbox.error.Error as error:
             raise ValueError(error.message) from error
 
-    def policy_iteration(self, max_iter=1000, eval_epsilon=0.01,
-                         eval_max_iter=10):
-        """Solve the MDP using modified policy iteration.
-
-        Arguments:
-            max_iter: The maximum number of iterations.
-            eval_epsilon: Stopping criterion for the policy evaluation
-                step. For discounted MDPs it defines the epsilon value
-                used to compute the threshold for the maximum change
-                in the value function between two subsequent
-                iterations. It has no effect for undiscounted MDPs.
-            eval_max_iter: Stopping criterion for the policy
-                evaluation step. The maximum number of iterations.
-
-        The initial policy is the one that maximizes the expected
-        immediate rewards. The algorithm terminates when the policy
-        does not change between two consecutive iterations or after
-        `max_iter` iterations. The policy evaluation step is
-        implemented iteratively, stopping when the maximum change in
-        the value function is less than the threshold computed for
-        `eval_epsilon` (only for discounted MDPs) or after
-        `eval_max_iter` iterations.
-
-        Returns:
-            A tuple mapping state indices to action indices.
-        """
-        P, R = self.transitions, self.rewards
-        gamma = self.discount_factor
-        # Prevent pymdptoolbox from printing a warning about using a
-        # discount factor of 1.0.
-        with open(os.devnull, "w") as devnull, redirect_stdout(devnull):
-            pi = PolicyIteration(P, R, gamma, max_iter=max_iter,
-                                 eval_type="iterative", skip_check=True)
-        # Monkey-patch the _evalPoicyIterative method to change the
-        # default values for epsilon and max_iter.
-        original = pi._evalPolicyIterative
-        epsilon = eval_epsilon
-        max_iter = eval_max_iter
-        patched = lambda self, V0=0, epsilon=epsilon, max_iter=max_iter: \
-            original(V0, epsilon, max_iter)
-        pi._evalPolicyIterative = types.MethodType(patched, pi)
-        pi.run()
-        return pi.policy
-
-    def value_iteration(self, epsilon=0.01, max_iter=1000):
+    def solve(self, max_iter=1000, epsilon=0.01):
         """Solve the MDP using value iteration.
 
         Arguments:
-            epsilon: Stopping criterion. For discounted MDPs it
-                defines the epsilon value used to compute the
+            max_iter: The maximum number of iterations.
+            epsilon: Additional stopping criterion. For discounted
+                MDPs it defines the epsilon value used to compute the
                 threshold for the maximum change in the value function
                 between two subsequent iterations. For undiscounted
                 MDPs it defines the absolute threshold.
-            max_iter: The maximum number of iterations.
 
         The initial value function is zero for all the states. The
         algorithm terminates when an epsilon-optimal policy is found
