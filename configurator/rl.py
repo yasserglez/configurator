@@ -68,7 +68,7 @@ class RLDialogBuilder(DialogBuilder):
                  rl_epsilon=0.1,
                  rl_learning_batch=1,
                  rl_learning_rate=0.3,
-                 rl_rprop_epochs=1000,
+                 rl_rprop_epochs=100,
                  rl_rprop_error=0.01,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
