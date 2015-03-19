@@ -21,16 +21,16 @@ class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
                                email_client.sample,
                                rules=email_client.rules,
                                rl_table=table,
-                               rl_learning_batch=10,
                                rl_num_episodes=50,
+                               rl_rprop_epochs=100,
                                validate=True)
 
     def test_exact(self, email_client):
         builder = self._create_builder("exact", email_client)
         self._test_builder(builder, email_client)
 
-    def test_approximate(self, email_client):
-        builder = self._create_builder("approximate", email_client)
+    def test_approx(self, email_client):
+        builder = self._create_builder("approx", email_client)
         self._test_builder(builder, email_client)
 
 
@@ -42,22 +42,22 @@ class TestCSPRLDialogBuilder(BaseTestRLDialogBuilder):
                                constraints=email_client.constraints,
                                consistency=consistency,
                                rl_table=table,
-                               rl_learning_batch=10,
                                rl_num_episodes=50,
+                               rl_rprop_epochs=100,
                                validate=True)
 
     def test_exact_global(self, email_client):
         builder = self._create_builder("exact", "global", email_client)
         self._test_builder(builder, email_client)
 
-    def test_approximate_global(self, email_client):
-        builder = self._create_builder("approximate", "global", email_client)
+    def test_approx_global(self, email_client):
+        builder = self._create_builder("approx", "global", email_client)
         self._test_builder(builder, email_client)
 
     def test_exact_local(self, email_client):
         builder = self._create_builder("exact", "local", email_client)
         self._test_builder(builder, email_client)
 
-    def test_approximate_local(self, email_client):
-        builder = self._create_builder("approximate", "local", email_client)
+    def test_approx_local(self, email_client):
+        builder = self._create_builder("approx", "local", email_client)
         self._test_builder(builder, email_client)

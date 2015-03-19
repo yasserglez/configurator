@@ -9,6 +9,7 @@ from operator import mul
 import numpy as np
 import numpy.ma as ma
 from fann2 import libfann
+from pybrain.datasets import ReinforcementDataSet
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
@@ -40,18 +41,16 @@ class RLDialogBuilder(DialogBuilder):
             argument is ignored for rule-based dialogs.
         rl_table: Representation of the action-value table. Possible
             values are `'exact'` (explicit representation of all the
-            configuration states) and `'approximate'` (approximate
+            configuration states) and `'approx'` (approximate
             representation using a neural network).
         rl_num_episodes: Number of simulated episodes.
-        rl_epsilon: Epsilon value in the epsilon-greedy exploration.
         rl_learning_batch: Collect experience from this many episodes
-            before updating the action-value table. This argument is
-            ignored for the exact action-value table representation,
-            where learning always occurs after every episode.
+            before updating the action-value table.
+        rl_epsilon: Epsilon value in the epsilon-greedy exploration.
         rl_learning_rate: Q-learning learning rate. This argument is
-            used only with the exact action-value table
-            representation. The approximate representation is learned
-            in a fitted Q-iteration fashion.
+            used only with the exact action-value table. The
+            approximate representation is learned in a fitted
+            Q-iteration fashion.
         rl_rprop_epochs: Maximum number of epochs of Rprop training.
             This argument is used only with the approximate
             action-value table representation (which uses fitted
@@ -66,12 +65,12 @@ class RLDialogBuilder(DialogBuilder):
 
     def __init__(self, var_domains, sample, rules=None, constraints=None,
                  consistency="local",
-                 rl_table="approximate",
+                 rl_table="approx",
                  rl_num_episodes=1000,
-                 rl_epsilon=0.1,
-                 rl_learning_batch=10,
+                 rl_epsilon=0.01,
+                 rl_learning_batch=1,
                  rl_learning_rate=0.3,
-                 rl_rprop_epochs=100,
+                 rl_rprop_epochs=1000,
                  rl_rprop_error=0.01,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
@@ -79,7 +78,7 @@ class RLDialogBuilder(DialogBuilder):
             self._consistency = consistency
         else:
             raise ValueError("Invalid consistency value")
-        if rl_table not in {"exact", "approximate"}:
+        if rl_table not in {"exact", "approx"}:
             raise ValueError("Invalid rl_table value")
         self._consistency = consistency
         self._rl_table = rl_table
@@ -103,7 +102,7 @@ class RLDialogBuilder(DialogBuilder):
         if self._rl_table == "exact":
             table = ExactQTable(self.var_domains)
             learner = ExactQLearning(self._rl_learning_rate)
-        elif self._rl_table == "approximate":
+        elif self._rl_table == "approx":
             table = ApproxQTable(self.var_domains)
             learner = ApproxQLearning(self._rl_rprop_epochs,
                                       self._rl_rprop_error)
@@ -279,7 +278,8 @@ class DialogAgent(LearningAgent):
 
     def giveReward(self, reward):  # Step 3
         self.lastreward = reward
-        self.history.addSample(self.laststate, self.lastaction, self.lastreward)
+        self.history.addSample(self.laststate, self.lastaction,
+                               self.lastreward)
 
 
 class ExactQTable(ActionValueTable):
@@ -443,17 +443,33 @@ class ExactQLearning(Q):
         self.module.updateValue(laststate, lastaction, new_qvalue)
 
 
+# Neural Fitted Q-iteration.
 class ApproxQLearning(ValueBasedLearner):
 
     def __init__(self, rprop_epochs, rprop_error):
         super().__init__()
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
+        self._samples = None
 
     def learn(self):
-        log.info("training the neural network using Rprop")
-        input_values, target_values = [], []
+        # Extend the incremental dataset with the new transitions.
+        if self._samples is None:
+            # The agent sets the module (i.e. the ApproxQTable
+            # instance) after the object is created.
+            self._samples = ReinforcementDataSet(self.module.indim,
+                                                 self.module.outdim)
         for episode in self.dataset:
+            self._samples.newSequence()
+            for state, action, reward in episode:
+                self._samples.addSample(state, action, reward)
+        # Train the neural network.
+        input_values, target_values = self._generate_pattern_set()
+        self._rprop_training(input_values, target_values)
+
+    def _generate_pattern_set(self):
+        input_values, target_values = [], []
+        for episode in self._samples:
             laststate = None
             for state, action, reward in episode:
                 if laststate is None:
@@ -478,12 +494,15 @@ class ApproxQLearning(ValueBasedLearner):
             target_value = self.module.transformOutput(Q=lastreward)
             input_values.append(input_value)
             target_values.append([target_value])
-        # Train the neural network.
+        return input_values, target_values
+
+    def _rprop_training(self, input_values, target_values):
+        log.info("training the neural network using Rprop")
+        net = self.module.network
         data = libfann.training_data()
         data.set_train_data(input_values, target_values)
         log.info("the training set contains %d samples",
                  data.length_train_data())
-        net = self.module.network
         net.reset_MSE()
         net.train_on_data(data, self._rprop_epochs, 0, self._rprop_error)
-        log.info("training MSE is %g", net.get_MSE())
+        log.info("final training MSE is %g", net.get_MSE())
