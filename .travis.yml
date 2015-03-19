@@ -2,6 +2,13 @@ language: python
 python:
   - 3.4
 before_install:
+  - sudo apt-get install cmake swig2.0
+  - wget http://downloads.sourceforge.net/project/fann/fann/2.2.0/FANN-2.2.0-Source.zip
+  - unzip FANN-2.2.0-Source.zip
+  - cd FANN-2.2.0-Source
+  - cmake .
+  - sudo make install
+  - sudo ldconfig
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
   - chmod +x miniconda.sh
   - ./miniconda.sh -b

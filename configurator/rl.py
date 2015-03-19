@@ -8,7 +8,8 @@ from operator import mul
 
 import numpy as np
 import numpy.ma as ma
-from pybrain.auxiliary import GradientDescent
+from fann2 import libfann
+from pybrain.datasets import ReinforcementDataSet
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
@@ -18,9 +19,6 @@ from pybrain.rl.learners.valuebased import ActionValueTable
 from pybrain.rl.learners.valuebased.interface import ActionValueInterface
 from pybrain.rl.learners.valuebased.valuebased import ValueBasedLearner
 from pybrain.structure.modules import Module
-from pybrain.structure import (FeedForwardNetwork, FullConnection,
-                               BiasUnit, LinearLayer, SigmoidLayer)
-
 
 from .dialogs import Dialog, DialogBuilder
 from .util import iter_config_states
@@ -41,19 +39,23 @@ class RLDialogBuilder(DialogBuilder):
             the RL episodes. Possible values are: `'global'` and
             `'local'` (only implemented for binary constraints). This
             argument is ignored for rule-based dialogs.
+        rl_num_episodes: Number of simulated episodes.
+        rl_learning_batch: Collect experience from this many episodes
+            before updating the action-value table.
         rl_table: Representation of the action-value table. Possible
             values are `'exact'` (explicit representation of all the
-            configuration states) and `'approximate'` (approximate
+            configuration states) and `'approx'` (approximate
             representation using a neural network).
-        rl_backprop_step_size: Gradient descent step size used to
-            update the parameters of the neural network approximating
-            the action-value table (only relevant if `rl_table` is
-            `'approximate'`).
-        rl_learning_rate: Q-learning learning rate.
-        rl_initial_epsilon: Initial epsilon value for the
-            epsilon-greedy exploration. The value decays linearly with
-            the number of simulated episodes.
-        rl_num_episodes: Number of simulated episodes.
+        rl_epsilon: Epsilon value for the epsilon-greedy exploration.
+        rl_learning_rate: Q-learning learning rate. This argument is
+            used only with the exact action-value table. The approximate
+            representation is learned using Neural Fitted Q-iteration.
+        rl_rprop_epochs: Maximum number of epochs of Rprop training.
+            This argument is used only with the approximate
+            action-value table representation.
+        rl_rprop_error: Rprop error threshold. This argument is used
+            only with the approximate action-value table
+            representation.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -61,25 +63,27 @@ class RLDialogBuilder(DialogBuilder):
 
     def __init__(self, var_domains, sample, rules=None, constraints=None,
                  consistency="local",
-                 rl_table="approximate",
-                 rl_backprop_step_size=0.1,
-                 rl_learning_rate=0.3,
-                 rl_initial_epsilon=0.5,
                  rl_num_episodes=1000,
+                 rl_learning_batch=1,
+                 rl_table="approx",
+                 rl_epsilon=0.1,
+                 rl_learning_rate=0.3,
+                 rl_rprop_epochs=100,
+                 rl_rprop_error=0.01,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
-        if consistency in {"global", "local"}:
-            self._consistency = consistency
-        else:
+        if consistency not in {"global", "local"}:
             raise ValueError("Invalid consistency value")
-        if rl_table in {"exact", "approximate"}:
-            self._rl_table = rl_table
-        else:
+        if rl_table not in {"exact", "approx"}:
             raise ValueError("Invalid rl_table value")
-        self._rl_backprop_step_size = rl_backprop_step_size
-        self._rl_learning_rate = rl_learning_rate
-        self._rl_initial_epsilon = rl_initial_epsilon
+        self._consistency = consistency
         self._rl_num_episodes = rl_num_episodes
+        self._rl_learning_batch = rl_learning_batch
+        self._rl_table = rl_table
+        self._rl_epsilon = rl_epsilon
+        self._rl_learning_rate = rl_learning_rate
+        self._rl_rprop_epochs = rl_rprop_epochs
+        self._rl_rprop_error = rl_rprop_error
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -93,25 +97,22 @@ class RLDialogBuilder(DialogBuilder):
         if self._rl_table == "exact":
             table = ExactQTable(self.var_domains)
             learner = ExactQLearning(self._rl_learning_rate)
-        elif self._rl_table == "approximate":
+        elif self._rl_table == "approx":
             table = ApproxQTable(self.var_domains)
-            learner = ApproxQLearning(self._rl_learning_rate,
-                                      self._rl_backprop_step_size)
-        agent = DialogAgent(table, learner, self._rl_initial_epsilon)
-        exp = EpisodicExperiment(task, agent)
+            learner = ApproxQLearning(self._rl_rprop_epochs,
+                                      self._rl_rprop_error)
+        agent = DialogAgent(table, learner, self._rl_epsilon)
+        exp = DialogExperiment(task, agent)
         log.info("running the RL algorithm")
+        simulated_episodes = 0
         complete_episodes = 0
-        for curr_episode in range(self._rl_num_episodes):
-            log.info("epsilon value is %g", agent.epsilon)
-            exp.doEpisodes(number=1)
-            if env.dialog.is_complete():
-                complete_episodes += 1
-                agent.learn(episodes=1)
-            agent.reset()
-            agent.epsilon = (self._rl_initial_epsilon *
-                             (self._rl_num_episodes - curr_episode - 1) /
-                             self._rl_num_episodes)
-        log.info("simulated %d episodes", self._rl_num_episodes)
+        while simulated_episodes < self._rl_num_episodes:
+            exp.doEpisodes(number=self._rl_learning_batch)
+            simulated_episodes += self._rl_learning_batch
+            complete_episodes += agent.history.getNumSequences()
+            agent.learn()
+            agent.reset()  # clear the previous batch
+        log.info("simulated %d episodes", simulated_episodes)
         log.info("learned from %d episodes", complete_episodes)
         log.info("finished running the RL algorithm")
         # Create the RLDialog instance.
@@ -136,32 +137,33 @@ class RLDialog(Dialog):
         super().__init__(var_domains, rules, constraints, validate)
 
     def get_next_question(self):
-        state = self._table.getState(self.config)
+        state = self._table.transformState(config=self.config)
         action = self._table.getMaxAction(state, self.config)
         return action
 
 
+class DialogExperiment(EpisodicExperiment):
+
+    def doEpisodes(self, number):
+        # Overriding to handle skipping inconsistent episodes.
+        log.info("simulating %d episodes", number)
+        cumrewards = []
+        for episode in range(number):
+            self.agent.newEpisode()
+            self.task.reset()
+            while not self.task.isFinished():
+                self._oneInteraction()
+            if self.task.env.dialog.is_consistent():
+                cumrewards.append(self.task.cumreward)
+            else:
+                index = self.agent.history.getNumSequences() - 1
+                self.agent.history.removeSequence(index)
+        log.info("finished %d complete episodes, average total reward %g",
+                 len(cumrewards), np.mean(cumrewards))
+        return cumrewards
+
+
 class DialogEnvironment(Environment):
-    """Represents a configuration dialog in PyBrain's RL model.
-
-    Arguments:
-        dialog: A :class:`configurator.dialogs.Dialog` instance.
-        consistency: Whether to enforce `'global'` or `'local'`
-            consistency after each answer.
-        freq_table: A :class:`configurator.freq_table.FrequencyTable` instance.
-
-    The environment keeps track of the configuration state. It starts
-    in a state where all the variables are unknown (and it can be
-    reset at any time to this state using the reset method). An action
-    can be performed (i.e. asking a question) by calling
-    :meth:`performAction`. Then, the user response is simulated and
-    the configuration state is updated (including discovered
-    variables). The current configuration state is returned by
-    :meth:`getSensors`.
-
-    Attributes:
-        dialog: A :class:`configurator.dialogs.Dialog` instance.
-    """
 
     def __init__(self, dialog, consistency, freq_table):
         super().__init__()
@@ -200,11 +202,6 @@ class DialogEnvironment(Environment):
 
 
 class DialogTask(EpisodicTask):
-    """Represents the configuration goal in PyBrain's RL model.
-
-    Arguments:
-        env: A `DialogEnvironment` instance.
-    """
 
     def __init__(self, env):
         super().__init__(env)
@@ -239,27 +236,20 @@ class DialogTask(EpisodicTask):
 
     def isFinished(self):
         is_finished = False
-        if self.env.dialog.is_complete():
-            log.info("finished an episode, total reward %d", self.cumreward)
+        if not self.env.dialog.is_consistent():
+            log.debug("finished an episode, reached an inconsistent state")
             is_finished = True
-        elif not self.env.dialog.is_consistent():
-            log.info("finished an episode, reached an inconsistent state")
+        elif self.env.dialog.is_complete():
+            log.debug("finished an episode, total reward %d", self.cumreward)
             is_finished = True
         return is_finished
 
 
 class DialogAgent(LearningAgent):
-    """A learning agent in PyBrain's RL model.
-
-    Arguments:
-        table: A `ExactQTable` or `ApproxQTable` instance.
-        learner: A `ExactQLearning` or `ApproxQLearning` instance.
-        epsilon: Epsilon value for the epsilon-greedy exploration.
-    """
 
     def __init__(self, table, learner, epsilon):
         super().__init__(table, learner)  # self.module = table
-        self.epsilon = epsilon
+        self._epsilon = epsilon
 
     def newEpisode(self):
         log.debug("new episode in the agent")
@@ -271,7 +261,7 @@ class DialogAgent(LearningAgent):
 
     def integrateObservation(self, config):  # Step 1
         self.lastconfig = config
-        self.laststate = self.module.getState(config)
+        self.laststate = self.module.transformState(config=config)
 
     def getAction(self):  # Step 2
         log.debug("getting an action from the agent")
@@ -280,7 +270,7 @@ class DialogAgent(LearningAgent):
         # (i.e. a question that hasn't been answered).
         action = self.module.getMaxAction(self.laststate, self.lastconfig)
         log.debug("the greedy action is %d", action)
-        if np.random.uniform() < self.epsilon:
+        if np.random.uniform() < self._epsilon:
             valid_actions = [a for a in range(self.module.numActions)
                              if a not in self.lastconfig]
             action = np.random.choice(valid_actions)
@@ -290,9 +280,8 @@ class DialogAgent(LearningAgent):
 
     def giveReward(self, reward):  # Step 3
         self.lastreward = reward
-        if self.logging:
-            self.history.addSample(self.laststate, self.lastaction,
-                                   self.lastreward)
+        self.history.addSample(self.laststate, self.lastaction,
+                               self.lastreward)
 
 
 class ExactQTable(ActionValueTable):
@@ -309,9 +298,8 @@ class ExactQTable(ActionValueTable):
         super().__init__(num_states, num_actions)
         self.initialize(0)
         self.Q = self.params.reshape(num_states, num_actions)
-        self.Q[num_states - 1, :] = 0
 
-    def transformInput(self, config=None, state=None):
+    def transformState(self, config=None, state=None):
         # Find the position of the state among all the possible
         # configuration states. This isn't efficient, but the tabular
         # version doesn't work for many variables anyway.
@@ -325,12 +313,9 @@ class ExactQTable(ActionValueTable):
             elif config_key == hash(frozenset(cur_config.items())):
                 return cur_state
 
-    def getState(self, config):
-        return self.transformInput(config=config)
-
     def getMaxAction(self, state, config=None):
         if config is None:
-            config = self.transformInput(state=state)
+            config = self.transformState(state=state)
         invalid_action = [a in config for a in range(self.numActions)]
         action = ma.array(self.Q[state, :], mask=invalid_action).argmax()
         return action
@@ -340,44 +325,49 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def __init__(self, var_domains):
         self.var_domains = var_domains
-        self.numActions = len(self.var_domains)
         super().__init__(sum(map(len, self.var_domains)), 1)
+        self.numActions = len(self.var_domains)
         self.network = self._buildNetwork()
-        log.info("the neural network has %d parameters",
-                 len(self.network.params))
 
     def _buildNetwork(self):
-        n = FeedForwardNetwork()
-        n.addInputModule(LinearLayer(self.indim, name="input"))
-        n.addModule(SigmoidLayer(self.numActions, name="hidden"))
-        n.addOutputModule(SigmoidLayer(self.numActions, name="output"))
-        n.addModule(BiasUnit(name="bias"))
-        n.addConnection(FullConnection(n["input"], n["hidden"]))
-        n.addConnection(FullConnection(n["bias"], n["hidden"]))
-        n.addConnection(FullConnection(n["hidden"], n["output"]))
-        n.addConnection(FullConnection(n["bias"], n["output"]))
-        n.sortModules()  # N(0,1) weight initialization
-        return n
+        num_input = self.indim + len(self.var_domains)
+        num_hidden = len(self.var_domains)
+        num_output = self.outdim
+        net = libfann.neural_net()
+        net.create_standard_array((num_input, num_hidden, num_output))
+        net.set_training_algorithm(libfann.TRAIN_RPROP)
+        net.set_activation_function_hidden(libfann.SIGMOID_SYMMETRIC)
+        net.set_activation_function_output(libfann.SIGMOID_SYMMETRIC)
+        net.set_training_algorithm(libfann.TRAIN_RPROP)
+        net.set_train_error_function(libfann.ERRORFUNC_LINEAR)
+        net.set_train_stop_function(libfann.STOPFUNC_MSE)
+        # TODO: Couldn't get set_weight_array to work.
+        total_neurons = net.get_total_neurons()
+        for i in range(total_neurons):
+            for j in range(i + 1, total_neurons):
+                weight = np.random.uniform(-0.5, 0.5)
+                net.set_weight(i, j, weight)
+        log.info("the neural network has %d weights",
+                 net.get_total_connections())
+        return net
 
-    def transformInput(self, config=None, state=None):
-        # Variables are represented using the 1-of-C encoding with -1
-        # for unset values and 1 for the set value. If a variable is
-        # not set, all the values are 0.
+    def transformState(self, config=None, state=None):
+        # Each variable is represented using dummy variables
+        # (1-of-C encoding) with 0 as -1 and 1 as 1.
         assert config is None or state is None
         if state is None:
             state = []
             for var_index, var_values in enumerate(self.var_domains):
+                input_values = -1 * np.ones((len(var_values), ))
                 if var_index in config:
-                    input_values = -1 * np.ones((len(var_values), ))
-                    k = var_values.index(config[var_index])
+                    var_value = config[var_index]
+                    k = var_values.index(var_value)
                     input_values[k] = 1
-                else:
-                    input_values = np.zeros((len(var_values), ))
                 state.append(input_values)
             return np.concatenate(state)
         elif config is None:
-            config = {}
             i = 0
+            config = {}
             for var_index, var_values in enumerate(self.var_domains):
                 input_values = state[i:i + len(var_values)]
                 k = np.flatnonzero(input_values == 1)
@@ -387,38 +377,48 @@ class ApproxQTable(Module, ActionValueInterface):
                 i += len(var_values)
             return config
 
+    def transformInput(self, state, action):
+        # The action is represented using dummy variables
+        # (1-of-C encoding) with 0 as -1 and 1 as 1.
+        action_values = -1 * np.ones((len(self.var_domains), ))
+        action_values[action] = 1
+        input_values = np.concatenate([state, action_values])
+        return input_values
+
     def transformOutput(self, Q=None, output=None):
+        # Scale neural net output from [-1, 1] to [0, Q_max].
         assert Q is None or output is None
-        Q_max = self.numActions - 1
+        Q_max = len(self.var_domains) - 1  # at least one question asked
         if Q is None:
-            Q_values = output * Q_max
+            Q_values = Q_max * (output + 1) / 2
             return Q_values
         else:
-            output_values = Q / Q_max
+            output_values = 2 * (Q / Q_max) - 1
             return output_values
 
-    def _forwardImplementation(self, inbuf, outbuf):
-        outbuf[0] = self.getMaxAction(inbuf)
-
-    def getState(self, config):
-        return self.transformInput(config=config)
-
-    def getActionValues(self, state):
-        output_values = self.network.activate(state)
-        Q_values = self.transformOutput(output=output_values)
-        return Q_values
-
     def getValue(self, state, action):
-        Q_values = self.getActionValues(state)
-        return Q_values[action]
+        input_values = self.transformInput(state, action)
+        output_value = self.network.run(input_values)[0]
+        Q_value = self.transformOutput(output=output_value)
+        return Q_value
+
+    def _getMaxActionValue(self, state, config=None):
+        if config is None:
+            config = self.transformState(state=state)
+        max_action, max_value = None, None
+        for action in range(len(self.var_domains)):
+            if action not in config:
+                value = self.getValue(state, action)
+                if max_action is None or value > max_value:
+                    max_action = action
+                    max_value = value
+        return max_action, max_value
 
     def getMaxAction(self, state, config=None):
-        if config is None:
-            config = self.transformInput(state=state)
-        invalid_action = [a in config for a in range(self.numActions)]
-        Q_values = self.getActionValues(state)
-        action = ma.array(Q_values, mask=invalid_action).argmax()
-        return action
+        return self._getMaxActionValue(state, config)[0]
+
+    def getMaxValue(self, state, config=None):
+        return self._getMaxActionValue(state, config)[1]
 
 
 class ExactQLearning(Q):
@@ -427,76 +427,84 @@ class ExactQLearning(Q):
         super().__init__(alpha=rl_learning_rate, gamma=1.0)
 
     def learn(self):
-        # We need to process the reward for entering the terminal
-        # state but Q.learn doesn't do it. Let Q.learn process the
-        # complete episode first, and then process the last
-        # observation. We assume Q is zero for the terminal state.
-        super().learn()
-        # This will only work if episodes are processed one by one,
-        # so ensure there's only one sequence in the dataset.
+        # Q.learn doesn't process the reward for entering the terminal
+        # state. Let Q.learn process the complete episode first, and
+        # then process the last observation. This will work only if
+        # episodes are processed one by one, so ensure there's only
+        # one sequence in the dataset.
         assert self.batchMode and self.dataset.getNumSequences() == 1
+        super().learn()
         seq = next(iter(self.dataset))
         for laststate, lastaction, lastreward in seq:
-            pass  # skip all the way to the last
+            pass  # skip all the way to the end
         laststate = int(laststate)
         lastaction = int(lastaction)
+        # Assuming Q is zero for the terminal state.
         qvalue = self.module.getValue(laststate, lastaction)
         new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
         self.module.updateValue(laststate, lastaction, new_qvalue)
 
 
-# Based on Nees Jan van Eck, Michiel van Wezel, Application of
-# reinforcement learning to the game of Othello, Computers &
-# Operations Research, Volume 35, Issue 6, June 2008, Pages 1999-2017.
+# Neural Fitted Q-iteration.
 class ApproxQLearning(ValueBasedLearner):
 
-    def __init__(self, rl_learning_rate, rl_backprop_step_size):
+    def __init__(self, rprop_epochs, rprop_error):
         super().__init__()
-        self._rl_learning_rate = rl_learning_rate
-        self._rl_backprop_step_size = rl_backprop_step_size
+        self._rprop_epochs = rprop_epochs
+        self._rprop_error = rprop_error
+        self._samples = None
 
     def learn(self):
-        # Assume episodes are processed one by one.
-        assert self.batchMode and self.dataset.getNumSequences() == 1
-        avg_error = np.zeros((self.module.network.outdim, ))
-        laststate = None
-        experience = list(next(iter(self.dataset)))
-        for state, action, reward in experience:
-            if laststate is None:
+        # Extend the incremental dataset with the new transitions.
+        if self._samples is None:
+            # The agent sets the module (i.e. the ApproxQTable
+            # instance) after the object is created.
+            self._samples = ReinforcementDataSet(self.module.indim,
+                                                 self.module.outdim)
+        for episode in self.dataset:
+            self._samples.newSequence()
+            for state, action, reward in episode:
+                self._samples.addSample(state, action, reward)
+        # Train the neural network.
+        input_values, target_values = self._generate_pattern_set()
+        self._rprop_training(input_values, target_values)
+
+    def _generate_pattern_set(self):
+        input_values, target_values = [], []
+        for episode in self._samples:
+            laststate = None
+            for state, action, reward in episode:
+                if laststate is None:
+                    laststate = state
+                    lastaction = int(action)
+                    lastreward = reward
+                    continue
+                # Build Q(s,a) = r(s,a) + max Q(s',a') from
+                # (laststate, lastaction, lastreward, state).
+                input_value = self.module.transformInput(laststate, lastaction)
+                Q_value = lastreward + self.module.getMaxValue(state)
+                target_value = self.module.transformOutput(Q=Q_value)
+                input_values.append(input_value)
+                target_values.append([target_value])
+                # Prepare for the next iteration.
                 laststate = state
                 lastaction = int(action)
                 lastreward = reward
-                continue
-            # Calculate the error in the Q values, scale it back to
-            # the network's output and update the average error.
-            Q_output = self.module.getValue(laststate, lastaction)
-            max_a = self.module.getMaxAction(state)
-            max_Q = self.module.getValue(state, max_a)
-            Q_target = ((1 - self._rl_learning_rate) * Q_output +
-                        self._rl_learning_rate * (lastreward + max_Q))
-            avg_error[lastaction] += \
-                0.5 * (self.module.transformOutput(Q=Q_target) -
-                       self.module.transformOutput(Q=Q_output)) ** 2
-            # Update experience for the next iteration.
-            laststate = state
-            lastaction = int(action)
-            lastreward = reward
-        # Process the reward for entering the terminal state.
-        # We assume Q is zero for the terminal state.
-        Q_output = self.module.getValue(laststate, lastaction)
-        Q_target = Q_output + self._rl_learning_rate * (lastreward - Q_output)
-        avg_error[lastaction] += \
-            0.5 * (self.module.transformOutput(Q=Q_target) -
-                   self.module.transformOutput(Q=Q_output)) ** 2
-        avg_error /= len(experience)
-        self._backprop(avg_error)
+            # Add the reward for entering the terminal state.
+            # Assuming Q is zero for the terminal state.
+            input_value = self.module.transformInput(laststate, lastaction)
+            target_value = self.module.transformOutput(Q=lastreward)
+            input_values.append(input_value)
+            target_values.append([target_value])
+        return input_values, target_values
 
-    def _backprop(self, output_error):
-        log.info("neural network error:\n%s", output_error)
-        self.module.network.resetDerivatives()
-        self.module.network.backActivate(output_error)
-        gradient_descent = GradientDescent()
-        gradient_descent.alpha = self._rl_backprop_step_size
-        gradient_descent.init(self.module.network.params)
-        new_params = gradient_descent(self.module.network.derivs)
-        self.module.network.params[:] = new_params
+    def _rprop_training(self, input_values, target_values):
+        log.info("training the neural network using Rprop")
+        net = self.module.network
+        data = libfann.training_data()
+        data.set_train_data(input_values, target_values)
+        log.info("the training set contains %d samples",
+                 data.length_train_data())
+        net.reset_MSE()
+        net.train_on_data(data, self._rprop_epochs, 0, self._rprop_error)
+        log.info("final training MSE is %g", net.get_MSE())

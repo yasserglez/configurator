@@ -1,7 +1,9 @@
+import pytest
+
 from configurator.rl import RLDialogBuilder
 
 
-class BaseTestRLDialogBuilder(object):
+class _TestRLDialogBuilder(object):
 
     def _test_builder(self, builder, email_client):
         dialog = builder.build_dialog()
@@ -14,51 +16,34 @@ class BaseTestRLDialogBuilder(object):
             assert dialog.config == config
 
 
-class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
+class TestRuleRLDialogBuilder(_TestRLDialogBuilder):
 
-    def _create_builder(self, table, email_client):
-        return RLDialogBuilder(email_client.var_domains,
-                               email_client.sample,
-                               rules=email_client.rules,
-                               rl_table=table,
-                               rl_num_episodes=50,
-                               validate=True)
-
-    def test_exact(self, email_client):
-        builder = self._create_builder("exact", email_client)
-        self._test_builder(builder, email_client)
-
-    def test_approximate(self, email_client):
-        builder = self._create_builder("approximate", email_client)
+    @pytest.mark.parametrize("rl_table", ("exact", "approx"))
+    def test_build_dialog(self, rl_table, email_client):
+        builder = RLDialogBuilder(email_client.var_domains,
+                                  email_client.sample,
+                                  rules=email_client.rules,
+                                  rl_num_episodes=50,
+                                  rl_table=rl_table,
+                                  rl_rprop_epochs=100,
+                                  validate=True)
         self._test_builder(builder, email_client)
 
 
-class TestCSPRLDialogBuilder(BaseTestRLDialogBuilder):
+class TestCSPRLDialogBuilder(_TestRLDialogBuilder):
 
-    # TODO: Use a different example where enforcing local and global
-    # consistency give different results.
-
-    def _create_builder(self, table, consistency, email_client):
-        return RLDialogBuilder(email_client.var_domains,
-                               email_client.sample,
-                               constraints=email_client.constraints,
-                               consistency=consistency,
-                               rl_table=table,
-                               rl_num_episodes=50,
-                               validate=True)
-
-    def test_exact_global(self, email_client):
-        builder = self._create_builder("exact", "global", email_client)
-        self._test_builder(builder, email_client)
-
-    def test_approximate_global(self, email_client):
-        builder = self._create_builder("approximate", "global", email_client)
-        self._test_builder(builder, email_client)
-
-    def test_exact_local(self, email_client):
-        builder = self._create_builder("exact", "local", email_client)
-        self._test_builder(builder, email_client)
-
-    def test_approximate_local(self, email_client):
-        builder = self._create_builder("approximate", "local", email_client)
+    @pytest.mark.parametrize(("consistency", "rl_table"),
+                             (("global", "exact"),
+                              ("global", "approx"),
+                              ("local", "exact"),
+                              ("local", "approx")))
+    def test_build_dialog(self, consistency, rl_table, email_client):
+        builder = RLDialogBuilder(email_client.var_domains,
+                                  email_client.sample,
+                                  constraints=email_client.constraints,
+                                  consistency=consistency,
+                                  rl_num_episodes=50,
+                                  rl_table=rl_table,
+                                  rl_rprop_epochs=100,
+                                  validate=True)
         self._test_builder(builder, email_client)
