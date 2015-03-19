@@ -39,14 +39,14 @@ class RLDialogBuilder(DialogBuilder):
             the RL episodes. Possible values are: `'global'` and
             `'local'` (only implemented for binary constraints). This
             argument is ignored for rule-based dialogs.
+        rl_num_episodes: Number of simulated episodes.
+        rl_learning_batch: Collect experience from this many episodes
+            before updating the action-value table.
         rl_table: Representation of the action-value table. Possible
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approx'` (approximate
             representation using a neural network).
-        rl_num_episodes: Number of simulated episodes.
-        rl_learning_batch: Collect experience from this many episodes
-            before updating the action-value table.
-        rl_epsilon: Epsilon value in the epsilon-greedy exploration.
+        rl_epsilon: Epsilon value for the epsilon-greedy exploration.
         rl_learning_rate: Q-learning learning rate. This argument is
             used only with the exact action-value table. The approximate
             representation is learned using Neural Fitted Q-iteration.
@@ -63,26 +63,24 @@ class RLDialogBuilder(DialogBuilder):
 
     def __init__(self, var_domains, sample, rules=None, constraints=None,
                  consistency="local",
-                 rl_table="approx",
                  rl_num_episodes=1000,
-                 rl_epsilon=0.1,
                  rl_learning_batch=1,
+                 rl_table="approx",
+                 rl_epsilon=0.1,
                  rl_learning_rate=0.3,
                  rl_rprop_epochs=100,
                  rl_rprop_error=0.01,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
-        if consistency in {"global", "local"}:
-            self._consistency = consistency
-        else:
+        if consistency not in {"global", "local"}:
             raise ValueError("Invalid consistency value")
         if rl_table not in {"exact", "approx"}:
             raise ValueError("Invalid rl_table value")
         self._consistency = consistency
-        self._rl_table = rl_table
         self._rl_num_episodes = rl_num_episodes
-        self._rl_epsilon = rl_epsilon
         self._rl_learning_batch = rl_learning_batch
+        self._rl_table = rl_table
+        self._rl_epsilon = rl_epsilon
         self._rl_learning_rate = rl_learning_rate
         self._rl_rprop_epochs = rl_rprop_epochs
         self._rl_rprop_error = rl_rprop_error
@@ -251,7 +249,7 @@ class DialogAgent(LearningAgent):
 
     def __init__(self, table, learner, epsilon):
         super().__init__(table, learner)  # self.module = table
-        self.epsilon = epsilon
+        self._epsilon = epsilon
 
     def newEpisode(self):
         log.debug("new episode in the agent")
@@ -272,7 +270,7 @@ class DialogAgent(LearningAgent):
         # (i.e. a question that hasn't been answered).
         action = self.module.getMaxAction(self.laststate, self.lastconfig)
         log.debug("the greedy action is %d", action)
-        if np.random.uniform() < self.epsilon:
+        if np.random.uniform() < self._epsilon:
             valid_actions = [a for a in range(self.module.numActions)
                              if a not in self.lastconfig]
             action = np.random.choice(valid_actions)
