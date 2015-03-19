@@ -40,6 +40,11 @@ class DialogBuilder(object):
             variable. All the variables must be domain-consistent
             (i.e. there must exist at least one consistent
             configuration in which each value value occurs).
+        sample: A two-dimensional numpy array containing a sample of
+            the configuration variables. Each column is expected to
+            represent a discrete variable and each row a multivariate
+            observation. The order of the columns must match the order
+            of the variables in `var_domains`.
         rules: A list of :class:`configurator.rules.Rule` instances.
             Rules with the same left-hand-side will be combined into a
             single rule by merging their right-hand-sides (values set
@@ -52,45 +57,42 @@ class DialogBuilder(object):
             and a values tuple, both containing only the restricted
             variable indices and their values (in the same order
             provided in `constraints`). The function should return
-            `True` if the values satisfy the constraint, `False`
-            otherwise. The constraints must be normalized (i.e. two
-            different constraints shouldn't involve the same set of
-            variables).
-        sample: A two-dimensional numpy array containing a sample of
-            the configuration variables. Each column is expected to
-            represent a discrete variable and each row a multivariate
-            observation. The order of the columns must match the order
-            of the variables in `var_domains`.
+            `True` if the values satisfy the constraint. The
+            constraints must be normalized (i.e. two different
+            constraints shouldn't involve the same set of variables).
         validate: Whether or not to run some (generally costly) checks
             on the generated model and the resulting :class:`Dialog`
             instance. Mostly intended for testing purposes.
 
     The `var_domains` argument must always be given, as it defines the
     domain of the variables. The `rules` argument is used with the
-    rule-based specification and the `constraints` argument with the
+    rule-based specification and `constraints` with the
     constraint-based specification. In both cases, it assumed that
     there are no contradictions in the configuration problem. The
     satisfiability of a constraint-based specification can be verified
     using the :meth:`~configurator.csp.CSP.solve` method of the
     :class:`configurator.csp.CSP` class. Note that both `rules` and
     `constraints` cannot be given at the same time, but it is possible
-    to express the rules as constraints if needed. If the `sample`
-    argument is given, it will be considered how likely is that the
-    user will select each configuration when using the dialog,
-    otherwise it will be assumed that all configurations occur with
-    the same probability.
+    to express the rules as constraints. The observations in `sample`
+    are used to compute the probabilities of the user's responses.
 
     All the arguments are available as instance attributes.
     """
 
-    def __init__(self, var_domains, rules=None, constraints=None,
-                 sample=None, validate=False):
+    def __init__(self, var_domains, sample, rules=None,
+                 constraints=None, validate=False):
         super().__init__()
         self.var_domains = [list(var_domain) for var_domain in var_domains]
         log.info("there are %g possible configurations of %d variables",
                  reduce(mul, map(len, self.var_domains)),
                  len(self.var_domains))
         log.debug("variable domains:\n%s", pprint.pformat(self.var_domains))
+        self.sample = sample
+        log.info("the configuration sample has %g observations",
+                 self.sample.shape[0])
+        # Build the frequency table from the configuration sample.
+        self._freq_table = FrequencyTable(self.var_domains, self.sample,
+                                          cache_size=1000)
         # Validate and process the rules and constraints.
         if not (rules or constraints):
             raise ValueError("One of rules or constraints must be given")
@@ -111,13 +113,6 @@ class DialogBuilder(object):
         self.constraints = constraints
         if self.constraints is not None:
             log.info("using %d constraints", len(self.constraints))
-        # Build the frequency table from the configuration sample.
-        self.sample = sample
-        if self.sample is not None:
-            log.info("the configuration sample has %g observations",
-                     self.sample.shape[0])
-        self._freq_table = FrequencyTable(self.var_domains, self.sample,
-                                          cache_size=1000)
         self._validate = validate
 
     def build_dialog(self):

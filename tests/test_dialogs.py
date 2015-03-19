@@ -6,10 +6,12 @@ from configurator.dialogs import DialogBuilder, Dialog, PermutationDialog
 class TestDialogBuilder(object):
 
     def test_rules_constraints_one_required(self, email_client):
-        assert_raises(ValueError, DialogBuilder, email_client.var_domains)
+        assert_raises(ValueError, DialogBuilder,
+                      email_client.var_domains, email_client.sample)
 
     def test_rules_constraints_mutually_exclusive(self, email_client):
-        assert_raises(ValueError, DialogBuilder, email_client.var_domains,
+        assert_raises(ValueError, DialogBuilder,
+                      email_client.var_domains, email_client.sample,
                       email_client.rules, email_client.constraints)
 
 

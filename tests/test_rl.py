@@ -17,9 +17,9 @@ class BaseTestRLDialogBuilder(object):
 class TestRuleRLDialogBuilder(BaseTestRLDialogBuilder):
 
     def _create_builder(self, table, email_client):
-        return RLDialogBuilder(var_domains=email_client.var_domains,
+        return RLDialogBuilder(email_client.var_domains,
+                               email_client.sample,
                                rules=email_client.rules,
-                               sample=email_client.sample,
                                rl_table=table,
                                rl_num_episodes=50,
                                validate=True)
@@ -39,9 +39,9 @@ class TestCSPRLDialogBuilder(BaseTestRLDialogBuilder):
     # consistency give different results.
 
     def _create_builder(self, table, consistency, email_client):
-        return RLDialogBuilder(var_domains=email_client.var_domains,
+        return RLDialogBuilder(email_client.var_domains,
+                               email_client.sample,
                                constraints=email_client.constraints,
-                               sample=email_client.sample,
                                consistency=consistency,
                                rl_table=table,
                                rl_num_episodes=50,

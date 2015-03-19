@@ -44,14 +44,14 @@ class DPDialogBuilder(DialogBuilder):
     arguments.
     """
 
-    def __init__(self, var_domains, rules, sample=None,
+    def __init__(self, var_domains, sample, rules,
                  dp_algorithm="value-iteration",
                  dp_max_iter=1000,
                  dp_discard_states=True,
                  dp_partial_rules=True,
                  dp_aggregate_terminals=True,
                  validate=False):
-        super().__init__(var_domains, rules, None, sample, validate)
+        super().__init__(var_domains, sample, rules=rules, validate=validate)
         if dp_algorithm in ("value-iteration", "policy-iteration"):
             self._dp_algorithm = dp_algorithm
         else:

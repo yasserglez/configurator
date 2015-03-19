@@ -7,9 +7,9 @@ from configurator.dp import DPDialogBuilder, EpisodicMDP
 class TestDPDialogBuilder(object):
 
     def _test_builder(self, algorithm, improv, email_client):
-        builder = DPDialogBuilder(var_domains=email_client.var_domains,
+        builder = DPDialogBuilder(email_client.var_domains,
+                                  email_client.sample,
                                   rules=email_client.rules,
-                                  sample=email_client.sample,
                                   dp_algorithm=algorithm,
                                   dp_discard_states=improv,
                                   dp_partial_rules=improv,

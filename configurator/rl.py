@@ -59,7 +59,7 @@ class RLDialogBuilder(DialogBuilder):
     arguments.
     """
 
-    def __init__(self, var_domains, rules=None, constraints=None, sample=None,
+    def __init__(self, var_domains, sample, rules=None, constraints=None,
                  consistency="local",
                  rl_table="approximate",
                  rl_backprop_step_size=0.1,
@@ -67,7 +67,7 @@ class RLDialogBuilder(DialogBuilder):
                  rl_initial_epsilon=0.5,
                  rl_num_episodes=1000,
                  validate=False):
-        super().__init__(var_domains, rules, constraints, sample, validate)
+        super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency in {"global", "local"}:
             self._consistency = consistency
         else:
@@ -188,9 +188,9 @@ class DialogEnvironment(Environment):
         for i, var_value in enumerate(var_values):
             response = {var_index: var_value}
             probs[i] = self._freq_table.cond_prob(response, self.dialog.config)
-        sample = np.random.random((1, ))
         bins = np.cumsum(probs / probs.sum())
-        var_value = var_values[int(np.digitize(sample, bins))]
+        sampled_bin = np.random.random((1, ))
+        var_value = var_values[int(np.digitize(sampled_bin, bins))]
         log.debug("simulated user response %r", var_value)
         self.dialog.set_answer(var_index, var_value, self._consistency)
         if log.isEnabledFor(logging.DEBUG):
