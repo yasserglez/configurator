@@ -48,16 +48,14 @@ class RLDialogBuilder(DialogBuilder):
             before updating the action-value table.
         rl_epsilon: Epsilon value in the epsilon-greedy exploration.
         rl_learning_rate: Q-learning learning rate. This argument is
-            used only with the exact action-value table. The
-            approximate representation is learned in a fitted
-            Q-iteration fashion.
+            used only with the exact action-value table. The approximate
+            representation is learned using Neural Fitted Q-iteration.
         rl_rprop_epochs: Maximum number of epochs of Rprop training.
             This argument is used only with the approximate
-            action-value table representation (which uses fitted
-            Q-iteration).
+            action-value table representation.
         rl_rprop_error: Rprop error threshold. This argument is used
             only with the approximate action-value table
-            representation (which uses fitted Q-iteration).
+            representation.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -67,7 +65,7 @@ class RLDialogBuilder(DialogBuilder):
                  consistency="local",
                  rl_table="approx",
                  rl_num_episodes=1000,
-                 rl_epsilon=0.01,
+                 rl_epsilon=0.1,
                  rl_learning_batch=1,
                  rl_learning_rate=0.3,
                  rl_rprop_epochs=1000,
@@ -84,8 +82,7 @@ class RLDialogBuilder(DialogBuilder):
         self._rl_table = rl_table
         self._rl_num_episodes = rl_num_episodes
         self._rl_epsilon = rl_epsilon
-        self._rl_learning_batch = (1 if self._rl_table == "exact" else
-                                   rl_learning_batch)
+        self._rl_learning_batch = rl_learning_batch
         self._rl_learning_rate = rl_learning_rate
         self._rl_rprop_epochs = rl_rprop_epochs
         self._rl_rprop_error = rl_rprop_error
