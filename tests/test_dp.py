@@ -12,9 +12,9 @@ class TestDPDialogBuilder(object):
         builder = DPDialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   rules=email_client.rules,
-                                  dp_discard_states=with_improvements,
-                                  dp_partial_rules=with_improvements,
-                                  dp_aggregate_terminals=with_improvements,
+                                  discard_states=with_improvements,
+                                  partial_rules=with_improvements,
+                                  aggregate_terminals=with_improvements,
                                   validate=True)
         dialog = builder.build_dialog()
         for config, num_questions in email_client.scenarios:

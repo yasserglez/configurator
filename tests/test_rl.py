@@ -18,32 +18,32 @@ class _TestRLDialogBuilder(object):
 
 class TestRuleRLDialogBuilder(_TestRLDialogBuilder):
 
-    @pytest.mark.parametrize("rl_table", ("exact", "approx"))
-    def test_build_dialog(self, rl_table, email_client):
+    @pytest.mark.parametrize("table", ("exact", "approx"))
+    def test_build_dialog(self, table, email_client):
         builder = RLDialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   rules=email_client.rules,
-                                  rl_num_episodes=50,
-                                  rl_table=rl_table,
-                                  rl_rprop_epochs=100,
+                                  num_episodes=50,
+                                  table=table,
+                                  rprop_epochs=100,
                                   validate=True)
         self._test_builder(builder, email_client)
 
 
 class TestCSPRLDialogBuilder(_TestRLDialogBuilder):
 
-    @pytest.mark.parametrize(("consistency", "rl_table"),
+    @pytest.mark.parametrize(("consistency", "table"),
                              (("global", "exact"),
                               ("global", "approx"),
                               ("local", "exact"),
                               ("local", "approx")))
-    def test_build_dialog(self, consistency, rl_table, email_client):
+    def test_build_dialog(self, consistency, table, email_client):
         builder = RLDialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   constraints=email_client.constraints,
                                   consistency=consistency,
-                                  rl_num_episodes=50,
-                                  rl_table=rl_table,
-                                  rl_rprop_epochs=100,
+                                  num_episodes=50,
+                                  table=table,
+                                  rprop_epochs=100,
                                   validate=True)
         self._test_builder(builder, email_client)

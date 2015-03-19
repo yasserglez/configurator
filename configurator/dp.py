@@ -24,18 +24,17 @@ class DPDialogBuilder(DialogBuilder):
     """Build a configuration dialog using dynamic programming.
 
     Arguments:
-        dp_max_iter: The MDP is solved using value iteration. This
+        max_iter: The MDP is solved using value iteration. This
             argument sets the maximum number of iterations of the
             algorithm.
-        dp_discard_states: Indicates whether states that cannot be
+        discard_states: Indicates whether states that cannot be
             reached from the initial state after applying the rules
             should be discarded.
-        dp_partial_rules: Indicates whether the rules can be applied
-            when some of the variables in the right-hand-side are
-            already set to the correct values. The opposite is to
-            require that all variables in the left-hand-side are
-            unknown).
-        dp_aggregate_terminals: Indicates whether all terminal states
+        partial_rules: Indicates whether the rules can be applied when
+            some of the variables in the right-hand-side are already
+            set to the correct values. The opposite is to require that
+            all variables in the left-hand-side are unknown).
+        aggregate_terminals: Indicates whether all terminal states
             should be aggregated into a single state.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
@@ -43,16 +42,16 @@ class DPDialogBuilder(DialogBuilder):
     """
 
     def __init__(self, var_domains, sample, rules,
-                 dp_max_iter=1000,
-                 dp_discard_states=True,
-                 dp_partial_rules=True,
-                 dp_aggregate_terminals=True,
+                 max_iter=1000,
+                 discard_states=True,
+                 partial_rules=True,
+                 aggregate_terminals=True,
                  validate=False):
         super().__init__(var_domains, sample, rules=rules, validate=validate)
-        self._dp_max_iter = dp_max_iter
-        self._dp_discard_states = dp_discard_states
-        self._dp_partial_rules = dp_partial_rules
-        self._dp_aggregate_terminals = dp_aggregate_terminals
+        self._max_iter = max_iter
+        self._discard_states = discard_states
+        self._partial_rules = partial_rules
+        self._aggregate_terminals = aggregate_terminals
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -69,7 +68,7 @@ class DPDialogBuilder(DialogBuilder):
         mdp = self._transform_graph_to_mdp(graph)
         log.info("finished building the MDP")
         log.info("solving the MDP")
-        policy_tuple = mdp.solve(max_iter=self._dp_max_iter)
+        policy_tuple = mdp.solve(max_iter=self._max_iter)
         log.info("finished solving the MDP")
         # Create the DPDialog instance.
         num_vars = len(self.var_domains)
@@ -120,7 +119,7 @@ class DPDialogBuilder(DialogBuilder):
         # lil_matrix matrices can be built faster.
         transitions = list(map(lambda m: m.tocsr(), transitions))
         rewards = list(map(lambda m: m.tocsr(), rewards))
-        if self._dp_aggregate_terminals:
+        if self._aggregate_terminals:
             initial_state = 0
             terminal_state = S - 1
             mdp = EpisodicMDP(transitions, rewards,
@@ -142,11 +141,11 @@ class DPDialogBuilder(DialogBuilder):
             # The first state will be an empty dict. It will be the
             # initial state in EpisodicMDP.
             state_len = len(state)  # cached to be used in igraph's queries
-            if state_len != num_vars or not self._dp_aggregate_terminals:
+            if state_len != num_vars or not self._aggregate_terminals:
                 # If it's a terminal state the vertex is added only if
                 # terminal states shouldn't be aggregated.
                 graph.add_vertex(state=state, state_len=state_len)
-        if self._dp_aggregate_terminals:
+        if self._aggregate_terminals:
             # If the terminal states were aggregated, add a single
             # state (with the state dict set to None) where all the
             # configuration values are known. It will be the terminal
@@ -283,7 +282,7 @@ class DPDialogBuilder(DialogBuilder):
                     self._create_graph_shortcut(graph, v_s, v_sp, rule)
                     inaccessible_vertices.add(v_s.index)
         # Remove the inaccesible vertices.
-        if self._dp_discard_states:
+        if self._discard_states:
             graph.delete_vertices(inaccessible_vertices)
         log.debug("found %d applications of %d rules",
                   len(inaccessible_vertices), len(rules))
@@ -308,7 +307,7 @@ class DPDialogBuilder(DialogBuilder):
         return True
 
     def _update_graph_cond_bii(self, rule, s):
-        if self._dp_partial_rules:
+        if self._partial_rules:
             # (b-ii) variables in the rhs appear with the same values
             # or set to unknown in S. At least one must be set to
             # unknown in S.

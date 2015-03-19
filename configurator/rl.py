@@ -39,23 +39,22 @@ class RLDialogBuilder(DialogBuilder):
             the RL episodes. Possible values are: `'global'` and
             `'local'` (only implemented for binary constraints). This
             argument is ignored for rule-based dialogs.
-        rl_num_episodes: Number of simulated episodes.
-        rl_learning_batch: Collect experience from this many episodes
+        num_episodes: Number of simulated episodes.
+        learning_batch: Collect experience from this many episodes
             before updating the action-value table.
-        rl_table: Representation of the action-value table. Possible
+        table: Representation of the action-value table. Possible
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approx'` (approximate
             representation using a neural network).
-        rl_epsilon: Epsilon value for the epsilon-greedy exploration.
-        rl_learning_rate: Q-learning learning rate. This argument is
-            used only with the exact action-value table. The approximate
+        epsilon: Epsilon value for the epsilon-greedy exploration.
+        learning_rate: Q-learning learning rate. This argument is used
+            only with the exact action-value table. The approximate
             representation is learned using Neural Fitted Q-iteration.
-        rl_rprop_epochs: Maximum number of epochs of Rprop training.
-            This argument is used only with the approximate
-            action-value table representation.
-        rl_rprop_error: Rprop error threshold. This argument is used
-            only with the approximate action-value table
-            representation.
+        rprop_epochs: Maximum number of epochs of Rprop training. This
+            argument is used only with the approximate action-value
+            table representation.
+        rprop_error: Rprop error threshold. This argument is used only
+            with the approximate action-value table representation.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -63,27 +62,27 @@ class RLDialogBuilder(DialogBuilder):
 
     def __init__(self, var_domains, sample, rules=None, constraints=None,
                  consistency="local",
-                 rl_num_episodes=1000,
-                 rl_learning_batch=1,
-                 rl_table="approx",
-                 rl_epsilon=0.1,
-                 rl_learning_rate=0.3,
-                 rl_rprop_epochs=100,
-                 rl_rprop_error=0.01,
+                 num_episodes=1000,
+                 learning_batch=1,
+                 table="approx",
+                 epsilon=0.1,
+                 learning_rate=0.3,
+                 rprop_epochs=100,
+                 rprop_error=0.01,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
             raise ValueError("Invalid consistency value")
-        if rl_table not in {"exact", "approx"}:
-            raise ValueError("Invalid rl_table value")
+        if table not in {"exact", "approx"}:
+            raise ValueError("Invalid table value")
         self._consistency = consistency
-        self._rl_num_episodes = rl_num_episodes
-        self._rl_learning_batch = rl_learning_batch
-        self._rl_table = rl_table
-        self._rl_epsilon = rl_epsilon
-        self._rl_learning_rate = rl_learning_rate
-        self._rl_rprop_epochs = rl_rprop_epochs
-        self._rl_rprop_error = rl_rprop_error
+        self._num_episodes = num_episodes
+        self._learning_batch = learning_batch
+        self._table = table
+        self._epsilon = epsilon
+        self._learning_rate = learning_rate
+        self._rprop_epochs = rprop_epochs
+        self._rprop_error = rprop_error
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -94,21 +93,21 @@ class RLDialogBuilder(DialogBuilder):
         dialog = Dialog(self.var_domains, self.rules, self.constraints)
         env = DialogEnvironment(dialog, self._consistency, self._freq_table)
         task = DialogTask(env)
-        if self._rl_table == "exact":
+        if self._table == "exact":
             table = ExactQTable(self.var_domains)
-            learner = ExactQLearning(self._rl_learning_rate)
-        elif self._rl_table == "approx":
+            learner = ExactQLearning(self._learning_rate)
+        elif self._table == "approx":
             table = ApproxQTable(self.var_domains)
-            learner = ApproxQLearning(self._rl_rprop_epochs,
-                                      self._rl_rprop_error)
-        agent = DialogAgent(table, learner, self._rl_epsilon)
+            learner = ApproxQLearning(self._rprop_epochs,
+                                      self._rprop_error)
+        agent = DialogAgent(table, learner, self._epsilon)
         exp = DialogExperiment(task, agent)
         log.info("running the RL algorithm")
         simulated_episodes = 0
         complete_episodes = 0
-        while simulated_episodes < self._rl_num_episodes:
-            exp.doEpisodes(number=self._rl_learning_batch)
-            simulated_episodes += self._rl_learning_batch
+        while simulated_episodes < self._num_episodes:
+            exp.doEpisodes(number=self._learning_batch)
+            simulated_episodes += self._learning_batch
             complete_episodes += agent.history.getNumSequences()
             agent.learn()
             agent.reset()  # clear the previous batch
@@ -423,8 +422,8 @@ class ApproxQTable(Module, ActionValueInterface):
 
 class ExactQLearning(Q):
 
-    def __init__(self, rl_learning_rate):
-        super().__init__(alpha=rl_learning_rate, gamma=1.0)
+    def __init__(self, learning_rate):
+        super().__init__(alpha=learning_rate, gamma=1.0)
 
     def learn(self):
         # Q.learn doesn't process the reward for entering the terminal
