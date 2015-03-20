@@ -20,6 +20,7 @@ conda config --set binstar_upload yes
 conda update conda
 conda install conda-build
 conda install patchelf
+conda install binstar
 
 conda build fim
 conda build fann
