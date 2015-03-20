@@ -4,9 +4,12 @@ package:
 
 source:
   git_url: https://github.com/FutureLinkCorporation/fann2
+  patches:
+    - dependency_links.patch
 
 build:
   number: 0
+  script: python setup.py install
 
 requirements:
   build:
