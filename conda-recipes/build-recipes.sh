@@ -22,6 +22,8 @@ conda install conda-build
 conda install patchelf
 conda install binstar
 
+sudo apt-get install build-essential git
+
 conda build fim
 conda build fann
 conda build fann2
