@@ -1,0 +1,26 @@
+package:
+  name: python-igraph
+  version: "0.7.1.post4"
+
+source:
+  fn: python-igraph-0.7.1-4.tar.gz
+  url: https://pypi.python.org/packages/source/p/python-igraph/python-igraph-0.7.1-4.tar.gz
+  md5: a88b0c8ac125de1a2fbf1cb758d0c615
+
+build:
+  number: 0
+  script: python setup.py install
+
+requirements:
+  build:
+    - igraph ==0.7.1
+    - setuptools
+    - python
+  run:
+    - igraph ==0.7.1
+    - python
+
+about:
+  home: http://igraph.org/
+  summary: High performance graph data structures and algorithms
+  license: GPL-2

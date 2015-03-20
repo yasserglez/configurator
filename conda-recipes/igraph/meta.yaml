@@ -1,0 +1,22 @@
+package:
+  name: igraph
+  version: "0.7.1"
+
+source:
+  fn: igraph-0.7.1.tar.gz
+  url: http://igraph.org/nightly/get/c/igraph-0.7.1.tar.gz
+  md5: 4f6e7c16b45fce8ed423516a9786e4e8
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - libxml2
+  run:
+    - libxml2
+
+about:
+  home: http://igraph.org/
+  summary: High performance graph data structures and algorithms
+  license: GPL-2
