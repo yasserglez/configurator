@@ -2,25 +2,23 @@ language: python
 python:
   - 3.4
 before_install:
-  - sudo apt-get install cmake swig2.0
-  - wget http://downloads.sourceforge.net/project/fann/fann/2.2.0/FANN-2.2.0-Source.zip
-  - unzip FANN-2.2.0-Source.zip
-  - cd FANN-2.2.0-Source
-  - cmake .
-  - sudo make install
-  - sudo ldconfig
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b
-  - export PATH=/home/travis/miniconda/bin:$PATH
-  - conda update --yes conda
-  - conda create --yes -n test-env python=$TRAVIS_PYTHON_VERSION pip
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH=$HOME/miniconda/bin:$PATH
+  - conda config --set always_yes yes --set changeps1 no
+  - conda config --add channels yasserglez
+  - conda update -q conda
+  - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION pip
   - source activate test-env
-install:
-  - conda install --yes -n test-env "numpy >= 1.9.1"
-  - conda install --yes -n test-env "scipy >= 0.14.0"
-  - pip install -r requirements.txt
   - pip install -r tests/requirements.txt
+install:
+  - conda install -n test-env "numpy >= 1.9.1"
+  - conda install -n test-env "scipy >= 0.14.0"
+  - conda install -n test-env "python-igraph >= 0.7.1"
+  - conda install -n test-env "fann2"
+  - conda install -n test-env "fim"
+  - pip install https://github.com/sawcordwell/pymdptoolbox/zipball/master
+  - pip install https://github.com/pybrain/pybrain/zipball/master
   - pip install -e .
 script:
   - py.test --verbose
