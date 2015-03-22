@@ -41,8 +41,6 @@ class FrequencyTable(object):
         Returns:
             The number of occurences of the values in x.
         """
-        if self.sample is None:
-            return 0
         # Return from the cache, if available.
         if self.cache_size > 0:
             cache_key = hash(frozenset(x.items()))
@@ -61,24 +59,23 @@ class FrequencyTable(object):
             self._cache[cache_key] = freq
         return freq
 
-    def cond_prob(self, x, y, add_one_smoothing=True):
+    def cond_prob(self, x, y):
         """Conditional probability distribution.
 
         Arguments:
             x: A dictionary mapping variable indices to their values.
             y: A dictionary mapping variable indices to their values.
-            add_one_smoothing: Use add-one (Laplace) smoothing.
 
         Returns:
             The conditional probability of x given y.
         """
-        if self.sample is None and not add_one_smoothing:
-            raise ZeroDivisionError
-        z = dict(x.items() | y.items())
-        num = self.count_freq(z)
-        den = self.count_freq(y)
-        if add_one_smoothing:
-            num += 1
-            den += reduce(mul, (len(self.var_domains[i]) for i in x.keys()))
+        if self.sample is None:
+            # Uniform probability distribution.
+            num = 1
+            den = reduce(mul, (len(self.var_domains[i]) for i in x.keys()))
+        else:
+            z = dict(x.items() | y.items())
+            num = self.count_freq(z)
+            den = self.count_freq(y)
         prob = num / den
         return prob
