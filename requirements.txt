@@ -2,6 +2,7 @@ numpy >= 1.9.1
 scipy >= 0.14.0
 pylru >= 1.0.6
 python-igraph >= 0.7.1
+simanneal >= 0.1.2
 https://github.com/sawcordwell/pymdptoolbox/zipball/master
 https://github.com/pybrain/pybrain/zipball/master
 https://github.com/FutureLinkCorporation/fann2/zipball/master
