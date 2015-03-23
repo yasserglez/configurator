@@ -70,6 +70,7 @@ class DialogAnnealer(Annealer):
         self.Tmax = - max_energy_diff / math.log(0.8)
         self.Tmin = (- max_energy_diff /
                      math.log(math.sqrt(sys.float_info.epsilon)))
+        log.info("initial temp %g, final temp %g", self.Tmax, self.Tmin)
         self.steps = self._num_episodes // self._eval_batch
         self.updates = 0
         self.copy_strategy = "slice"
