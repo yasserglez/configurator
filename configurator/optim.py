@@ -1,6 +1,8 @@
 """Configuration dialogs based on optimization.
 """
 
+import sys
+import math
 import random
 import pprint
 import logging
@@ -63,8 +65,10 @@ class DialogAnnealer(Annealer):
         self._num_episodes = num_episodes
         self._eval_batch = eval_batch
         # Annealer class initialization:
-        self.Tmax = 25000.0
-        self.Tmin = 2.5
+        max_energy_diff = len(self._var_domains) - 1
+        self.Tmax = - max_energy_diff / math.log(0.8)
+        self.Tmin = (- max_energy_diff /
+                     math.log(math.sqrt(sys.float_info.epsilon)))
         self.steps = self._num_episodes / self._eval_batch
         self.updates = 0
         self.copy_strategy = "slice"
