@@ -50,6 +50,7 @@ class RLDialogBuilder(DialogBuilder):
         learning_rate: Q-learning learning rate. This argument is used
             only with the exact action-value table. The approximate
             representation is learned using Neural Fitted Q-iteration.
+        nfq_iter: Number of Neural Fitted Q-iteration iterations.
         rprop_epochs: Maximum number of epochs of Rprop training. This
             argument is used only with the approximate action-value
             table representation.
@@ -67,8 +68,9 @@ class RLDialogBuilder(DialogBuilder):
                  table="approx",
                  epsilon=0.1,
                  learning_rate=0.3,
+                 nfq_iter=10,
                  rprop_epochs=100,
-                 rprop_error=0.01,
+                 rprop_error=0.001,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
@@ -81,6 +83,7 @@ class RLDialogBuilder(DialogBuilder):
         self._table = table
         self._epsilon = epsilon
         self._learning_rate = learning_rate
+        self._nfq_iter = nfq_iter
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
 
@@ -98,7 +101,8 @@ class RLDialogBuilder(DialogBuilder):
             learner = ExactQLearning(self._learning_rate)
         elif self._table == "approx":
             table = ApproxQTable(self.var_domains)
-            learner = ApproxQLearning(self._rprop_epochs,
+            learner = ApproxQLearning(self._nfq_iter,
+                                      self._rprop_epochs,
                                       self._rprop_error)
         agent = DialogAgent(table, learner, self._epsilon)
         exp = DialogExperiment(task, agent)
@@ -444,29 +448,37 @@ class ExactQLearning(Q):
         self.module.updateValue(laststate, lastaction, new_qvalue)
 
 
-# Neural Fitted Q-iteration.
 class ApproxQLearning(ValueBasedLearner):
+    """Neural Fitted Q-iteration."""
 
-    def __init__(self, rprop_epochs, rprop_error):
+    def __init__(self, nfq_iter, rprop_epochs, rprop_error):
         super().__init__()
+        self._nfq_iter = nfq_iter
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
         self._samples = None
 
     def learn(self):
-        # Extend the incremental dataset with the new transitions.
+        # Extend the growing sample with the new transitions:
         if self._samples is None:
-            # The agent sets the module (i.e. the ApproxQTable
-            # instance) after the object is created.
+            # The agent sets the module (i.e. the ApproxQTable instance)
+            # after the instance is created, so the initialization of
+            # the dataset is delayed until the first batch is processed.
             self._samples = ReinforcementDataSet(self.module.indim,
                                                  self.module.outdim)
         for episode in self.dataset:
             self._samples.newSequence()
             for state, action, reward in episode:
                 self._samples.addSample(state, action, reward)
-        # Train the neural network.
-        input_values, target_values = self._generate_pattern_set()
-        self._rprop_training(input_values, target_values)
+        # Train the neural network:
+        log.debug("starting NFQ_main")
+        for k in range(self._nfq_iter):
+            input_values, target_values = self._generate_pattern_set()
+            if k == 0:
+                log.info("the training set contains %d samples",
+                         len(input_values))
+            self._rprop_training(input_values, target_values)
+        log.debug("finished NFQ_main")
 
     def _generate_pattern_set(self):
         input_values, target_values = [], []
@@ -498,12 +510,10 @@ class ApproxQLearning(ValueBasedLearner):
         return input_values, target_values
 
     def _rprop_training(self, input_values, target_values):
-        log.info("training the neural network using Rprop")
+        log.debug("starting Rprop_training")
         net = self.module.network
         data = libfann.training_data()
         data.set_train_data(input_values, target_values)
-        log.info("the training set contains %d samples",
-                 data.length_train_data())
         net.reset_MSE()
         net.train_on_data(data, self._rprop_epochs, 0, self._rprop_error)
-        log.info("final training MSE is %g", net.get_MSE())
+        log.info("the current training MSE is %g", net.get_MSE())
