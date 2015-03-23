@@ -157,8 +157,8 @@ class DialogExperiment(EpisodicExperiment):
             else:
                 index = self.agent.history.getNumSequences() - 1
                 self.agent.history.removeSequence(index)
-        log.info("finished %d complete episodes, average total reward %g",
-                 len(cumrewards), np.mean(cumrewards))
+        log.info("finished %d complete episodes, median total reward %g",
+                 len(cumrewards), np.median(cumrewards))
         return cumrewards
 
 
