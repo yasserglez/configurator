@@ -306,7 +306,7 @@ class PermutationDialog(Dialog):
         super().__init__(var_domains, rules, constraints, validate)
 
     def _validate(self):
-        if len(set(self._var_perm)) != len(self._var_perm):
+        if set(self._var_perm) != set(range(len(self.var_domains))):
             raise ValueError("Invalid var_perm value")
 
     def reset(self):
