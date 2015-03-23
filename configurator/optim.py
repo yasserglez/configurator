@@ -6,6 +6,7 @@ import math
 import random
 import pprint
 import logging
+import collections
 
 import numpy as np
 from simanneal import Annealer
@@ -69,14 +70,27 @@ class DialogAnnealer(Annealer):
         self.Tmax = - max_energy_diff / math.log(0.8)
         self.Tmin = (- max_energy_diff /
                      math.log(math.sqrt(sys.float_info.epsilon)))
-        self.steps = self._num_episodes / self._eval_batch
+        self.steps = self._num_episodes // self._eval_batch
         self.updates = 0
         self.copy_strategy = "slice"
         super().__init__(self.initial_state())
 
     def initial_state(self):
-        initial_state = list(range(len(self._var_domains)))
-        return initial_state
+        if self._rules or self._constraints:
+            var_degrees = collections.Counter()
+            if self._rules:
+                for rule in self._rules:
+                    for var_index in rule.lhs.keys():
+                        var_degrees[var_index] += 1
+            else:
+                for var_indices, constraint_fun in self._constraints:
+                    for var_index in var_indices:
+                        var_degrees[var_index] += 1
+            var_degrees = zip(var_degrees.values(), var_degrees.keys())
+            var_perm = list(k for v, k in sorted(var_degrees, reverse=True))
+        else:
+            var_perm = list(range(len(self._var_domains)))
+        return var_perm
 
     def move(self):
         # Randomly swap two questions.
