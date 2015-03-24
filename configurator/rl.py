@@ -3,13 +3,14 @@
 
 import logging
 import pprint
+import heapq
+import itertools
 from functools import reduce
 from operator import mul
 
 import numpy as np
 import numpy.ma as ma
 from fann2 import libfann
-from pybrain.datasets import ReinforcementDataSet
 from pybrain.rl.agents import LearningAgent
 from pybrain.rl.environments.environment import Environment
 from pybrain.rl.environments.episodic import EpisodicTask
@@ -448,7 +449,8 @@ class ApproxQLearning(ValueBasedLearner):
         self._nfq_iter = nfq_iter
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
-        self._sample = None
+        self._sample = []
+        self._sample_tiebreaker = itertools.count()
 
     def learn(self):
         self._update_sample()
@@ -459,54 +461,56 @@ class ApproxQLearning(ValueBasedLearner):
         log.debug("finished NFQ_main")
 
     def _update_sample(self):
-        if self._sample is None:
-            # The agent sets the module (i.e. the ApproxQTable instance)
-            # after the instance is created, so the initialization of
-            # the dataset is delayed until the first batch is processed.
-            self._sample = ReinforcementDataSet(self.module.indim, self.module.outdim)
-        # Extend the sample with the new transitions...
-        for episode in self.dataset:
-            self._sample.newSequence()
-            for state, action, reward in episode:
-                self._sample.addSample(state, action, reward)
+        # Extend the sample with the new episodes...
+        for transitions in self.dataset:
+            episode, cumreward = [], 0
+            for state, action, reward in transitions:
+                episode.append((state, action, reward))
+                cumreward += reward
+            tiebreaker = next(self._sample_tiebreaker)
+            heapq.heappush(self._sample, (cumreward, tiebreaker, episode))
         # ...then trim it down to the maximum size if necessary.
-        discarded_episodes = 0
-        while self._sample.getNumSequences() > self._nfq_sample_size:
-            self._sample.removeSequence(0)
-            discarded_episodes += 1
-        if discarded_episodes > 0:
-            log.info("discarded %d episodes", discarded_episodes)
-        log.info("the NFQ transition sample has %d episodes",
-                 self._sample.getNumSequences())
+        while len(self._sample) > self._nfq_sample_size:
+            heapq.heappop(self._sample)
+        if log.isEnabledFor(logging.INFO):
+            cumrewards = [item[0] for item in self._sample]
+            log.info("the NFQ sample has %d episodes, median total reward %g",
+                     len(cumrewards), np.median(cumrewards))
 
-    def _generate_pattern_set(self):
-        input_values, target_values = [], []
-        for episode in self._sample:
-            state = None
-            for next_state, next_action, next_reward in episode:
-                if state is None:
-                    state = next_state
-                    action = int(next_action)
-                    reward = next_reward
-                    continue
-                # Build Q(s,a) = r(s,a) + max Q(s',a') from
-                # (state, action, reward, next_state).
-                Q_values = self.module.getValues(state)
-                Q_values[action] = reward + self.module.getMaxValue(next_state)
-                target_value = self.module.transformOutput(Q=Q_values)
-                input_values.append(state)
-                target_values.append(target_value)
-                # Prepare for the next iteration.
+    def _iter_episode(self, episode):
+        state = None
+        for next_state, next_action, next_reward in episode:
+            if state is None:
                 state = next_state
                 action = int(next_action)
                 reward = next_reward
-            # Add the reward for entering the terminal state.
-            # Assuming Q is zero for the terminal state.
-            Q_values = self.module.getValues(state)
-            Q_values[action] = reward
-            target_value = self.module.transformOutput(Q=Q_values)
-            input_values.append(state)
-            target_values.append(target_value)
+                continue
+            yield (state, action, reward, next_state)
+            state = next_state
+            action = int(next_action)
+            reward = next_reward
+        yield (state, action, reward, None)  # goes to the terminal state
+
+    def _iter_sample(self):
+        for cumreward, tiebreaker, episode in self._sample:
+            yield self._iter_episode(episode)
+
+    def _generate_pattern_set(self):
+        input_values, target_values = [], []
+        for episode in self._iter_sample():
+            for state, action, reward, next_state in episode:
+                # Build Q(s,a) = r(s,a) + max Q(s',a') from
+                # s = state, a = action, r(s,a) = reward, s' = next_state.
+                Q_values = self.module.getValues(state)
+                # Transitions entering the terminal state only have
+                # immediate reward (i.e. the expected future reward
+                # max Q(s',a') is always zero).
+                Q_values[action] = reward
+                if next_state is not None:
+                    Q_values[action] += self.module.getMaxValue(next_state)
+                target_value = self.module.transformOutput(Q=Q_values)
+                input_values.append(state)
+                target_values.append(target_value)
         return input_values, target_values
 
     def _rprop_training(self, input_values, target_values):
