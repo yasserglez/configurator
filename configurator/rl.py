@@ -3,8 +3,7 @@
 
 import logging
 import pprint
-import heapq
-import itertools
+import collections
 from functools import reduce
 from operator import mul
 
@@ -449,8 +448,7 @@ class ApproxQLearning(ValueBasedLearner):
         self._nfq_iter = nfq_iter
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
-        self._sample = []
-        self._sample_tiebreaker = itertools.count()
+        self._sample = collections.deque()
 
     def learn(self):
         self._update_sample()
@@ -463,19 +461,14 @@ class ApproxQLearning(ValueBasedLearner):
     def _update_sample(self):
         # Extend the sample with the new episodes...
         for transitions in self.dataset:
-            episode, cumreward = [], 0
+            episode = []
             for state, action, reward in transitions:
                 episode.append((state, action, reward))
-                cumreward += reward
-            tiebreaker = next(self._sample_tiebreaker)
-            heapq.heappush(self._sample, (cumreward, tiebreaker, episode))
+            self._sample.append(episode)
         # ...then trim it down to the maximum size if necessary.
         while len(self._sample) > self._nfq_sample_size:
-            heapq.heappop(self._sample)
-        if log.isEnabledFor(logging.INFO):
-            cumrewards = [item[0] for item in self._sample]
-            log.info("the NFQ sample has %d episodes, median total reward %g",
-                     len(cumrewards), np.median(cumrewards))
+            self._sample.popleft()
+        log.info("the NFQ sample has %d episodes", len(self._sample))
 
     def _iter_episode(self, episode):
         state = None
@@ -492,7 +485,7 @@ class ApproxQLearning(ValueBasedLearner):
         yield (state, action, reward, None)  # goes to the terminal state
 
     def _iter_sample(self):
-        for cumreward, tiebreaker, episode in self._sample:
+        for episode in self._sample:
             yield self._iter_episode(episode)
 
     def _generate_pattern_set(self):
