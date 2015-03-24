@@ -324,6 +324,30 @@ class ExactQTable(ActionValueTable):
         return action
 
 
+class ExactQLearning(Q):
+
+    def __init__(self, learning_rate):
+        super().__init__(alpha=learning_rate, gamma=1.0)
+
+    def learn(self):
+        # Q.learn doesn't process the reward for entering the terminal
+        # state. Let Q.learn process the complete episode first, and
+        # then process the last observation. This will work only if
+        # episodes are processed one by one, so ensure there's only
+        # one sequence in the dataset.
+        assert self.batchMode and self.dataset.getNumSequences() == 1
+        super().learn()
+        seq = next(iter(self.dataset))
+        for laststate, lastaction, lastreward in seq:
+            pass  # skip all the way to the end
+        laststate = int(laststate)
+        lastaction = int(lastaction)
+        # Assuming Q is zero for the terminal state.
+        qvalue = self.module.getValue(laststate, lastaction)
+        new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
+        self.module.updateValue(laststate, lastaction, new_qvalue)
+
+
 class ApproxQTable(Module, ActionValueInterface):
 
     def __init__(self, var_domains):
@@ -333,9 +357,9 @@ class ApproxQTable(Module, ActionValueInterface):
         self.network = self._buildNetwork()
 
     def _buildNetwork(self):
-        num_input = self.indim + len(self.var_domains)
+        num_input = self.indim  # The state representation
         num_hidden = len(self.var_domains)
-        num_output = self.outdim
+        num_output = len(self.var_domains)  # One Q value for every action
         net = libfann.neural_net()
         net.create_standard_array((num_input, num_hidden, num_output))
         net.set_training_algorithm(libfann.TRAIN_RPROP)
@@ -380,14 +404,6 @@ class ApproxQTable(Module, ActionValueInterface):
                 i += len(var_values)
             return config
 
-    def transformInput(self, state, action):
-        # The action is represented using dummy variables
-        # (1-of-C encoding) with 0 as -1 and 1 as 1.
-        action_values = -1 * np.ones((len(self.var_domains), ))
-        action_values[action] = 1
-        input_values = np.concatenate([state, action_values])
-        return input_values
-
     def transformOutput(self, Q=None, output=None):
         # Scale neural net output from [-1, 1] to [0, Q_max].
         assert Q is None or output is None
@@ -399,53 +415,24 @@ class ApproxQTable(Module, ActionValueInterface):
             output_values = 2 * (Q / Q_max) - 1
             return output_values
 
-    def getValue(self, state, action):
-        input_values = self.transformInput(state, action)
-        output_value = self.network.run(input_values)[0]
-        Q_value = self.transformOutput(output=output_value)
-        return Q_value
+    def getValues(self, state):
+        output_values = np.asarray(self.network.run(state))
+        Q_values = self.transformOutput(output=output_values)
+        return Q_values
 
     def _getMaxActionValue(self, state, config=None):
         if config is None:
             config = self.transformState(state=state)
-        max_action, max_value = None, None
-        for action in range(len(self.var_domains)):
-            if action not in config:
-                value = self.getValue(state, action)
-                if max_action is None or value > max_value:
-                    max_action = action
-                    max_value = value
-        return max_action, max_value
+        Q_values = self.getValues(state)
+        invalid_action = [a in config for a in range(self.numActions)]
+        max_action = ma.array(Q_values, mask=invalid_action).argmax()
+        return max_action, Q_values[max_action]
 
     def getMaxAction(self, state, config=None):
         return self._getMaxActionValue(state, config)[0]
 
     def getMaxValue(self, state, config=None):
         return self._getMaxActionValue(state, config)[1]
-
-
-class ExactQLearning(Q):
-
-    def __init__(self, learning_rate):
-        super().__init__(alpha=learning_rate, gamma=1.0)
-
-    def learn(self):
-        # Q.learn doesn't process the reward for entering the terminal
-        # state. Let Q.learn process the complete episode first, and
-        # then process the last observation. This will work only if
-        # episodes are processed one by one, so ensure there's only
-        # one sequence in the dataset.
-        assert self.batchMode and self.dataset.getNumSequences() == 1
-        super().learn()
-        seq = next(iter(self.dataset))
-        for laststate, lastaction, lastreward in seq:
-            pass  # skip all the way to the end
-        laststate = int(laststate)
-        lastaction = int(lastaction)
-        # Assuming Q is zero for the terminal state.
-        qvalue = self.module.getValue(laststate, lastaction)
-        new_qvalue = qvalue + self.alpha * (lastreward - qvalue)
-        self.module.updateValue(laststate, lastaction, new_qvalue)
 
 
 class ApproxQLearning(ValueBasedLearner):
@@ -483,30 +470,31 @@ class ApproxQLearning(ValueBasedLearner):
     def _generate_pattern_set(self):
         input_values, target_values = [], []
         for episode in self._samples:
-            laststate = None
-            for state, action, reward in episode:
-                if laststate is None:
-                    laststate = state
-                    lastaction = int(action)
-                    lastreward = reward
+            state = None
+            for next_state, next_action, next_reward in episode:
+                if state is None:
+                    state = next_state
+                    action = int(next_action)
+                    reward = next_reward
                     continue
                 # Build Q(s,a) = r(s,a) + max Q(s',a') from
-                # (laststate, lastaction, lastreward, state).
-                input_value = self.module.transformInput(laststate, lastaction)
-                Q_value = lastreward + self.module.getMaxValue(state)
-                target_value = self.module.transformOutput(Q=Q_value)
-                input_values.append(input_value)
-                target_values.append([target_value])
+                # (state, action, reward, next_state).
+                Q_values = self.module.getValues(state)
+                Q_values[action] = reward + self.module.getMaxValue(next_state)
+                target_value = self.module.transformOutput(Q=Q_values)
+                input_values.append(state)
+                target_values.append(target_value)
                 # Prepare for the next iteration.
-                laststate = state
-                lastaction = int(action)
-                lastreward = reward
+                state = next_state
+                action = int(next_action)
+                reward = next_reward
             # Add the reward for entering the terminal state.
             # Assuming Q is zero for the terminal state.
-            input_value = self.module.transformInput(laststate, lastaction)
-            target_value = self.module.transformOutput(Q=lastreward)
-            input_values.append(input_value)
-            target_values.append([target_value])
+            Q_values = self.module.getValues(state)
+            Q_values[action] = reward
+            target_value = self.module.transformOutput(Q=Q_values)
+            input_values.append(state)
+            target_values.append(target_value)
         return input_values, target_values
 
     def _rprop_training(self, input_values, target_values):
