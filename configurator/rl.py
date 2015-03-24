@@ -45,17 +45,18 @@ class RLDialogBuilder(DialogBuilder):
         table: Representation of the action-value table. Possible
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approx'` (approximate
-            representation using a neural network).
+            representation using a neural network trained using
+            Neural Fitted Q-iteration).
         epsilon: Epsilon value for the epsilon-greedy exploration.
         learning_rate: Q-learning learning rate. This argument is used
-            only with the exact action-value table. The approximate
-            representation is learned using Neural Fitted Q-iteration.
+            only with the exact action-value table.
+        nfq_sample_size: Number of episodes to keep in the set of
+            transition samples for Neural Fitted Q-iteration.
         nfq_iter: Number of Neural Fitted Q-iteration iterations.
         rprop_epochs: Maximum number of epochs of Rprop training. This
-            argument is used only with the approximate action-value
-            table representation.
+            argument is used only with Neural Fitted Q-iteration.
         rprop_error: Rprop error threshold. This argument is used only
-            with the approximate action-value table representation.
+            with Neural Fitted Q-iteration.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -68,6 +69,7 @@ class RLDialogBuilder(DialogBuilder):
                  table="approx",
                  epsilon=0.1,
                  learning_rate=0.3,
+                 nfq_sample_size=500,
                  nfq_iter=10,
                  rprop_epochs=100,
                  rprop_error=0.001,
@@ -83,6 +85,7 @@ class RLDialogBuilder(DialogBuilder):
         self._table = table
         self._epsilon = epsilon
         self._learning_rate = learning_rate
+        self._nfq_sample_size = nfq_sample_size
         self._nfq_iter = nfq_iter
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
@@ -101,9 +104,8 @@ class RLDialogBuilder(DialogBuilder):
             learner = ExactQLearning(self._learning_rate)
         elif self._table == "approx":
             table = ApproxQTable(self.var_domains)
-            learner = ApproxQLearning(self._nfq_iter,
-                                      self._rprop_epochs,
-                                      self._rprop_error)
+            learner = ApproxQLearning(self._nfq_sample_size, self._nfq_iter,
+                                      self._rprop_epochs, self._rprop_error)
         agent = DialogAgent(table, learner, self._epsilon)
         exp = DialogExperiment(task, agent)
         log.info("running the RL algorithm")
@@ -440,38 +442,46 @@ class ApproxQTable(Module, ActionValueInterface):
 class ApproxQLearning(ValueBasedLearner):
     """Neural Fitted Q-iteration."""
 
-    def __init__(self, nfq_iter, rprop_epochs, rprop_error):
+    def __init__(self, nfq_sample_size, nfq_iter, rprop_epochs, rprop_error):
         super().__init__()
+        self._nfq_sample_size = nfq_sample_size
         self._nfq_iter = nfq_iter
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
-        self._samples = None
+        self._sample = None
 
     def learn(self):
-        # Extend the growing sample with the new transitions:
-        if self._samples is None:
-            # The agent sets the module (i.e. the ApproxQTable instance)
-            # after the instance is created, so the initialization of
-            # the dataset is delayed until the first batch is processed.
-            self._samples = ReinforcementDataSet(self.module.indim,
-                                                 self.module.outdim)
-        for episode in self.dataset:
-            self._samples.newSequence()
-            for state, action, reward in episode:
-                self._samples.addSample(state, action, reward)
-        # Train the neural network:
+        self._update_sample()
         log.debug("starting NFQ_main")
         for k in range(self._nfq_iter):
             input_values, target_values = self._generate_pattern_set()
-            if k == 0:
-                log.info("the training set contains %d samples",
-                         len(input_values))
             self._rprop_training(input_values, target_values)
         log.debug("finished NFQ_main")
 
+    def _update_sample(self):
+        if self._sample is None:
+            # The agent sets the module (i.e. the ApproxQTable instance)
+            # after the instance is created, so the initialization of
+            # the dataset is delayed until the first batch is processed.
+            self._sample = ReinforcementDataSet(self.module.indim, self.module.outdim)
+        # Extend the sample with the new transitions...
+        for episode in self.dataset:
+            self._sample.newSequence()
+            for state, action, reward in episode:
+                self._sample.addSample(state, action, reward)
+        # ...then trim it down to the maximum size if necessary.
+        discarded_episodes = 0
+        while self._sample.getNumSequences() > self._nfq_sample_size:
+            self._sample.removeSequence(0)
+            discarded_episodes += 1
+        if discarded_episodes > 0:
+            log.info("discarded %d episodes", discarded_episodes)
+        log.info("the NFQ transition sample has %d episodes",
+                 self._sample.getNumSequences())
+
     def _generate_pattern_set(self):
         input_values, target_values = [], []
-        for episode in self._samples:
+        for episode in self._sample:
             state = None
             for next_state, next_action, next_reward in episode:
                 if state is None:
