@@ -363,7 +363,7 @@ class ApproxQTable(Module, ActionValueInterface):
         num_hidden = len(self.var_domains)
         num_output = len(self.var_domains)  # One Q value for every action
         net = libfann.neural_net()
-        net.create_standard_array((num_input, num_hidden, num_output))
+        net.create_standard_array((num_input, num_hidden, num_hidden, num_output))
         net.set_training_algorithm(libfann.TRAIN_RPROP)
         net.set_activation_function_hidden(libfann.SIGMOID_SYMMETRIC)
         net.set_activation_function_output(libfann.SIGMOID_SYMMETRIC)
@@ -378,8 +378,8 @@ class ApproxQTable(Module, ActionValueInterface):
                 net.set_weight(i, j, weight)
         log.info("the neural net has %d connections",
                  net.get_total_connections())
-        log.info("neurons in each layer I = %d, H = %d, O = %d",
-                 num_input, num_hidden, num_output)
+        log.info("neurons in each layer I = %d, 2H = %d, O = %d",
+                 num_input, 2 * num_hidden, num_output)
         return net
 
     def transformState(self, config=None, state=None):
