@@ -374,8 +374,10 @@ class ApproxQTable(Module, ActionValueInterface):
             for j in range(i + 1, total_neurons):
                 weight = np.random.uniform(-0.5, 0.5)
                 net.set_weight(i, j, weight)
-        log.info("the neural network has %d weights",
+        log.info("the neural net has %d connections",
                  net.get_total_connections())
+        log.info("neurons in each layer I = %d, H = %d, O = %d",
+                 num_input, num_hidden, num_output)
         return net
 
     def transformState(self, config=None, state=None):
