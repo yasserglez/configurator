@@ -302,11 +302,11 @@ class PermutationDialog(Dialog):
 
     def __init__(self, var_domains, var_perm,
                  rules=None, constraints=None, validate=False):
-        self._var_perm = var_perm
+        self.var_perm = var_perm
         super().__init__(var_domains, rules, constraints, validate)
 
     def _validate(self):
-        if set(self._var_perm) != set(range(len(self.var_domains))):
+        if set(self.var_perm) != set(range(len(self.var_domains))):
             raise ValueError("Invalid var_perm value")
 
     def reset(self):
@@ -315,7 +315,7 @@ class PermutationDialog(Dialog):
 
     def get_next_question(self):
         if not self.is_complete():
-            while self._var_perm[self._curr_var_index] in self.config:
+            while self.var_perm[self._curr_var_index] in self.config:
                 self._curr_var_index += 1
-        next_question = self._var_perm[self._curr_var_index]
+        next_question = self.var_perm[self._curr_var_index]
         return next_question
