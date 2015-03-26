@@ -163,8 +163,8 @@ class DialogExperiment(EpisodicExperiment):
             else:
                 index = self.agent.history.getNumSequences() - 1
                 self.agent.history.removeSequence(index)
-        log.info("finished %d complete episodes, median total reward %g",
-                 len(cumrewards), np.median(cumrewards))
+        log.info("finished %d complete episodes, average total reward %g",
+                 len(cumrewards), np.mean(cumrewards))
         return cumrewards
 
 
@@ -360,7 +360,7 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def _buildNetwork(self):
         num_input = self.indim  # The state representation
-        num_output = len(self.var_domains)  # One Q value for every action
+        num_output = self.numActions  # A Q-value for every action
         num_hidden = (num_input + num_output) // 2
         net = libfann.neural_net()
         net.create_standard_array((num_input, num_hidden, num_output))
@@ -376,8 +376,7 @@ class ApproxQTable(Module, ActionValueInterface):
             for j in range(i + 1, total_neurons):
                 weight = np.random.uniform(-0.5, 0.5)
                 net.set_weight(i, j, weight)
-        log.info("the neural net has %d connections",
-                 net.get_total_connections())
+        log.info("the neural net has %d weights", net.get_total_connections())
         log.info("neurons in each layer I = %d, H = %d, O = %d",
                  num_input, num_hidden, num_output)
         return net
@@ -514,3 +513,4 @@ class ApproxQLearning(ValueBasedLearner):
         net.reset_MSE()
         net.train_on_data(data, self._rprop_epochs, 0, self._rprop_error)
         log.info("the current training MSE is %g", net.get_MSE())
+        log.debug("finished Rprop_training")
