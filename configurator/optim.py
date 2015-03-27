@@ -77,20 +77,26 @@ class DialogAnnealer(Annealer):
         super().__init__(self.initial_state())
 
     def initial_state(self):
-        if self._rules or self._constraints:
-            var_degrees = collections.Counter()
-            if self._rules:
-                for rule in self._rules:
-                    for var_index in rule.lhs.keys():
-                        var_degrees[var_index] += 1
-            else:
-                for var_indices, constraint_fun in self._constraints:
-                    for var_index in var_indices:
-                        var_degrees[var_index] += 1
-            var_degrees = zip(var_degrees.values(), var_degrees.keys())
-            var_perm = list(k for v, k in sorted(var_degrees, reverse=True))
+        var2tier = collections.Counter()
+        if self._rules:
+            # Variables that appear the most in the LHS go first.
+            reverse_tiers = True
+            for rule in self._rules:
+                for var_index in rule.lhs.keys():
+                    var2tier[var_index] += 1
         else:
-            var_perm = list(range(len(self._var_domains)))
+            # Variables that participate in many constraints go last.
+            reverse_tiers = False
+            for var_indices, constraint_fun in self._constraints:
+                for var_index in var_indices:
+                    var2tier[var_index] += 1
+        tier2vars = collections.defaultdict(list)
+        for var_index, tier in var2tier.items():
+            tier2vars[tier].append(var_index)
+        var_perm = []
+        for var_tier in sorted(tier2vars.keys(), reverse=reverse_tiers):
+            random.shuffle(tier2vars[var_tier])  # break ties randomly
+            var_perm.extend(tier2vars[var_tier])
         return var_perm
 
     def move(self):
