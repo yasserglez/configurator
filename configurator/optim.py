@@ -47,7 +47,7 @@ class OptimDialogBuilder(DialogBuilder):
                                   self._consistency,
                                   self._num_episodes,
                                   self._eval_batch)
-        var_perm, median_num_questions = annealer.anneal()
+        var_perm, mean_questions = annealer.anneal()
         dialog = PermutationDialog(self.var_domains, var_perm,
                                    self.rules, self.constraints,
                                    validate=self._validate)
@@ -114,10 +114,10 @@ class DialogAnnealer(Annealer):
         num_questions = []
         for i in range(self._eval_batch):
             num_questions.extend(self._simulate_dialog(dialog))
-        median_num_questions = np.median(num_questions)
-        log.info("finished %d complete episodes, median number of questions %g",
-                 len(num_questions), median_num_questions)
-        return median_num_questions
+        mean_questions = np.mean(num_questions)
+        log.info("finished %d complete episodes, average number of questions %g",
+                 len(num_questions), mean_questions)
+        return mean_questions
 
     def _simulate_dialog(self, dialog):
         num_questions = 0
