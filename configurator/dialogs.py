@@ -37,9 +37,7 @@ class DialogBuilder(object):
     Arguments:
         var_domains: A list with one entry for each variable
             containing a sequence with all the possible values of the
-            variable. All the variables must be domain-consistent
-            (i.e. there must exist at least one consistent
-            configuration in which each value value occurs).
+            variable. All the variables must be domain-consistent.
         sample: A two-dimensional numpy array containing a sample of
             the configuration variables. Each column is expected to
             represent a discrete variable and each row a multivariate
@@ -165,10 +163,10 @@ class Dialog(object):
     answers to a question, given the current partial configuration
     (answers given back to the dialog with :meth:`set_answer` must be
     restricted to one of these values). :meth:`is_consistent` checks
-    if the current partial configuration is consistent (only relevant
-    if using local consistency checks with binary constraints).
-    :meth:`is_complete` can be used to check whether all the variables
-    have been set.
+    if the current (possibly partial) configuration is consistent
+    (only relevant if using local consistency checks, because
+    otherwise it will always be consistent). :meth:`is_complete` can
+    be used to check whether all the variables have been set.
 
     All the arguments are available as instance attributes.
     """
@@ -212,7 +210,7 @@ class Dialog(object):
         index of the corresponding variable.
 
         Returns:
-            An integer, the variable index.
+            The variable index.
         """
         raise NotImplementedError
 
@@ -220,7 +218,7 @@ class Dialog(object):
         """Get the possible answers to a question.
 
         Arguments:
-            var_index: An integer, the variable index.
+            var_index: The variable index.
 
         Returns:
             A list with the possible answers.
@@ -239,15 +237,14 @@ class Dialog(object):
         answer that the user gave to the question.
 
         Arguments:
-            var_index: An integer, the variable index.
+            var_index: The variable index.
             var_value: The value of the variable. It must be one of
                 the possible values of the variable returned by
                 :meth:`get_possible_answers`.
-            consistency: Type of consistency check used to filter the
+             consistency: Type of consistency check used to filter the
                 domain of the remaining questions. Possible values
-                are: `'global'` and `'local'` (only implemented for
-                binary constraints). This argument is ignored for
-                rule-based dialogs.
+                are: `'global'` and `'local'`. This argument is
+                ignored for rule-based dialogs.
         """
         if var_index in self.config:
             raise ValueError("The question has already been answered")

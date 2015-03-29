@@ -37,8 +37,8 @@ class RLDialogBuilder(DialogBuilder):
         consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the RL episodes. Possible values are: `'global'` and
-            `'local'` (only implemented for binary constraints). This
-            argument is ignored for rule-based dialogs.
+            `'local'`. This argument is ignored for rule-based
+            dialogs.
         num_episodes: Number of simulated episodes.
         learning_batch: Collect experience from this many episodes
             before updating the action-value table.
