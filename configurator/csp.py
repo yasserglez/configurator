@@ -125,7 +125,6 @@ class CSP(object):
             # If the domain of a variable was reduced to a single
             # value, set it back in the assignment.
             for var_index, var_values in enumerate(self.pruned_var_domains):
-                assert len(var_values) > 0
                 if len(var_values) == 1 and var_index not in self.assignment:
                     var_value = self.pruned_var_domains[var_index][0]
                     self.assignment[var_index] = var_value
