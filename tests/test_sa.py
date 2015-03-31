@@ -18,25 +18,32 @@ class _TestSADialogBuilder(object):
 
 class TestRuleSADialogBuilder(_TestSADialogBuilder):
 
-    def test_build_dialog(self, email_client):
+    @pytest.mark.parametrize("initialization", ("random", "degree"))
+    def test_build_dialog(self, initialization, email_client):
         builder = SADialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   rules=email_client.rules,
                                   num_episodes=50,
-                                  eval_batch=5,
+                                  eval_episodes=5,
+                                  initialization=initialization,
                                   validate=True)
         self._test_builder(builder, email_client)
 
 
 class TestCSPSADialogBuilder(_TestSADialogBuilder):
 
-    @pytest.mark.parametrize("consistency", ("global", "local"))
-    def test_build_dialog(self, consistency, email_client):
+    @pytest.mark.parametrize(("consistency", "initialization"),
+                             (("global", "random"),
+                              ("global", "degree"),
+                              ("local", "random"),
+                              ("local", "degree")))
+    def test_build_dialog(self, consistency, initialization, email_client):
         builder = SADialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   constraints=email_client.constraints,
                                   consistency=consistency,
                                   num_episodes=50,
-                                  eval_batch=5,
+                                  eval_episodes=5,
+                                  initialization=initialization,
                                   validate=True)
         self._test_builder(builder, email_client)

@@ -26,16 +26,22 @@ class PermutationDialogBuilder(DialogBuilder):
     """
 
     def __init__(self, var_domains, sample, rules, constraints,
-                 num_episodes, consistency, eval_batch, validate):
+                 num_episodes, consistency, eval_episodes,
+                 initialization, validate):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
             raise ValueError("Invalid consistency value")
+        if initialization not in {"random", "degree"}:
+            raise ValueError("Invalid initialization value")
         self._num_episodes = num_episodes
         self._consistency = consistency
-        self._eval_batch = eval_batch
+        self._eval_episodes = eval_episodes
+        self._initialization = initialization
 
     def _generate_random_var_perm(self):
-        pass
+        var_perm = list(range(len(self.var_domains)))
+        random.shuffle(var_perm)
+        return var_perm
 
     def _generate_degree_var_perm(self):
         var2tier = collections.Counter()
@@ -68,11 +74,11 @@ class PermutationDialogBuilder(DialogBuilder):
 
     def _eval_var_perm(self, var_perm):
         log.debug("evaluating permutation:\n%s", pprint.pformat(var_perm))
-        log.info("simulating %d episodes", self._eval_batch)
+        log.info("simulating %d episodes", self._eval_episodes)
         dialog = PermutationDialog(self.var_domains, var_perm,
                                    self.rules, self.constraints)
         num_questions = []
-        for i in range(self._eval_batch):
+        for i in range(self._eval_episodes):
             result = self._simulate_dialog(dialog)
             if result is None:
                 log.debug("finished an episode, reached an inconsistent state")
@@ -135,5 +141,5 @@ class PermutationDialog(Dialog):
         return next_question
 
 
-# Keep this in the end. .sequence and .sequence.{sa,ga} import each other.
+# Keep this in the end. .sequence and .sequence.sa import each other.
 from .sa import SADialogBuilder

@@ -25,8 +25,14 @@ class SADialogBuilder(PermutationDialogBuilder):
             domain of the remaining questions during the simulation of
             the episodes. Possible values are: `'global'` and `'local'`.
             This argument is ignored for rule-based dialogs.
-        eval_batch: Number of episodes simulated for the evaluation of
-            the fitness of a permutation sequence.
+        eval_episodes: Number of episodes simulated for the evaluation
+            of the fitness of a permutation sequence.
+        initialization: Method used to generate the initial
+            permutation sequence. Possible values are: `'random'`
+            (start from a random permutation) and `'degree'` (use an
+            initialization heuristic based on degree of the variables
+            in the constraint network or the times it appears on the
+            left-hand-side of a rule).
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -35,11 +41,12 @@ class SADialogBuilder(PermutationDialogBuilder):
     def __init__(self, var_domains, sample, rules=None, constraints=None,
                  num_episodes=1000,
                  consistency="local",
-                 eval_batch=30,
+                 eval_episodes=30,
+                 initialization="degree",
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints,
-                         num_episodes, consistency, eval_batch,
-                         validate)
+                         num_episodes, consistency, eval_episodes,
+                         initialization, validate)
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -47,11 +54,14 @@ class SADialogBuilder(PermutationDialogBuilder):
         Returns:
             An instance of `configurator.dialogs.Dialog` subclass.
         """
+        generate_var_perm = (self._generate_degree_var_perm
+                             if self._initialization == "degree" else
+                             self._generate_random_var_perm)
         annealer = DialogAnnealer(self.var_domains,
-                                  self._generate_degree_var_perm,
+                                  generate_var_perm,
                                   self._mutate_var_perm,
                                   self._eval_var_perm,
-                                  self._num_episodes // self._eval_batch)
+                                  self._num_episodes // self._eval_episodes)
         var_perm, mean_questions = annealer.anneal()
         dialog = PermutationDialog(self.var_domains, var_perm,
                                    self.rules, self.constraints,
