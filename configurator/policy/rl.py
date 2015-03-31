@@ -20,8 +20,8 @@ from pybrain.rl.learners.valuebased.interface import ActionValueInterface
 from pybrain.rl.learners.valuebased.valuebased import ValueBasedLearner
 from pybrain.structure.modules import Module
 
-from .dialogs import Dialog, DialogBuilder
-from .util import iter_config_states
+from ..dialogs import Dialog, DialogBuilder
+from ..util import iter_config_states
 
 
 __all__ = ["RLDialogBuilder"]
@@ -34,12 +34,11 @@ class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
 
     Arguments:
+        num_episodes: Number of simulated episodes.
         consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the RL episodes. Possible values are: `'global'` and
-            `'local'`. This argument is ignored for rule-based
-            dialogs.
-        num_episodes: Number of simulated episodes.
+            `'local'`. This argument is ignored for rule-based dialogs.
         learning_batch: Collect experience from this many episodes
             before updating the action-value table.
         table: Representation of the action-value table. Possible
@@ -63,8 +62,8 @@ class RLDialogBuilder(DialogBuilder):
     """
 
     def __init__(self, var_domains, sample, rules=None, constraints=None,
-                 consistency="local",
                  num_episodes=1000,
+                 consistency="local",
                  learning_batch=1,
                  table="approx",
                  epsilon=0.1,

@@ -1,6 +1,6 @@
 import pytest
 
-from configurator.rl import RLDialogBuilder
+from configurator.policy.rl import RLDialogBuilder
 
 
 class _TestRLDialogBuilder(object):

@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_raises
 
-from configurator.dp import DPDialogBuilder, EpisodicMDP
+from configurator.policy.dp import DPDialogBuilder, EpisodicMDP
 
 
 class TestDPDialogBuilder(object):

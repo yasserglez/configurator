@@ -10,8 +10,8 @@ from scipy import sparse
 import mdptoolbox.util
 from mdptoolbox.mdp import ValueIteration
 
-from .dialogs import Dialog, DialogBuilder
-from .util import iter_config_states
+from ..dialogs import Dialog, DialogBuilder
+from ..util import iter_config_states
 
 
 __all__ = ["DPDialogBuilder"]
@@ -33,7 +33,7 @@ class DPDialogBuilder(DialogBuilder):
         partial_rules: Indicates whether the rules can be applied when
             some of the variables in the right-hand-side are already
             set to the correct values. The opposite is to require that
-            all variables in the left-hand-side are unknown).
+            all variables in the right-hand-side are unknown).
         aggregate_terminals: Indicates whether all terminal states
             should be aggregated into a single state.
 
