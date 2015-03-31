@@ -35,8 +35,8 @@ def get_var_domains(sample):
         A list with one entry for each variable containing a
         sequence with all the possible values of the variable.
     """
-    # sorted() called to return a stable order (it would be random
-    # otherwise because of Python's hash randomization).
+    # sorted() called to return a stable order (it could be unstable
+    # because of Python's hash randomization).
     var_domains = [list(sorted(set(sample[:, i])))
                    for i in range(sample.shape[1])]
     return var_domains

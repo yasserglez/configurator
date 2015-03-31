@@ -17,17 +17,17 @@ configurator.dialogs
 .. automodule:: configurator.dialogs
     :members:
 
-configurator.dp
-^^^^^^^^^^^^^^^
+configurator.policy
+^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: configurator.dp
+.. automodule:: configurator.policy
     :members:
     :show-inheritance:
 
-configurator.rl
-^^^^^^^^^^^^^^^
+configurator.sequence
+^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: configurator.rl
+.. automodule:: configurator.sequence
     :members:
     :show-inheritance:
 

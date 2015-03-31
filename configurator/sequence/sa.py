@@ -42,7 +42,7 @@ class SADialogBuilder(PermutationDialogBuilder):
                  num_episodes=1000,
                  consistency="local",
                  eval_episodes=30,
-                 initialization="degree",
+                 initialization="random",
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints,
                          num_episodes, consistency, eval_episodes,

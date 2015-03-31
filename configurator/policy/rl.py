@@ -34,11 +34,11 @@ class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
 
     Arguments:
-        num_episodes: Number of simulated episodes.
+        num_episodes: Total number of simulated episodes.
         consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
-            the RL episodes. Possible values are: `'global'` and
-            `'local'`. This argument is ignored for rule-based dialogs.
+            the episodes. Possible values are: `'global'` and `'local'`.
+            This argument is ignored for rule-based dialogs.
         learning_batch: Collect experience from this many episodes
             before updating the action-value table.
         table: Representation of the action-value table. Possible
@@ -78,8 +78,8 @@ class RLDialogBuilder(DialogBuilder):
             raise ValueError("Invalid consistency value")
         if table not in {"exact", "approx"}:
             raise ValueError("Invalid table value")
-        self._consistency = consistency
         self._num_episodes = num_episodes
+        self._consistency = consistency
         self._learning_batch = learning_batch
         self._table = table
         self._epsilon = epsilon
