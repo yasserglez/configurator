@@ -23,8 +23,8 @@ class DialogBuilder(object):
 
     This is the base class of all the configuration dialog builders
     defined in the package (it is not intented to be instantiated
-    directly). See the subclasses defined in :mod:`configurator.dp`
-    and :mod:`configurator.rl` for concrete dialog builders.
+    directly). See the subclasses defined in :mod:`configurator.policy`
+    and :mod:`configurator.sequence` for concrete dialog builders.
 
     The dialog builders support representing the configuration problem
     using a rule-based or a constraint-based specification (although
@@ -285,34 +285,3 @@ class Dialog(object):
             `True` if all the variables has been set, `False` otherwise.
         """
         return len(self.config) == len(self.var_domains)
-
-
-class PermutationDialog(Dialog):
-    """Configuration dialog based on a permutation of the variables.
-
-    Arguments:
-        var_perm: A list containing a permutation of the variables.
-
-    See `Dialog` for information about the remaining arguments,
-    attributes and methods.
-    """
-
-    def __init__(self, var_domains, var_perm,
-                 rules=None, constraints=None, validate=False):
-        self.var_perm = var_perm
-        super().__init__(var_domains, rules, constraints, validate)
-
-    def _validate(self):
-        if set(self.var_perm) != set(range(len(self.var_domains))):
-            raise ValueError("Invalid var_perm value")
-
-    def reset(self):
-        super().reset()
-        self._curr_var_index = 0
-
-    def get_next_question(self):
-        if not self.is_complete():
-            while self.var_perm[self._curr_var_index] in self.config:
-                self._curr_var_index += 1
-        next_question = self.var_perm[self._curr_var_index]
-        return next_question
