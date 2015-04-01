@@ -50,10 +50,15 @@ class RLDialogBuilder(DialogBuilder):
         learning_rate: Q-learning learning rate. This argument is used
             only with the exact action-value table.
         nfq_sample_size: The NFQ sample retains transitions from the
-            `nfq_sample_size` most recent episodes.
+            `nfq_sample_size` most recent episodes. Default value:
+            `len(var_domains)`.
         nfq_hint_to_goal: Random hint-to-goal patterns will be added
             to the NFQ transition sample following a `1:nfq_hint_to_goal`
             proportion.
+        rprop_epochs: Maximum number of epochs of Rprop training. This
+            argument is used only with NFQ.
+        rprop_error: Rprop error threshold. This argument is used only
+            with NFQ.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -65,8 +70,10 @@ class RLDialogBuilder(DialogBuilder):
                  table="approx",
                  epsilon=0.1,
                  learning_rate=0.3,
-                 nfq_sample_size=100,
+                 nfq_sample_size=None,
                  nfq_hint_to_goal=10,
+                 rprop_epochs=300,
+                 rprop_error=0.01,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
@@ -78,8 +85,11 @@ class RLDialogBuilder(DialogBuilder):
         self._table = table
         self._epsilon = epsilon
         self._learning_rate = learning_rate
-        self._nfq_sample_size = nfq_sample_size
+        self._nfq_sample_size = (nfq_sample_size if nfq_sample_size else
+                                 len(var_domains))
         self._nfq_hint_to_goal = nfq_hint_to_goal
+        self._rprop_epochs = rprop_epochs
+        self._rprop_error = rprop_error
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -96,7 +106,9 @@ class RLDialogBuilder(DialogBuilder):
         elif self._table == "approx":
             table = ApproxQTable(self.var_domains)
             learner = ApproxQLearning(self._nfq_sample_size,
-                                      self._nfq_hint_to_goal)
+                                      self._nfq_hint_to_goal,
+                                      self._rprop_epochs,
+                                      self._rprop_error)
         agent = DialogAgent(table, learner, self._epsilon)
         exp = EpisodicExperiment(task, agent)
         log.info("running the RL algorithm")
@@ -409,14 +421,13 @@ class ApproxQTable(Module, ActionValueInterface):
 class ApproxQLearning(ValueBasedLearner):
     """Neural Fitted Q-iteration."""
 
-    def __init__(self, sample_size, hint_to_goal,
-                 rprop_epochs=300, rprop_error=0.01):
+    def __init__(self, sample_size, hint_to_goal, rprop_epochs, rprop_error):
         super().__init__()
+        self._sample = collections.deque()
         self._sample_size = sample_size
         self._hint_to_goal = hint_to_goal
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
-        self._sample = collections.deque()
 
     def learn(self):
         self._update_sample()
