@@ -68,11 +68,12 @@ class DialogBuilder(object):
     constraint-based specification. In both cases, it assumed that
     there are no contradictions in the configuration problem. The
     satisfiability of a constraint-based specification can be verified
-    using the :meth:`~configurator.csp.CSP.solve` method of the
-    :class:`configurator.csp.CSP` class. Note that both `rules` and
-    `constraints` cannot be given at the same time, but it is possible
-    to express the rules as constraints. The observations in `sample`
-    are used to compute the probabilities of the user's responses.
+    using the :meth:`~configurator.csp.CSP.is_consistent` method of
+    the :class:`configurator.csp.CSP` class. Note that both `rules`
+    and `constraints` cannot be given at the same time, but it is
+    possible to express the rules as constraints. The observations in
+    `sample` are used to compute the probabilities of the user's
+    responses.
 
     All the arguments are available as instance attributes.
     """

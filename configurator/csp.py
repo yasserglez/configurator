@@ -49,15 +49,25 @@ class CSP(object):
         log.debug("it %s a tree CSP", "is" if self._is_tree_csp else "isn't")
         self.reset()
 
-    def solve(self):
-        """Find a consistent assignment of the variables.
+    def is_consistent(self):
+        """Check if the constraint satisfaction problem is consistent.
 
         Returns:
-            A dictionary with the values assigned to the variables if
-            a solution was found, `None` otherwise.
+            `True` if there exist at least one consistent assignment
+            of the variables, `False` otherwise.
         """
-        return _backtracking_search({}, self.var_domains,
-                                    self._constraints_index)
+        return self._is_consistent(self.var_domains)
+
+    def solve(self):
+        """Compute all the consistent assignments of the variables.
+
+        Returns:
+            An iterator over all possible consistent assignments of
+            the variables. Each solution is a dictionary mapping the
+            variable indices to their values.
+        """
+        yield from _backtracking_search({}, self.var_domains,
+                                        self._constraints_index)
 
     # The following are internal methods used to keep track of the
     # assignments and enforce global or local consistency after each
@@ -90,6 +100,15 @@ class CSP(object):
                         stack.append(w.index)
                         parent[w.index] = v
         return True
+
+    def _is_consistent(self, var_domains):
+        try:
+            next(_backtracking_search({}, var_domains,
+                                      self._constraints_index))
+        except StopIteration:
+            return False
+        else:
+            return True
 
     def reset(self):
         self.assignment = {}
@@ -137,45 +156,39 @@ class CSP(object):
     def enforce_global_consistency(self):
         # Check that all possible answers to the remaining questions
         # lead to at least one consistent assignment.
-        _arc_consistency_3(self.pruned_var_domains,
-                           self._constraints_index)
         for var_index in range(len(self.var_domains)):
             if len(self.pruned_var_domains[var_index]) > 1:
                 consistent_values = []
                 for var_value in self.pruned_var_domains[var_index]:
                     tmp_var_domains = self.pruned_var_domains.copy()
                     tmp_var_domains[var_index] = [var_value]
-                    if _backtracking_search({}, tmp_var_domains,
-                                            self._constraints_index):
+                    if self._is_consistent(tmp_var_domains):
                         consistent_values.append(var_value)
                 if (len(consistent_values) <
                         len(self.pruned_var_domains[var_index])):
                     self.pruned_var_domains[var_index] = consistent_values
-                    _arc_consistency_3(self.pruned_var_domains,
-                                       self._constraints_index)
 
 
 # Backtracking search maintaining arc consistency (using GAC-3), with
 # the minimum-remaining-values heuristic for variable selection.
+
 def _backtracking_search(assignment, var_domains, constraints_index):
     if len(assignment) == len(var_domains):
-        return assignment
-    unassigned_vars = [v for v in range(len(var_domains))
-                       if v not in assignment]
-    var_index = _most_constrained_var(unassigned_vars, var_domains)
-    for var_value in var_domains[var_index]:
-        new_assignment = assignment.copy()
-        new_assignment[var_index] = var_value
-        if not _has_conflicts(new_assignment, constraints_index):
-            new_var_domains = var_domains.copy()
-            new_var_domains[var_index] = [var_value]
-            if _arc_consistency_3(new_var_domains, constraints_index):
-                solution = _backtracking_search(new_assignment,
-                                                new_var_domains,
-                                                constraints_index)
-                if solution:
-                    return solution
-    return None
+        yield assignment
+    else:
+        unassigned_vars = [v for v in range(len(var_domains))
+                           if v not in assignment]
+        var_index = _most_constrained_var(unassigned_vars, var_domains)
+        for var_value in var_domains[var_index]:
+            new_assignment = assignment.copy()
+            new_assignment[var_index] = var_value
+            if not _has_conflicts(new_assignment, constraints_index):
+                new_var_domains = var_domains.copy()
+                new_var_domains[var_index] = [var_value]
+                if _arc_consistency_3(new_var_domains, constraints_index):
+                    yield from _backtracking_search(new_assignment,
+                                                    new_var_domains,
+                                                    constraints_index)
 
 
 def _most_constrained_var(unassigned_vars, var_domains):
@@ -187,7 +200,9 @@ def _has_conflicts(assignment, constraints_index):
     # Check if the given assignment generates at least one conflict.
     for constraint_vars, constraint_fun in constraints_index.values():
         if all(v in assignment for v in constraint_vars):
-            if not _call_constraint(assignment, constraint_vars, constraint_fun):
+            if not _call_constraint(assignment,
+                                    constraint_vars,
+                                    constraint_fun):
                 return True
     return False
 
@@ -244,5 +259,6 @@ def _arc_consistency_3(var_domains, constraints_index):
                         var_index in other_constraint_key):
                     for other_var_index in other_constraint_key:
                         if other_var_index != var_index:
-                            pending_arcs.add((other_var_index, other_constraint_key))
+                            pending_arcs.add((other_var_index,
+                                              other_constraint_key))
     return True

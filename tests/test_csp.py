@@ -30,13 +30,22 @@ def australia():
 
 class TestCSP(object):
 
+    def test_is_consistent(self, australia):
+        assert australia.is_consistent()
+        australia.var_domains[0] = ["red"]
+        australia.var_domains[1] = ["red"]
+        assert not australia.is_consistent()
+
     def test_solve(self, australia):
-        solution = australia.solve()
-        for var_name, var_value in solution.items():
-            assert var_value in australia.var_domains[var_name]
-        for var_names, constrain_fun in australia.constraints:
-            var_values = [solution[var_name] for var_name in var_names]
-            assert constrain_fun(var_names, var_values)
+        num_solutions = 0
+        for solution in australia.solve():
+            num_solutions += 1
+            for var_name, var_value in solution.items():
+                assert var_value in australia.var_domains[var_name]
+            for var_names, constrain_fun in australia.constraints:
+                var_values = [solution[var_name] for var_name in var_names]
+                assert constrain_fun(var_names, var_values)
+        assert num_solutions == 18
 
     def test_reset(self, australia):
         csp = australia
