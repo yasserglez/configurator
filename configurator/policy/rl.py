@@ -335,8 +335,9 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def _buildNetwork(self):
         net = libfann.neural_net()
-        net_structure = (self.indim, self.numActions, self.numActions)
-        net.create_standard_array(net_structure)
+        net_layers = (self.indim, self.numActions, self.numActions)
+        log.info("neurons in each layer I = %d, H = %d, O = %d", *net_layers)
+        net.create_standard_array(net_layers)
         net.set_activation_function_hidden(libfann.SIGMOID_SYMMETRIC)
         net.set_activation_function_output(libfann.SIGMOID_SYMMETRIC)
         net.set_training_algorithm(libfann.TRAIN_RPROP)
@@ -349,8 +350,6 @@ class ApproxQTable(Module, ActionValueInterface):
                 weight = np.random.uniform(-0.5, 0.5)
                 net.set_weight(i, j, weight)
         log.info("the neural net has %d weights", net.get_total_connections())
-        log.info("neurons in each layer I = %d, H = %d, O = %d",
-                 self.indim, self.numActions, self.numActions)
         return net
 
     def transformState(self, config=None, state=None):
@@ -380,14 +379,16 @@ class ApproxQTable(Module, ActionValueInterface):
             return config
 
     def transformOutput(self, Q=None, output=None):
-        # Scale neural net output from [-1, 1] to [0, Q_max].
+        # Scale neural net output from [-output_max, output_max] to [0, Q_max].
         assert Q is None or output is None
         Q_max = len(self.var_domains) - 1  # at least one question asked
+        output_max = 0.9  # avoid saturation at the extreme values
         if Q is None:
-            Q_values = Q_max * (output + 1) / 2
+            output = np.clip(output, -output_max, output_max)
+            Q_values = Q_max * (output + output_max) / (2 * output_max)
             return Q_values
         else:
-            output_values = 2 * (Q / Q_max) - 1
+            output_values = (2 * output_max) * (Q / Q_max) - output_max
             return output_values
 
     def getValues(self, state):
