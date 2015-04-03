@@ -1,8 +1,6 @@
 """Configuration dialogs based on reinforcement learning.
 """
 
-import math
-import random
 import logging
 import pprint
 import collections
@@ -44,7 +42,7 @@ class RLDialogBuilder(DialogBuilder):
         table: Representation of the action-value table. Possible
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approx'` (approximate
-            representation using a neural network trained using
+            representation using a neural network trained with
             Neural Fitted Q-iteration, i.e. NFQ).
         epsilon: Epsilon value for the epsilon-greedy exploration.
         learning_rate: Q-learning learning rate. This argument is used
@@ -52,9 +50,6 @@ class RLDialogBuilder(DialogBuilder):
         nfq_sample_size: The NFQ sample retains transitions from the
             `nfq_sample_size` most recent episodes. Default value:
             `len(var_domains)`.
-        nfq_hint_to_goal: Random hint-to-goal patterns will be added
-            to the NFQ transition sample following a `1:nfq_hint_to_goal`
-            proportion.
         rprop_epochs: Maximum number of epochs of Rprop training. This
             argument is used only with NFQ.
         rprop_error: Rprop error threshold. This argument is used only
@@ -71,9 +66,8 @@ class RLDialogBuilder(DialogBuilder):
                  epsilon=0.1,
                  learning_rate=0.3,
                  nfq_sample_size=None,
-                 nfq_hint_to_goal=10,
                  rprop_epochs=300,
-                 rprop_error=0.01,
+                 rprop_error=0.001,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
@@ -87,7 +81,6 @@ class RLDialogBuilder(DialogBuilder):
         self._learning_rate = learning_rate
         self._nfq_sample_size = (nfq_sample_size if nfq_sample_size else
                                  len(var_domains))
-        self._nfq_hint_to_goal = nfq_hint_to_goal
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
 
@@ -106,7 +99,6 @@ class RLDialogBuilder(DialogBuilder):
         elif self._table == "approx":
             table = ApproxQTable(self.var_domains)
             learner = ApproxQLearning(self._nfq_sample_size,
-                                      self._nfq_hint_to_goal,
                                       self._rprop_epochs,
                                       self._rprop_error)
         agent = DialogAgent(table, learner, self._epsilon)
@@ -421,18 +413,16 @@ class ApproxQTable(Module, ActionValueInterface):
 class ApproxQLearning(ValueBasedLearner):
     """Neural Fitted Q-iteration."""
 
-    def __init__(self, sample_size, hint_to_goal, rprop_epochs, rprop_error):
+    def __init__(self, sample_size, rprop_epochs, rprop_error):
         super().__init__()
         self._sample = collections.deque()
         self._sample_size = sample_size
-        self._hint_to_goal = hint_to_goal
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
 
     def learn(self):
         self._update_sample()
         input_values, target_values = self._generate_pattern_set()
-        self._add_artificial_patterns(input_values, target_values)
         self._rprop_training(input_values, target_values)
 
     def _update_sample(self):
@@ -482,28 +472,8 @@ class ApproxQLearning(ValueBasedLearner):
                 target_value = self.module.transformOutput(Q=Q_values)
                 input_values.append(state)
                 target_values.append(target_value)
-        log.info("the sample has %g collected patterns", len(input_values))
         log.debug("finished generate_pattern_set")
         return input_values, target_values
-
-    def _add_artificial_patterns(self, input_values, target_values):
-        log.debug("starting add_artificial_patterns")
-        Q_values = np.zeros_like(target_values[-1])
-        target_value = self.module.transformOutput(Q=Q_values)  # Q=0
-        num_patterns = (math.ceil(len(input_values) / self._hint_to_goal)
-                        if self._hint_to_goal > 0 else 0)
-        log.info("adding %g hint-to-goal patterns", num_patterns)
-        for i in range(num_patterns):
-            config = {}
-            action = random.randrange(len(self.module.var_domains))
-            for var_index in range(len(self.module.var_domains)):
-                if var_index != action:
-                    var_values = self.module.var_domains[var_index]
-                    config[var_index] = random.choice(var_values)
-            input_value = self.module.transformState(config=config)
-            input_values.append(input_value)
-            target_values.append(target_value)
-        log.debug("finished add_artificial_patterns")
 
     def _rprop_training(self, input_values, target_values):
         log.debug("starting Rprop_training")
