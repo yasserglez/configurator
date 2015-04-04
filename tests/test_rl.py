@@ -23,7 +23,7 @@ class TestRuleRLDialogBuilder(_TestRLDialogBuilder):
         builder = RLDialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   rules=email_client.rules,
-                                  num_episodes=50,
+                                  total_episodes=50,
                                   table=table,
                                   validate=True)
         self._test_builder(builder, email_client)
@@ -41,7 +41,7 @@ class TestCSPRLDialogBuilder(_TestRLDialogBuilder):
                                   email_client.sample,
                                   constraints=email_client.constraints,
                                   consistency=consistency,
-                                  num_episodes=50,
+                                  total_episodes=50,
                                   table=table,
                                   validate=True)
         self._test_builder(builder, email_client)

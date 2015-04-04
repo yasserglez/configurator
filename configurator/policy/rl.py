@@ -33,7 +33,7 @@ class RLDialogBuilder(DialogBuilder):
     """Build a configuration dialog using reinforcement learning.
 
     Arguments:
-        num_episodes: Total number of simulated episodes.
+        total_episodes: Total number of simulated episodes.
         consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the episodes. Possible values are: `'global'` and `'local'`.
@@ -43,27 +43,27 @@ class RLDialogBuilder(DialogBuilder):
         table: Representation of the action-value table. Possible
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approx'` (approximate
-            representation using a neural network trained with
-            Neural Fitted Q-iteration).
+            representation using a multilayer perceptron trained with
+            Neural Fitted Q-iteration, i.e. NFQ).
         epsilon: Epsilon value for the epsilon-greedy exploration.
         learning_rate: Q-learning learning rate. This argument is used
             only with the exact action-value table representation.
-        rprop_epochs: Maximum number of epochs of Rprop training. This
-            argument is used only with Neural Fitted Q-iteration.
-        rprop_error: Rprop error threshold. This argument is used only
-            with Neural Fitted Q-iteration.
+        nfq_iter: Number of NFQ iterations.
+        rprop_epochs: Maximum number of epochs of Rprop training in NFQ.
+        rprop_error: Rprop error threshold in NFQ.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
     """
 
     def __init__(self, var_domains, sample, rules=None, constraints=None,
-                 num_episodes=1000,
+                 total_episodes=1000,
                  consistency="local",
                  learning_batch=1,
                  table="approx",
                  epsilon=0.1,
                  learning_rate=0.3,
+                 nfq_iter=1,
                  rprop_epochs=300,
                  rprop_error=0.001,
                  validate=False):
@@ -72,12 +72,13 @@ class RLDialogBuilder(DialogBuilder):
             raise ValueError("Invalid consistency value")
         if table not in {"exact", "approx"}:
             raise ValueError("Invalid table value")
-        self._num_episodes = num_episodes
+        self._total_episodes = total_episodes
         self._consistency = consistency
         self._learning_batch = learning_batch
         self._table = table
         self._epsilon = epsilon
         self._learning_rate = learning_rate
+        self._nfq_iter = nfq_iter
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
 
@@ -95,13 +96,16 @@ class RLDialogBuilder(DialogBuilder):
             learner = ExactQLearning(self._learning_rate)
         elif self._table == "approx":
             table = ApproxQTable(self.var_domains)
-            learner = ApproxQLearning(self._rprop_epochs, self._rprop_error)
+            learner = ApproxQLearning(self._nfq_iter,
+                                      self._rprop_epochs,
+                                      self._rprop_error)
         agent = DialogAgent(table, learner, self._epsilon)
         exp = DialogExperiment(task, agent)
         log.info("running the RL algorithm")
+        log.info("the epsilon value is %g", self._epsilon)
         simulated_episodes = 0
         complete_episodes = 0
-        while simulated_episodes < self._num_episodes:
+        while simulated_episodes < self._total_episodes:
             exp.doEpisodes(number=self._learning_batch)
             simulated_episodes += self._learning_batch
             complete_episodes += agent.history.getNumSequences()
@@ -360,7 +364,10 @@ class ApproxQTable(Module, ActionValueInterface):
         net.set_training_algorithm(libfann.TRAIN_RPROP)
         net.set_train_error_function(libfann.ERRORFUNC_LINEAR)
         net.set_train_stop_function(libfann.STOPFUNC_MSE)
-        # TODO: Couldn't get set_weight_array to work.
+        # TODO: fann2 (or FANN?) doesn't seem to allow setting the
+        # random seed and I want reproducible results. This way of
+        # setting the weights is presumably slow, but I couldn't get
+        # set_weight_array to work.
         total_neurons = net.get_total_neurons()
         for i in range(total_neurons):
             for j in range(i + 1, total_neurons):
@@ -429,16 +436,18 @@ class ApproxQTable(Module, ActionValueInterface):
 class ApproxQLearning(ValueBasedLearner):
     """Neural Fitted Q-iteration."""
 
-    def __init__(self, rprop_epochs, rprop_error):
+    def __init__(self, nfq_iter, rprop_epochs, rprop_error):
         super().__init__()
+        self._nfq_iter = nfq_iter
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
         self._sample = []
 
     def learn(self):
         self._update_sample()
-        input_values, target_values = self._generate_pattern_set()
-        self._rprop_training(input_values, target_values)
+        for k in range(self._nfq_iter):
+            input_values, target_values = self._generate_pattern_set()
+            self._rprop_training(input_values, target_values)
 
     def _update_sample(self):
         for transitions in self.dataset:
@@ -464,25 +473,24 @@ class ApproxQLearning(ValueBasedLearner):
 
     def _iter_sample(self):
         for episode in self._sample:
-            yield self._iter_episode(episode)
+            yield from self._iter_episode(episode)
 
     def _generate_pattern_set(self):
         log.debug("starting generate_pattern_set")
         input_values, target_values = [], []
-        for episode in self._iter_sample():
-            for state, action, reward, next_state in episode:
-                # Build Q(s,a) = r(s,a) + max Q(s',a') from
-                # s = state, a = action, r(s,a) = reward, s' = next_state.
-                Q_values = self.module.getValues(state)
-                # Transitions entering the terminal state only have
-                # immediate reward (i.e. the expected future reward
-                # max Q(s',a') is always zero).
-                Q_values[action] = reward
-                if next_state is not None:
-                    Q_values[action] += self.module.getMaxValue(next_state)
-                target_value = self.module.transformOutput(Q=Q_values)
-                input_values.append(state)
-                target_values.append(target_value)
+        for state, action, reward, next_state in self._iter_sample():
+            # Build Q(s,a) = r(s,a) + max Q(s',a') from
+            # s = state, a = action, r(s,a) = reward, s' = next_state.
+            Q_values = self.module.getValues(state)
+            # Transitions entering the terminal state only have
+            # immediate reward (i.e. the expected future reward
+            # max Q(s',a') is always zero).
+            Q_values[action] = reward
+            if next_state is not None:
+                Q_values[action] += self.module.getMaxValue(next_state)
+            target_value = self.module.transformOutput(Q=Q_values)
+            input_values.append(state)
+            target_values.append(target_value)
         log.debug("finished generate_pattern_set")
         return input_values, target_values
 
@@ -490,6 +498,10 @@ class ApproxQLearning(ValueBasedLearner):
         log.debug("starting Rprop_training")
         net = self.module.network
         total_neurons = net.get_total_neurons()
+        # TODO: fann2 (or FANN?) doesn't seem to allow setting the
+        # random seed and I want reproducible results. This way of
+        # setting the weights is presumably slow, but I couldn't get
+        # set_weight_array to work.
         for i in range(total_neurons):
             for j in range(i + 1, total_neurons):
                 weight = np.random.uniform(-0.5, 0.5)
