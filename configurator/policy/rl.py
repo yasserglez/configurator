@@ -497,15 +497,6 @@ class ApproxQLearning(ValueBasedLearner):
     def _rprop_training(self, input_values, target_values):
         log.debug("starting Rprop_training")
         net = self.module.network
-        total_neurons = net.get_total_neurons()
-        # TODO: fann2 (or FANN?) doesn't seem to allow setting the
-        # random seed and I want reproducible results. This way of
-        # setting the weights is presumably slow, but I couldn't get
-        # set_weight_array to work.
-        for i in range(total_neurons):
-            for j in range(i + 1, total_neurons):
-                weight = np.random.uniform(-0.5, 0.5)
-                net.set_weight(i, j, weight)
         data = libfann.training_data()
         data.set_train_data(input_values, target_values)
         log.info("the training sample has %g patterns",
