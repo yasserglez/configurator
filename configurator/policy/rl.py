@@ -45,12 +45,12 @@ class RLDialogBuilder(DialogBuilder):
             representation using a multilayer perceptron trained with
             Neural Fitted Q-iteration, i.e. NFQ).
         epsilon: Epsilon value for the epsilon-greedy exploration.
-        learning_rate: Q-learning learning rate. This argument is used
-            only with the exact action-value table representation.
-        nfq_sample_size: The NFQ sample retains the transitions from
-            the `nfq_sample_size` most recent episodes.
-        rprop_epochs: Maximum number of epochs of Rprop training in NFQ.
-        rprop_error: Rprop error threshold in NFQ.
+        learning_rate: Q-learning learning rate. This parameter is
+            used only with the exact action-value table representation.
+        nfq_sample_size: The NFQ sample retains the transitions from the
+            `nfq_sample_size` most recent episodes. This parameter is set
+            to `total_episodes` by default, which means that all
+            transitions are retained.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -62,9 +62,7 @@ class RLDialogBuilder(DialogBuilder):
                  table="approx",
                  epsilon=0.1,
                  learning_rate=0.3,
-                 nfq_sample_size=1000,
-                 rprop_epochs=300,
-                 rprop_error=0.001,
+                 nfq_sample_size=None,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
@@ -76,9 +74,9 @@ class RLDialogBuilder(DialogBuilder):
         self._table = table
         self._epsilon = epsilon
         self._learning_rate = learning_rate
-        self._nfq_sample_size = nfq_sample_size
-        self._rprop_epochs = rprop_epochs
-        self._rprop_error = rprop_error
+        self._nfq_sample_size = (self._total_episodes
+                                 if nfq_sample_size is None else
+                                 nfq_sample_size)
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -94,23 +92,19 @@ class RLDialogBuilder(DialogBuilder):
             learner = ExactQLearning(self._learning_rate)
         elif self._table == "approx":
             table = ApproxQTable(self.var_domains)
-            learner = ApproxQLearning(self._nfq_sample_size,
-                                      self._rprop_epochs,
-                                      self._rprop_error)
+            learner = ApproxQLearning(self._nfq_sample_size)
         agent = DialogAgent(table, learner, self._epsilon)
         exp = EpisodicExperiment(task, agent)
         log.info("running the RL algorithm")
         log.info("the epsilon value is %g", self._epsilon)
-        simulated_episodes = 0
         complete_episodes = 0
-        while simulated_episodes < self._total_episodes:
+        for i in range(self._total_episodes):
             exp.doEpisodes(number=1)
-            simulated_episodes += 1
             if dialog.is_consistent():
                 complete_episodes += 1
                 agent.learn()
             agent.reset()
-        log.info("simulated %d episodes", simulated_episodes)
+        log.info("simulated %d episodes", self._total_episodes)
         log.info("learned from %d episodes", complete_episodes)
         log.info("finished running the RL algorithm")
         # Create the RLDialog instance.
@@ -332,20 +326,14 @@ class ApproxQTable(Module, ActionValueInterface):
 
     def _buildNetwork(self):
         net = libfann.neural_net()
-        net_layers = (self.indim,
-                      (self.indim + self.numActions) // 2,
-                      self.numActions)
+        net_layers = (self.indim, self.numActions, self.numActions)
         log.info("neurons in each layer I = %d, H = %d, O = %d", *net_layers)
         net.create_standard_array(net_layers)
         net.set_activation_function_hidden(libfann.SIGMOID_SYMMETRIC)
         net.set_activation_function_output(libfann.SIGMOID_SYMMETRIC)
-        net.set_training_algorithm(libfann.TRAIN_RPROP)
-        net.set_train_error_function(libfann.ERRORFUNC_LINEAR)
-        net.set_train_stop_function(libfann.STOPFUNC_MSE)
-        # TODO: fann2 (or FANN?) doesn't seem to allow setting the
-        # random seed and I want reproducible results. This way of
-        # setting the weights is presumably slow, but I couldn't get
-        # set_weight_array to work.
+        # TODO: fann2 (or FANN?) doesn't seem to allow setting the random
+        # seed and I want reproducible results. This is presumably slow,
+        # but I couldn't get set_weight_array to work.
         total_neurons = net.get_total_neurons()
         for i in range(total_neurons):
             for j in range(i + 1, total_neurons):
@@ -414,7 +402,7 @@ class ApproxQTable(Module, ActionValueInterface):
 class ApproxQLearning(ValueBasedLearner):
     """Neural Fitted Q-iteration."""
 
-    def __init__(self, sample_size, rprop_epochs, rprop_error):
+    def __init__(self, sample_size, rprop_epochs=300, rprop_error=0.01):
         super().__init__()
         self._sample_size = sample_size
         self._sample = collections.deque()
@@ -477,21 +465,15 @@ class ApproxQLearning(ValueBasedLearner):
 
     def _rprop_training(self, input_values, target_values):
         log.debug("starting Rprop_training")
-        net = self.module.network
-        # TODO: fann2 (or FANN?) doesn't seem to allow setting the
-        # random seed and I want reproducible results. This way of
-        # setting the weights is presumably slow, but I couldn't get
-        # set_weight_array to work.
-        total_neurons = net.get_total_neurons()
-        for i in range(total_neurons):
-            for j in range(i + 1, total_neurons):
-                weight = np.random.uniform(-0.5, 0.5)
-                net.set_weight(i, j, weight)
         data = libfann.training_data()
         data.set_train_data(input_values, target_values)
         log.info("the training sample has %g patterns",
                  data.length_train_data())
+        net = self.module.network
         net.reset_MSE()
+        net.set_training_algorithm(libfann.TRAIN_RPROP)
+        net.set_train_error_function(libfann.ERRORFUNC_LINEAR)
+        net.set_train_stop_function(libfann.STOPFUNC_MSE)
         net.train_on_data(data, self._rprop_epochs, 0, self._rprop_error)
         log.info("the training MSE is %g", net.get_MSE())
         log.debug("finished Rprop_training")
