@@ -41,7 +41,7 @@ class DPDialogBuilder(DialogBuilder):
     arguments.
     """
 
-    def __init__(self, var_domains, sample, rules,
+    def __init__(self, var_domains, sample=None, rules=None,
                  max_iter=1000,
                  discard_states=True,
                  partial_rules=True,

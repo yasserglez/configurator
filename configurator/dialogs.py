@@ -71,14 +71,15 @@ class DialogBuilder(object):
     using the :meth:`~configurator.csp.CSP.is_consistent` method of
     the :class:`configurator.csp.CSP` class. Note that both `rules`
     and `constraints` cannot be given at the same time, but it is
-    possible to express the rules as constraints. The observations in
-    `sample` are used to compute the probabilities of the user's
-    responses.
+    possible to express the rules as constraints. If `sample` is
+    given, it defines the probabilities of the user's responses,
+    otherwise it will be assumed that all valid configurations occur
+    with the same probability.
 
     All the arguments are available as instance attributes.
     """
 
-    def __init__(self, var_domains, sample, rules=None,
+    def __init__(self, var_domains, sample=None, rules=None,
                  constraints=None, validate=False):
         super().__init__()
         self.var_domains = [list(var_domain) for var_domain in var_domains]
@@ -87,8 +88,9 @@ class DialogBuilder(object):
                  len(self.var_domains))
         log.debug("variable domains:\n%s", pprint.pformat(self.var_domains))
         self.sample = sample
-        log.info("the configuration sample has %g observations",
-                 self.sample.shape[0])
+        if self.sample is not None:
+            log.info("the configuration sample has %g observations",
+                     self.sample.shape[0])
         # Build the frequency table from the configuration sample.
         self._freq_table = FrequencyTable(self.var_domains, self.sample,
                                           cache_size=1000)

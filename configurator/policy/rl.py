@@ -56,7 +56,7 @@ class RLDialogBuilder(DialogBuilder):
     arguments.
     """
 
-    def __init__(self, var_domains, sample, rules=None, constraints=None,
+    def __init__(self, var_domains, sample=None, rules=None, constraints=None,
                  total_episodes=1000,
                  consistency="local",
                  table="approx",
