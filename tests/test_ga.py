@@ -1,9 +1,9 @@
 import pytest
 
-from configurator.sequence.sa import SADialogBuilder
+from configurator.sequence.ga import GADialogBuilder
 
 
-class _TestSADialogBuilder(object):
+class _TestGADialogBuilder(object):
 
     def _test_builder(self, builder, email_client):
         dialog = builder.build_dialog()
@@ -16,21 +16,22 @@ class _TestSADialogBuilder(object):
             assert dialog.config == config
 
 
-class TestRuleSADialogBuilder(_TestSADialogBuilder):
+class TestRuleGADialogBuilder(_TestGADialogBuilder):
 
     @pytest.mark.parametrize("initial_solution", ("random", "degree"))
     def test_build_dialog(self, initial_solution, email_client):
-        builder = SADialogBuilder(email_client.var_domains,
+        builder = GADialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   rules=email_client.rules,
-                                  total_episodes=100,
+                                  total_episodes=500,
                                   eval_episodes=10,
+                                  population_size=5,
                                   initial_solution=initial_solution,
                                   validate=True)
         self._test_builder(builder, email_client)
 
 
-class TestCSPSADialogBuilder(_TestSADialogBuilder):
+class TestCSPGADialogBuilder(_TestGADialogBuilder):
 
     @pytest.mark.parametrize(("consistency", "initial_solution"),
                              (("global", "random"),
@@ -38,12 +39,13 @@ class TestCSPSADialogBuilder(_TestSADialogBuilder):
                               ("local", "random"),
                               ("local", "degree")))
     def test_build_dialog(self, consistency, initial_solution, email_client):
-        builder = SADialogBuilder(email_client.var_domains,
+        builder = GADialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   constraints=email_client.constraints,
                                   consistency=consistency,
-                                  total_episodes=100,
+                                  total_episodes=500,
                                   eval_episodes=10,
+                                  population_size=5,
                                   initial_solution=initial_solution,
                                   validate=True)
         self._test_builder(builder, email_client)

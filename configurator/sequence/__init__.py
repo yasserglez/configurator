@@ -11,7 +11,7 @@ import numpy as np
 from ..dialogs import DialogBuilder, Dialog
 
 
-__all__ = ["SADialogBuilder"]
+__all__ = ["SADialogBuilder", "GADialogBuilder"]
 
 
 log = logging.getLogger(__name__)
@@ -27,16 +27,16 @@ class PermutationDialogBuilder(DialogBuilder):
 
     def __init__(self, var_domains, sample, rules, constraints,
                  total_episodes, consistency, eval_episodes,
-                 initialization, validate):
+                 initial_solution, validate):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
             raise ValueError("Invalid consistency value")
-        if initialization not in {"random", "degree"}:
-            raise ValueError("Invalid initialization value")
+        if initial_solution not in {"random", "degree"}:
+            raise ValueError("Invalid initial_solution value")
         self._total_episodes = total_episodes
         self._consistency = consistency
         self._eval_episodes = eval_episodes
-        self._initialization = initialization
+        self._initial_solution = initial_solution
 
     def _generate_random_var_perm(self):
         var_perm = list(range(len(self.var_domains)))
@@ -141,5 +141,6 @@ class PermutationDialog(Dialog):
         return next_question
 
 
-# Keep this in the end. .sequence and .sequence.sa import each other.
+# Keep this in the end, .sequence and .sequence.{sa,ga} import each other.
 from .sa import SADialogBuilder
+from .ga import GADialogBuilder

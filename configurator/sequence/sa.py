@@ -27,7 +27,7 @@ class SADialogBuilder(PermutationDialogBuilder):
             This argument is ignored for rule-based dialogs.
         eval_episodes: Number of episodes simulated for the evaluation
             of the fitness of a permutation sequence.
-        initialization: Method used to generate the initial
+        initial_solution: Method used to generate the initial
             permutation sequence. Possible values are: `'random'`
             (start from a random permutation) and `'degree'` (use an
             initialization heuristic based on degree of the variables
@@ -42,11 +42,11 @@ class SADialogBuilder(PermutationDialogBuilder):
                  total_episodes=1000,
                  consistency="local",
                  eval_episodes=30,
-                 initialization="random",
+                 initial_solution="random",
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints,
                          total_episodes, consistency, eval_episodes,
-                         initialization, validate)
+                         initial_solution, validate)
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -55,7 +55,7 @@ class SADialogBuilder(PermutationDialogBuilder):
             An instance of `configurator.dialogs.Dialog` subclass.
         """
         generate_var_perm = (self._generate_degree_var_perm
-                             if self._initialization == "degree" else
+                             if self._initial_solution == "degree" else
                              self._generate_random_var_perm)
         annealer = DialogAnnealer(self.var_domains,
                                   generate_var_perm,
