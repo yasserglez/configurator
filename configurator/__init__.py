@@ -14,7 +14,7 @@ def _get_version(version=None):  # overwritten by setup.py
         src_dir = os.path.abspath(os.path.join(pkg_dir, os.pardir))
         git_dir = os.path.join(src_dir, ".git")
         git_args = ("git", "--work-tree", src_dir, "--git-dir",
-                    git_dir, "describe", "--tags")
+                    git_dir, "describe", "--tags", "--always")
         output = subprocess.check_output(git_args)
         version = output.decode("utf-8").strip()
         if version.rfind("-") >= 0:
