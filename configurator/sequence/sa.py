@@ -20,7 +20,7 @@ class SADialogBuilder(PermutationDialogBuilder):
     """Build a configuration dialog using simulated annealing.
 
     Arguments:
-        num_episodes: Total number of simulated episodes.
+        total_episodes: Total number of simulated episodes.
         consistency: Type of consistency check used to filter the
             domain of the remaining questions during the simulation of
             the episodes. Possible values are: `'global'` and `'local'`.
@@ -39,13 +39,13 @@ class SADialogBuilder(PermutationDialogBuilder):
     """
 
     def __init__(self, var_domains, sample=None, rules=None, constraints=None,
-                 num_episodes=1000,
+                 total_episodes=1000,
                  consistency="local",
                  eval_episodes=30,
                  initialization="random",
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints,
-                         num_episodes, consistency, eval_episodes,
+                         total_episodes, consistency, eval_episodes,
                          initialization, validate)
 
     def build_dialog(self):
@@ -61,7 +61,7 @@ class SADialogBuilder(PermutationDialogBuilder):
                                   generate_var_perm,
                                   self._mutate_var_perm,
                                   self._eval_var_perm,
-                                  self._num_episodes // self._eval_episodes)
+                                  self._total_episodes // self._eval_episodes)
         var_perm, mean_questions = annealer.anneal()
         dialog = PermutationDialog(self.var_domains, var_perm,
                                    self.rules, self.constraints,

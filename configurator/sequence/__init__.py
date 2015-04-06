@@ -26,14 +26,14 @@ class PermutationDialogBuilder(DialogBuilder):
     """
 
     def __init__(self, var_domains, sample, rules, constraints,
-                 num_episodes, consistency, eval_episodes,
+                 total_episodes, consistency, eval_episodes,
                  initialization, validate):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
             raise ValueError("Invalid consistency value")
         if initialization not in {"random", "degree"}:
             raise ValueError("Invalid initialization value")
-        self._num_episodes = num_episodes
+        self._total_episodes = total_episodes
         self._consistency = consistency
         self._eval_episodes = eval_episodes
         self._initialization = initialization

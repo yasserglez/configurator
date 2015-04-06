@@ -23,7 +23,7 @@ class TestRuleSADialogBuilder(_TestSADialogBuilder):
         builder = SADialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   rules=email_client.rules,
-                                  num_episodes=50,
+                                  total_episodes=50,
                                   eval_episodes=5,
                                   initialization=initialization,
                                   validate=True)
@@ -42,7 +42,7 @@ class TestCSPSADialogBuilder(_TestSADialogBuilder):
                                   email_client.sample,
                                   constraints=email_client.constraints,
                                   consistency=consistency,
-                                  num_episodes=50,
+                                  total_episodes=50,
                                   eval_episodes=5,
                                   initialization=initialization,
                                   validate=True)
