@@ -30,7 +30,7 @@ class GADialogBuilder(PermutationDialogBuilder):
             permutation sequence. Possible values are: `'random'`
             (start from a random permutation) and `'degree'` (use an
             initialization heuristic based on degree of the variables
-            in the constraint network or the times it appears on the
+            in the constraint network or the times they appear on the
             left-hand-side of a rule).
          population_size: Population size.
          mutation_prob: Mutation probability.
