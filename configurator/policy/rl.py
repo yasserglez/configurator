@@ -3,7 +3,6 @@
 
 import logging
 import pprint
-import collections
 from functools import reduce
 from operator import mul
 
@@ -43,14 +42,18 @@ class RLDialogBuilder(DialogBuilder):
             values are `'exact'` (explicit representation of all the
             configuration states) and `'approx'` (approximate
             representation using a multilayer perceptron trained with
-            Neural Fitted Q-iteration, i.e. NFQ).
+            Neural Fitted Q-iteration).
         epsilon: Epsilon value for the epsilon-greedy exploration.
         learning_rate: Q-learning learning rate. This parameter is
             used only with the exact action-value table representation.
-        nfq_sample_size: The NFQ sample retains the transitions from the
-            `nfq_sample_size` most recent episodes. This parameter is set
-            to `total_episodes` by default, which means that all
-            transitions are retained.
+        learning_batch: Collect transitions from this many episodes
+            before updating the action-value table using Neural Fitted
+            Q-iteration.
+        nfq_iter: Number of Neural Fitted Q-iteration iterations.
+        rprop_epochs: Maximum number of epochs of Rprop training. This
+            argument is used only with Neural Fitted Q-iteration.
+        rprop_error: Rprop error threshold. This argument is used only
+            with Neural Fitted Q-iteration.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -62,7 +65,10 @@ class RLDialogBuilder(DialogBuilder):
                  table="approx",
                  epsilon=0.1,
                  learning_rate=0.3,
-                 nfq_sample_size=None,
+                 learning_batch=1,
+                 nfq_iter=1,
+                 rprop_epochs=300,
+                 rprop_error=0.01,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
@@ -74,9 +80,13 @@ class RLDialogBuilder(DialogBuilder):
         self._table = table
         self._epsilon = epsilon
         self._learning_rate = learning_rate
-        self._nfq_sample_size = (self._total_episodes
-                                 if nfq_sample_size is None else
-                                 nfq_sample_size)
+        if self._table == "exact":
+            self._learning_batch = 1
+        else:
+            self._learning_batch = learning_batch
+        self._nfq_iter = nfq_iter
+        self._rprop_epochs = rprop_epochs
+        self._rprop_error = rprop_error
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -92,19 +102,22 @@ class RLDialogBuilder(DialogBuilder):
             learner = ExactQLearning(self._learning_rate)
         elif self._table == "approx":
             table = ApproxQTable(self.var_domains)
-            learner = ApproxQLearning(self._nfq_sample_size)
+            learner = ApproxQLearning(self._nfq_iter,
+                                      self._rprop_epochs,
+                                      self._rprop_error)
         agent = DialogAgent(table, learner, self._epsilon)
-        exp = EpisodicExperiment(task, agent)
+        exp = DialogExperiment(task, agent)
         log.info("running the RL algorithm")
         log.info("the epsilon value is %g", self._epsilon)
+        simulated_episodes = 0
         complete_episodes = 0
-        for i in range(self._total_episodes):
-            exp.doEpisodes(number=1)
-            if dialog.is_consistent():
-                complete_episodes += 1
-                agent.learn()
-            agent.reset()
-        log.info("simulated %d episodes", self._total_episodes)
+        while simulated_episodes < self._total_episodes:
+            exp.doEpisodes(number=self._learning_batch)
+            simulated_episodes += self._learning_batch
+            complete_episodes += agent.history.getNumSequences()
+            agent.learn()
+            agent.reset()  # clear the previous batch
+        log.info("simulated %d episodes", simulated_episodes)
         log.info("learned from %d episodes", complete_episodes)
         log.info("finished running the RL algorithm")
         # Create the RLDialog instance.
@@ -132,6 +145,27 @@ class RLDialog(Dialog):
         state = self._table.transformState(config=self.config)
         action = self._table.getMaxAction(state, self.config)
         return action
+
+
+class DialogExperiment(EpisodicExperiment):
+
+    def doEpisodes(self, number):
+        # Overriding to handle skipping inconsistent episodes.
+        log.info("simulating %d episodes", number)
+        cumrewards = []
+        for episode in range(number):
+            self.agent.newEpisode()
+            self.task.reset()
+            while not self.task.isFinished():
+                self._oneInteraction()
+            if self.task.env.dialog.is_consistent():
+                cumrewards.append(self.task.cumreward)
+            else:
+                index = self.agent.history.getNumSequences() - 1
+                self.agent.history.removeSequence(index)
+        log.info("finished %d complete episodes, average total reward %g",
+                 len(cumrewards), np.mean(cumrewards))
+        return cumrewards
 
 
 class DialogEnvironment(Environment):
@@ -402,28 +436,28 @@ class ApproxQTable(Module, ActionValueInterface):
 class ApproxQLearning(ValueBasedLearner):
     """Neural Fitted Q-iteration."""
 
-    def __init__(self, sample_size, rprop_epochs=300, rprop_error=0.01):
+    def __init__(self, nfq_iter, rprop_epochs, rprop_error):
         super().__init__()
-        self._sample_size = sample_size
-        self._sample = collections.deque()
+        self._nfq_iter = nfq_iter
         self._rprop_epochs = rprop_epochs
         self._rprop_error = rprop_error
+        self._sample = []
 
     def learn(self):
         self._update_sample()
-        input_values, target_values = self._generate_pattern_set()
-        self._rprop_training(input_values, target_values)
+        log.debug("starting NFQ_main")
+        for k in range(self._nfq_iter):
+            input_values, target_values = self._generate_pattern_set()
+            self._rprop_training(input_values, target_values)
+        log.debug("finished NFQ_main")
 
     def _update_sample(self):
-        # Extend the sample with the new episode...
-        assert self.batchMode and self.dataset.getNumSequences() == 1
-        episode = []
-        for state, action, reward in next(iter(self.dataset)):
-            episode.append((state, action, reward))
-        self._sample.append(episode)
-        # ...then trim it down to the maximum size if necessary.
-        if len(self._sample) > self._sample_size:
-            self._sample.popleft()
+        # Extend the sample with the new episodes.
+        for transitions in self.dataset:
+            episode = []
+            for state, action, reward in transitions:
+                episode.append((state, action, reward))
+            self._sample.append(episode)
         log.info("the NFQ sample has %d episodes", len(self._sample))
 
     def _iter_episode(self, episode):
