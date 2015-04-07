@@ -41,11 +41,11 @@ class GADialogBuilder(PermutationDialogBuilder):
     """
 
     def __init__(self, var_domains, sample=None, rules=None, constraints=None,
-                 total_episodes=1000,
+                 total_episodes=30000,
                  consistency="local",
                  eval_episodes=30,
                  initial_solution="random",
-                 population_size=50,
+                 population_size=20,
                  mutation_prob=0.2,
                  tournament_size=2,
                  validate=False):
@@ -79,6 +79,7 @@ class GADialogBuilder(PermutationDialogBuilder):
         log.info("running the GA for %d generations", num_generations)
         ga.run()
         mean_questions, var_perm = ga.best_individual()
+        log.info("best average number of questions %g", mean_questions)
         dialog = PermutationDialog(self.var_domains, var_perm,
                                    self.rules, self.constraints,
                                    validate=self._validate)

@@ -39,7 +39,7 @@ class SADialogBuilder(PermutationDialogBuilder):
     """
 
     def __init__(self, var_domains, sample=None, rules=None, constraints=None,
-                 total_episodes=1000,
+                 total_episodes=30000,
                  consistency="local",
                  eval_episodes=30,
                  initial_solution="random",
@@ -63,6 +63,7 @@ class SADialogBuilder(PermutationDialogBuilder):
                                   self._eval_var_perm,
                                   self._total_episodes // self._eval_episodes)
         var_perm, mean_questions = annealer.anneal()
+        log.info("best average number of questions %g", mean_questions)
         dialog = PermutationDialog(self.var_domains, var_perm,
                                    self.rules, self.constraints,
                                    validate=self._validate)
