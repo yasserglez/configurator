@@ -17,7 +17,7 @@ install:
   - conda install -n test-env "python-igraph >= 0.7.1"
   - conda install -n test-env "fann2"
   - conda install -n test-env "fim"
-  - pip install git+https://github.com/yasserglez/pyeasyga.git@py34-support
+  - pip install https://github.com/remiomosowon/pyeasyga/zipball/master
   - pip install https://github.com/sawcordwell/pymdptoolbox/zipball/master
   - pip install https://github.com/pybrain/pybrain/zipball/master
   - pip install -e .

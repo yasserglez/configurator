@@ -3,7 +3,7 @@ scipy >= 0.14.0
 pylru >= 1.0.6
 python-igraph >= 0.7.1
 simanneal >= 0.1.2
-git+https://github.com/yasserglez/pyeasyga.git@py34-support
+https://github.com/remiomosowon/pyeasyga/zipball/master
 https://github.com/sawcordwell/pymdptoolbox/zipball/master
 https://github.com/pybrain/pybrain/zipball/master
 https://github.com/FutureLinkCorporation/fann2/zipball/master
