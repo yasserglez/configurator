@@ -43,11 +43,19 @@ class custom_build(build):
 
 setup(name="configurator",
       version=version,
+      url="https://github.com/yasserglez/configurator",
       description="Adaptive configuration dialogs.",
       long_description=long_description,
+      classifiers=[
+          "Programming Language :: Python :: 3",
+          "Operating System :: OS Independent",
+          "Development Status :: 4 - Beta",
+          "License :: OSI Approved :: Apache Software License",
+          "Intended Audience :: Science/Research",
+          "Topic :: Scientific/Engineering :: Artificial Intelligence",
+      ],
       author="Yasser Gonzalez",
-      author_email="yasserglez@gmail.com",
-      url="https://github.com/yasserglez/configurator",
+      author_email="contact@yassergonzalez.com",
       packages=[
           "configurator",
           "configurator.policy",
@@ -68,10 +76,5 @@ setup(name="configurator",
       dependency_links=[
           "http://www.borgelt.net/src/pyfim.tar.gz#egg=fim",
       ],
-      classifiers=[
-          "Programming Language :: Python :: 3 :: Only",
-          "Development Status :: 4 - Beta",
-          "Intended Audience :: Science/Research",
-          "Topic :: Scientific/Engineering :: Artificial Intelligence",
-      ],
-      cmdclass={"sdist": custom_sdist, "build": custom_build})
+      cmdclass={"sdist": custom_sdist,
+                "build": custom_build})
