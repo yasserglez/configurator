@@ -283,13 +283,14 @@ class DialogAgent(LearningAgent):
         # Epsilon-greedy exploration. It ensures that a valid action
         # at the current configuration state is always returned
         # (i.e. a question that hasn't been answered).
-        action = self.module.getMaxAction(self.laststate, self.lastconfig)
-        log.debug("the greedy action is %d", action)
         if np.random.uniform() < self._epsilon:
             valid_actions = [a for a in range(self.module.numActions)
                              if a not in self.lastconfig]
             action = np.random.choice(valid_actions)
-            log.debug("performing random action %d instead", action)
+            log.debug("performing the random action %d", action)
+        else:
+            action = self.module.getMaxAction(self.laststate, self.lastconfig)
+            log.debug("performing the greedy action %d", action)
         self.lastaction = action
         return self.lastaction
 
@@ -387,26 +388,25 @@ class ApproxQTable(Module, ActionValueInterface):
         return net
 
     def transformState(self, config=None, state=None):
-        # Each variable is represented using dummy variables
+        # Each variable is represented as a group of dummy variables
         # (1-of-C encoding) with 0 as -1 and 1 as 1.
         assert config is None or state is None
         if state is None:
-            state = []
+            i = 0
+            state = np.full((self.indim, ), -1)
             for var_index, var_values in enumerate(self.var_domains):
-                input_values = -1 * np.ones((len(var_values), ))
                 if var_index in config:
                     var_value = config[var_index]
                     k = var_values.index(var_value)
-                    input_values[k] = 1
-                state.append(input_values)
-            return np.concatenate(state)
+                    state[i + k] = 1
+                i += len(var_values)
+            return state
         elif config is None:
             i = 0
             config = {}
             for var_index, var_values in enumerate(self.var_domains):
                 input_values = state[i:i + len(var_values)]
                 k = np.flatnonzero(input_values == 1)
-                assert k.size in {0, 1}
                 if k.size == 1:
                     config[var_index] = var_values[k]
                 i += len(var_values)
@@ -428,19 +428,21 @@ class ApproxQTable(Module, ActionValueInterface):
         Q_values = self.transformOutput(output=output_values)
         return Q_values
 
-    def _getMaxActionValue(self, state, config=None):
+    def getMaxAction(self, state, config=None):
+        if config is None:
+            config = self.transformState(state=state)
+        output_values = np.asarray(self.network.run(state))
+        invalid_action = [a in config for a in range(self.numActions)]
+        max_action = ma.array(output_values, mask=invalid_action).argmax()
+        return max_action
+
+    def getMaxValue(self, state, config=None):
         if config is None:
             config = self.transformState(state=state)
         Q_values = self.getValues(state)
         invalid_action = [a in config for a in range(self.numActions)]
         max_action = ma.array(Q_values, mask=invalid_action).argmax()
-        return max_action, Q_values[max_action]
-
-    def getMaxAction(self, state, config=None):
-        return self._getMaxActionValue(state, config)[0]
-
-    def getMaxValue(self, state, config=None):
-        return self._getMaxActionValue(state, config)[1]
+        return Q_values[max_action]
 
 
 class ApproxQLearning(ValueBasedLearner):
