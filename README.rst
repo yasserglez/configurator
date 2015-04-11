@@ -7,7 +7,7 @@ Configurator
 Author
 ------
 
-Yasser Gonzalez <contact@yassergonzalez.com>.
+Yasser Gonzalez <contact@yassergonzalez.com>
 
 
 License
