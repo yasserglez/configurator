@@ -37,15 +37,6 @@ class DPDialogBuilder(DialogBuilder):
         max_iter: The MDP is solved using value iteration. This
             argument sets the maximum number of iterations of the
             algorithm.
-        discard_states: Indicates whether states that cannot be
-            reached from the initial state after applying the rules
-            should be discarded.
-        partial_rules: Indicates whether the rules can be applied when
-            some of the variables in the right-hand-side are already
-            set to the correct values. The opposite is to require that
-            all variables in the right-hand-side are unknown).
-        aggregate_terminals: Indicates whether all terminal states
-            should be aggregated into a single state.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
@@ -53,15 +44,9 @@ class DPDialogBuilder(DialogBuilder):
 
     def __init__(self, var_domains, sample=None, rules=None,
                  max_iter=1000,
-                 discard_states=True,
-                 partial_rules=True,
-                 aggregate_terminals=True,
                  validate=False):
         super().__init__(var_domains, sample, rules=rules, validate=validate)
         self._max_iter = max_iter
-        self._discard_states = discard_states
-        self._partial_rules = partial_rules
-        self._aggregate_terminals = aggregate_terminals
 
     def build_dialog(self):
         """Construct a configuration dialog.
@@ -129,17 +114,11 @@ class DPDialogBuilder(DialogBuilder):
         # lil_matrix matrices can be built faster.
         transitions = list(map(lambda m: m.tocsr(), transitions))
         rewards = list(map(lambda m: m.tocsr(), rewards))
-        if self._aggregate_terminals:
-            initial_state = 0
-            terminal_state = S - 1
-            mdp = EpisodicMDP(transitions, rewards,
-                              discount_factor=1.0,
-                              initial_state=initial_state,
-                              terminal_state=terminal_state,
-                              validate=self._validate)
-        else:
-            mdp = MDP(transitions, rewards, discount_factor=1.0,
-                      validate=self._validate)
+        mdp = EpisodicMDP(transitions, rewards,
+                          discount_factor=1.0,
+                          initial_state=0,
+                          terminal_state=S - 1,
+                          validate=self._validate)
         log.debug("finished transforming the graph into the MDP")
         return mdp
 
@@ -151,16 +130,12 @@ class DPDialogBuilder(DialogBuilder):
             # The first state will be an empty dict. It will be the
             # initial state in EpisodicMDP.
             state_len = len(state)  # cached to be used in igraph's queries
-            if state_len != num_vars or not self._aggregate_terminals:
-                # If it's a terminal state the vertex is added only if
-                # terminal states shouldn't be aggregated.
+            if state_len != num_vars:
                 graph.add_vertex(state=state, state_len=state_len)
-        if self._aggregate_terminals:
-            # If the terminal states were aggregated, add a single
-            # state (with the state dict set to None) where all the
-            # configuration values are known. It will be the terminal
-            # state in EpisodicMDP.
-            graph.add_vertex(state=None, state_len=num_vars)
+        # Add a single state (with the state dict set to None) where
+        # all the configuration values are known. It will be the
+        # terminal state in EpisodicMDP.
+        graph.add_vertex(state=None, state_len=num_vars)
         log.debug("finishing adding nodes")
 
     def _add_graph_edges(self, graph):
@@ -292,8 +267,7 @@ class DPDialogBuilder(DialogBuilder):
                     self._create_graph_shortcut(graph, v_s, v_sp, rule)
                     inaccessible_vertices.add(v_s.index)
         # Remove the inaccesible vertices.
-        if self._discard_states:
-            graph.delete_vertices(inaccessible_vertices)
+        graph.delete_vertices(inaccessible_vertices)
         log.debug("found %d applications of %d rules",
                   len(inaccessible_vertices), len(rules))
         log.debug("turned into a graph with %d nodes and %d edges",
@@ -317,15 +291,9 @@ class DPDialogBuilder(DialogBuilder):
         return True
 
     def _update_graph_cond_bii(self, rule, s):
-        if self._partial_rules:
-            # (b-ii) variables in the rhs appear with the same values
-            # or set to unknown in S. At least one must be set to
-            # unknown in S.
-            return rule.is_rhs_compatible(s)
-        else:
-            # (b-ii) variables in the rhs appear with all values set
-            # to unknown in S.
-            return all(var_index not in s for var_index in rule.rhs.keys())
+        # (b-ii) variables in the rhs appear with the same values or
+        # set to unknown in S. At least one must be set to unknown in S.
+        return rule.is_rhs_compatible(s)
 
     def _update_graph_cond_c(self, rule, s, sp):
         # (c) all other variables not mentioned in the rule are set to

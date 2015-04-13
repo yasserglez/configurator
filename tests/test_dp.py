@@ -1,5 +1,3 @@
-import pytest
-
 import numpy as np
 from numpy.testing import assert_raises
 
@@ -8,13 +6,10 @@ from configurator.policy.dp import DPDialogBuilder, EpisodicMDP
 
 class TestDPDialogBuilder(object):
 
-    def _test_builder(self, email_client, with_improvements):
+    def test_build_dialog(self, email_client):
         builder = DPDialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   rules=email_client.rules,
-                                  discard_states=with_improvements,
-                                  partial_rules=with_improvements,
-                                  aggregate_terminals=with_improvements,
                                   validate=True)
         dialog = builder.build_dialog()
         for config, num_questions in email_client.scenarios:
@@ -24,11 +19,6 @@ class TestDPDialogBuilder(object):
                 dialog.set_answer(var_index, config[var_index])
             assert dialog.is_complete()
             assert dialog.config == config
-
-    @pytest.mark.parametrize("with_improvements", (True, False),
-                             ids=("with_improvements", "without_improvements"))
-    def test_build_dialog(self, email_client, with_improvements):
-        self._test_builder(email_client, with_improvements)
 
 
 class TestEpisodicMDP(object):
