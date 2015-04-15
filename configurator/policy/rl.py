@@ -368,6 +368,12 @@ class ApproxQTable(Module, ActionValueInterface):
         super().__init__(sum(map(len, self.var_domains)), 1)
         self.numActions = len(self.var_domains)
         self.network = self._buildNetwork()
+        # Build a dict with the indices of the values of the variables
+        # in the ordered list of values to accelerate transformState.
+        self._var_value_index = []
+        for var_values in self.var_domains:
+            d = {var_value: k for k, var_value in enumerate(var_values)}
+            self._var_value_index.append(d)
 
     def _buildNetwork(self):
         net = libfann.neural_net()
@@ -397,7 +403,7 @@ class ApproxQTable(Module, ActionValueInterface):
             for var_index, var_values in enumerate(self.var_domains):
                 if var_index in config:
                     var_value = config[var_index]
-                    k = var_values.index(var_value)
+                    k = self._var_value_index[var_index][var_value]
                     state[i + k] = 1
                 i += len(var_values)
             return state
@@ -468,7 +474,7 @@ class ApproxQLearning(ValueBasedLearner):
         for transitions in self.dataset:
             episode = []
             for state, action, reward in transitions:
-                episode.append((state, action, reward))
+                episode.append((state, int(action), reward))
             self._sample.append(episode)
         log.info("the NFQ sample has %d episodes", len(self._sample))
 
@@ -477,12 +483,12 @@ class ApproxQLearning(ValueBasedLearner):
         for next_state, next_action, next_reward in episode:
             if state is None:
                 state = next_state
-                action = int(next_action)
+                action = next_action
                 reward = next_reward
                 continue
             yield (state, action, reward, next_state)
             state = next_state
-            action = int(next_action)
+            action = next_action
             reward = next_reward
         yield (state, action, reward, None)  # goes to the terminal state
 
