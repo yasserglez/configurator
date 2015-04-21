@@ -27,8 +27,7 @@ class TestPermutationDialog(object):
         constraints = None if use_rules else email_client.constraints
         saved_dialog = PermutationDialog(email_client.var_domains, [1, 0],
                                          rules=rules,
-                                         constraints=constraints,
-                                         validate=True)
+                                         constraints=constraints)
         file_path = str(tmpdir.join("dialog.zip"))
         saved_dialog.save(file_path)
         new_dialog = Dialog.load(file_path)
