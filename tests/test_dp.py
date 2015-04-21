@@ -1,7 +1,26 @@
 import numpy as np
 from numpy.testing import assert_raises
 
+from configurator.dialogs import Dialog
 from configurator.policy.dp import DPDialogBuilder, EpisodicMDP
+
+
+class TestDPDialog(object):
+
+    def test_save(self, tmpdir, email_client):
+        builder = DPDialogBuilder(email_client.var_domains,
+                                  email_client.sample,
+                                  rules=email_client.rules)
+        saved_dialog = builder.build_dialog()
+        file_path = str(tmpdir.join("dialog.zip"))
+        saved_dialog.save(file_path)
+        new_dialog = Dialog.load(file_path)
+        assert new_dialog.var_domains == saved_dialog.var_domains
+        assert new_dialog._policy == saved_dialog._policy
+        new_dialog.reset()
+        assert new_dialog.get_next_question() == 1
+        new_dialog.set_answer(1, "lgi")
+        assert new_dialog.config == {0: "no", 1: "lgi"}
 
 
 class TestDPDialogBuilder(object):

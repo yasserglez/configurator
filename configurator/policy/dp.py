@@ -13,8 +13,10 @@
 
 import os
 import logging
+import zipfile
 from contextlib import redirect_stdout
 
+import dill
 import igraph
 from scipy import sparse
 import mdptoolbox.util
@@ -379,6 +381,20 @@ class DPDialog(Dialog):
     def get_next_question(self):
         next_question = self._policy[frozenset(self.config.items())]
         return next_question
+
+    def save(self, file_path):
+        with zipfile.ZipFile(file_path, "w") as zip_file:
+            zip_file.writestr("__class__", dill.dumps(self.__class__))
+            zip_file.writestr("var_domains", dill.dumps(self.var_domains))
+            zip_file.writestr("rules", dill.dumps(self.rules))
+            zip_file.writestr("policy", dill.dumps(self._policy))
+
+    @classmethod
+    def load(cls, zip_file):
+        var_domains = dill.loads(zip_file.read("var_domains"))
+        rules = dill.loads(zip_file.read("rules"))
+        policy = dill.loads(zip_file.read("policy"))
+        return DPDialog(var_domains, rules, policy)
 
 
 class MDP(object):

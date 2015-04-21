@@ -11,11 +11,15 @@
 """Configuration dialogs based on reinforcement learning.
 """
 
+import os
 import logging
 import pprint
+import zipfile
+import tempfile
 from functools import reduce
 from operator import mul
 
+import dill
 import numpy as np
 import numpy.ma as ma
 from fann2 import libfann
@@ -155,6 +159,40 @@ class RLDialog(Dialog):
         state = self._table.transformState(config=self.config)
         action = self._table.getMaxAction(state, self.config)
         return action
+
+    def save(self, file_path):
+        with zipfile.ZipFile(file_path, "w") as zip_file:
+            zip_file.writestr("__class__", dill.dumps(self.__class__))
+            zip_file.writestr("var_domains", dill.dumps(self.var_domains))
+            zip_file.writestr("rules", dill.dumps(self.rules))
+            zip_file.writestr("constraints", dill.dumps(self.constraints))
+            if isinstance(self._table, ExactQTable):
+                zip_file.writestr("Q", dill.dumps(self._table.Q))
+            else:
+                network_file = tempfile.NamedTemporaryFile(delete=False)
+                network_file.close()
+                self._table.network.save(network_file.name)
+                with open(network_file.name) as fd:
+                    zip_file.writestr("network", fd.read())
+                os.unlink(network_file.name)
+
+    @classmethod
+    def load(cls, zip_file):
+        var_domains = dill.loads(zip_file.read("var_domains"))
+        rules = dill.loads(zip_file.read("rules"))
+        constraints = dill.loads(zip_file.read("constraints"))
+        if "Q" in zip_file.namelist():
+            Q = dill.loads(zip_file.read("Q"))
+            table = ExactQTable(var_domains, Q)
+        else:
+            network_file = tempfile.NamedTemporaryFile(delete=False)
+            network_file.write(zip_file.read("network"))
+            network_file.close()
+            network = libfann.neural_net()
+            network.create_from_file(network_file.name)
+            os.unlink(network_file.name)
+            table = ApproxQTable(var_domains, network)
+        return RLDialog(var_domains, table, rules, constraints)
 
 
 class DialogExperiment(EpisodicExperiment):
@@ -303,7 +341,7 @@ class DialogAgent(LearningAgent):
 
 class ExactQTable(ActionValueTable):
 
-    def __init__(self, var_domains):
+    def __init__(self, var_domains, Q=None):
         self.var_domains = var_domains
         var_card = list(map(len, self.var_domains))
         # One variable value is added for the unknown state.
@@ -313,8 +351,8 @@ class ExactQTable(ActionValueTable):
         num_actions = len(self.var_domains)
         log.info("Q has %d states and %d actions", num_states, num_actions)
         super().__init__(num_states, num_actions)
-        self.initialize(0)
         self.Q = self.params.reshape(num_states, num_actions)
+        self.Q[:] = 0 if Q is None else Q
 
     def transformState(self, config=None, state=None):
         # Find the position of the state among all the possible
@@ -363,11 +401,11 @@ class ExactQLearning(Q):
 
 class ApproxQTable(Module, ActionValueInterface):
 
-    def __init__(self, var_domains):
+    def __init__(self, var_domains, network=None):
         self.var_domains = var_domains
         super().__init__(sum(map(len, self.var_domains)), 1)
         self.numActions = len(self.var_domains)
-        self.network = self._buildNetwork()
+        self.network = self._buildNetwork() if network is None else network
         # Build a dict with the indices of the values of the variables
         # in the ordered list of values to accelerate transformState.
         self._var_value_index = []

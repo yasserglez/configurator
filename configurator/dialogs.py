@@ -13,9 +13,12 @@
 
 import pprint
 import logging
+import zipfile
 from collections import defaultdict
 from functools import reduce
 from operator import mul
+
+import dill
 
 from .rules import Rule
 from .csp import CSP
@@ -298,3 +301,25 @@ class Dialog(object):
             `True` if all the variables has been set, `False` otherwise.
         """
         return len(self.config) == len(self.var_domains)
+
+    def save(self, file_path):
+        """Save the dialog to a file.
+
+        Arguments:
+            file_path: Path to a file to be created or overwritten if
+                it already exists.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    def load(cls, file_path):
+        """Load a dialog from a file.
+
+        Arguments:
+            file_path: Path to an existing file containing a previously
+                saved :class:`Dialog` instance.
+        """
+        with zipfile.ZipFile(file_path) as zip_file:
+            with zip_file.open("__class__") as fd:
+                dialog_cls = dill.load(fd)
+            return dialog_cls.load(zip_file)
