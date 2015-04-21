@@ -15,8 +15,10 @@ import random
 import logging
 import pprint
 import collections
+import zipfile
 
 import numpy as np
+import dill
 
 from ..dialogs import DialogBuilder, Dialog
 
@@ -149,6 +151,22 @@ class PermutationDialog(Dialog):
                 self._curr_var_index += 1
         next_question = self.var_perm[self._curr_var_index]
         return next_question
+
+    def save(self, file_path):
+        with zipfile.ZipFile(file_path, "w") as zip_file:
+            zip_file.writestr("__class__", dill.dumps(self.__class__))
+            zip_file.writestr("var_domains", dill.dumps(self.var_domains))
+            zip_file.writestr("rules", dill.dumps(self.rules))
+            zip_file.writestr("constraints", dill.dumps(self.constraints))
+            zip_file.writestr("var_perm", dill.dumps(self.var_perm))
+
+    @classmethod
+    def load(cls, zip_file):
+        var_domains = dill.loads(zip_file.read("var_domains"))
+        rules = dill.loads(zip_file.read("rules"))
+        constraints = dill.loads(zip_file.read("constraints"))
+        var_perm = dill.loads(zip_file.read("var_perm"))
+        return PermutationDialog(var_domains, var_perm, rules, constraints)
 
 
 # Keep this in the end, .sequence and .sequence.{sa,ga} import each other.
