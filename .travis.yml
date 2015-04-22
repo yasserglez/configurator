@@ -17,6 +17,7 @@ install:
   - conda install -n test-env "scipy >= 0.14.0"
   - conda install -n test-env "python-igraph >= 0.7.1"
   - conda install -n test-env "beautifulsoup4 >= 4.3.2"
+  - conda install -n test-env "lxml >= 3.4.2"
   - conda install -n test-env "fann2"
   - conda install -n test-env "fim"
   - pip install https://github.com/remiomosowon/pyeasyga/zipball/master
