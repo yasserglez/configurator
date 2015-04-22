@@ -14,8 +14,9 @@
 import itertools
 
 from .c2o import load_C2O
+from .sxfm import load_SXFM
 
-__all__ = ["load_C2O"]
+__all__ = ["load_C2O", "load_SXFM"]
 
 
 def iter_config_states(var_domains, exclude_terminals=False):
