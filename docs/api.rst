@@ -42,7 +42,13 @@ configurator.rules
     :members:
 
 configurator.csp
-^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 
 .. automodule:: configurator.csp
+    :members:
+
+configurator.util
+^^^^^^^^^^^^^^^^^
+
+.. automodule:: configurator.util
     :members:

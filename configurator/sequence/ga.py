@@ -42,9 +42,9 @@ class GADialogBuilder(PermutationDialogBuilder):
             initialization heuristic based on degree of the variables
             in the constraint network or the times they appear on the
             left-hand-side of a rule).
-         population_size: Population size.
-         mutation_prob: Mutation probability.
-         tournament_size: Tournament selection size.
+        population_size: Population size.
+        mutation_prob: Mutation probability.
+        tournament_size: Tournament selection size.
 
     See :class:`configurator.dialogs.DialogBuilder` for the remaining
     arguments.
