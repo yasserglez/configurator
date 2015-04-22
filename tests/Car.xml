@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<model name="CarModel">
+    <questions>
+        <question identifier="edition" description="edition">
+            <choice name="sport" />
+            <choice name="none" />
+            <choice name="family" />
+        </question>
+        <question identifier="color" description="color">
+            <choice name="red" />
+            <choice name="black" />
+            <choice name="green" />
+            <choice name="blue" />
+            <choice name="orange" />
+        </question>
+        <question identifier="tires" description="tires">
+            <choice name="low profile" />
+            <choice name="normal" />
+            <choice name="fuel-efficient" />
+        </question>
+        <question identifier="type" description="type">
+            <choice name="coupe" />
+            <choice name="station wagon" />
+            <choice name="cabriolet" />
+        </question>
+        <question identifier="rims" description="rims">
+            <choice name="steel" />
+            <choice name="light-alloy" />
+        </question>
+        <question identifier="horsepower" description="horsepower">
+            <choice name="50" />
+            <choice name="75" />
+            <choice name="100" />
+            <choice name="150" />
+        </question>
+        <question identifier="extras" description="extras">
+            <choice name="none" />
+            <choice name="roof rack" />
+        </question>
+    </questions>
+    <relations>
+        <constraintRelation>
+            <source questionIdentifier="type" />
+            <targets>
+                <target questionIdentifier="horsepower" />
+            </targets>
+            <rule />
+            <rule choiceName="cabriolet">
+                <disallowed choiceName="50" />
+                <disallowed choiceName="75" />
+            </rule>
+            <rule choiceName="station wagon">
+                <disallowed choiceName="50" />
+            </rule>
+        </constraintRelation>
+        <constraintRelation>
+            <source questionIdentifier="extras" />
+            <targets>
+                <target questionIdentifier="type" />
+            </targets>
+            <rule choiceName="roof rack">
+                <disallowed choiceName="cabriolet" />
+                <disallowed choiceName="coupe" />
+            </rule>
+        </constraintRelation>
+        <constraintRelation>
+            <source questionIdentifier="rims" />
+            <targets>
+                <target questionIdentifier="tires" />
+            </targets>
+            <rule choiceName="steel">
+                <disallowed choiceName="low profile" />
+            </rule>
+            <rule choiceName="light-alloy">
+                <disallowed choiceName="normal" />
+            </rule>
+        </constraintRelation>
+        <constraintRelation>
+            <source questionIdentifier="type" />
+            <targets>
+                <target questionIdentifier="rims" />
+            </targets>
+            <rule />
+            <rule choiceName="cabriolet">
+                <disallowed choiceName="steel" />
+            </rule>
+        </constraintRelation>
+        <constraintRelation>
+            <source questionIdentifier="type" />
+            <targets>
+                <target questionIdentifier="color" />
+            </targets>
+            <rule choiceName="cabriolet">
+                <disallowed choiceName="blue" />
+                <disallowed choiceName="black" />
+            </rule>
+            <rule choiceName="coupe">
+                <disallowed choiceName="orange" />
+                <disallowed choiceName="blue" />
+            </rule>
+            <rule choiceName="station wagon">
+                <disallowed choiceName="orange" />
+                <disallowed choiceName="red" />
+                <disallowed choiceName="green" />
+            </rule>
+        </constraintRelation>
+        <constraintRelation>
+            <source questionIdentifier="edition" />
+            <targets>
+                <target questionIdentifier="type" />
+            </targets>
+            <rule />
+            <rule choiceName="family">
+                <disallowed choiceName="cabriolet" />
+                <disallowed choiceName="coupe" />
+            </rule>
+            <rule choiceName="sport">
+                <disallowed choiceName="coupe" />
+                <disallowed choiceName="station wagon" />
+            </rule>
+        </constraintRelation>
+    </relations>
+</model>

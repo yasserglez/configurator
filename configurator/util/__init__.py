@@ -13,8 +13,9 @@
 
 import itertools
 
+from .c2o import load_C2O
 
-__all__ = []
+__all__ = ["load_C2O"]
 
 
 def iter_config_states(var_domains, exclude_terminals=False):
