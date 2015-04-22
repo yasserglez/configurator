@@ -7,7 +7,6 @@ before_install:
   - export PATH=$HOME/miniconda/bin:$PATH
   - conda config --set always_yes yes --set changeps1 no
   - conda config --add channels yasserglez
-  - conda config --add channels ioos
   - conda update -q conda
   - conda create -q -n test-env python=$TRAVIS_PYTHON_VERSION pip
   - source activate test-env
@@ -16,7 +15,6 @@ install:
   - conda install -n test-env "numpy >= 1.9.1"
   - conda install -n test-env "scipy >= 0.14.0"
   - conda install -n test-env "python-igraph >= 0.7.1"
-  - conda install -n test-env "beautifulsoup4 >= 4.3.2"
   - conda install -n test-env "lxml >= 3.4.2"
   - conda install -n test-env "fann2"
   - conda install -n test-env "fim"
