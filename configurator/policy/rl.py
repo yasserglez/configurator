@@ -122,7 +122,7 @@ class RLDialogBuilder(DialogBuilder):
         agent = DialogAgent(table, learner, self._epsilon)
         exp = DialogExperiment(task, agent)
         log.info("running the RL algorithm")
-        log.info("the epsilon value is %g", self._epsilon)
+        log.debug("the epsilon value is %g", self._epsilon)
         simulated_episodes = 0
         complete_episodes = 0
         while simulated_episodes < self._total_episodes:
@@ -502,6 +502,7 @@ class ApproxQLearning(ValueBasedLearner):
     def learn(self):
         self._update_sample()
         log.debug("starting NFQ_main")
+        log.info("performing %d NFQ iterations", self._nfq_iter)
         for k in range(self._nfq_iter):
             input_values, target_values = self._generate_pattern_set()
             self._rprop_training(input_values, target_values)
@@ -557,8 +558,6 @@ class ApproxQLearning(ValueBasedLearner):
         log.debug("starting Rprop_training")
         data = libfann.training_data()
         data.set_train_data(input_values, target_values)
-        log.info("the training sample has %g patterns",
-                 data.length_train_data())
         net = self.module.network
         net.reset_MSE()
         net.set_training_algorithm(libfann.TRAIN_RPROP)

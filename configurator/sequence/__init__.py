@@ -98,7 +98,7 @@ class PermutationDialogBuilder(DialogBuilder):
                 log.debug("finished an episode, asked %d questions", result)
                 num_questions.append(result)
         mean_questions = np.mean(num_questions)
-        log.info("finished %d complete episodes, mean number of questions %g",
+        log.info("finished %d complete episodes, average number of questions %g",
                  len(num_questions), mean_questions)
         return mean_questions
 
