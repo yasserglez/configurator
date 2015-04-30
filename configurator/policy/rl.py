@@ -82,7 +82,7 @@ class RLDialogBuilder(DialogBuilder):
                  learning_batch=1,
                  nfq_iter=1,
                  rprop_epochs=300,
-                 rprop_error=0.01,
+                 rprop_error=0.001,
                  validate=False):
         super().__init__(var_domains, sample, rules, constraints, validate)
         if consistency not in {"global", "local"}:
@@ -420,8 +420,8 @@ class ApproxQTable(Module, ActionValueInterface):
         net.create_standard_array(net_layers)
         net.set_activation_function_hidden(libfann.SIGMOID_SYMMETRIC)
         net.set_activation_function_output(libfann.SIGMOID_SYMMETRIC)
-        # TODO: fann2 (or FANN?) doesn't seem to allow setting the random
-        # seed and I want reproducible results. This is presumably slow,
+        # TODO: fann2 (or FANN?) doesn't seem to allow setting the
+        # random seed and I want reproducible results. This is slow,
         # but I couldn't get set_weight_array to work.
         total_neurons = net.get_total_neurons()
         for i in range(total_neurons):
@@ -559,10 +559,18 @@ class ApproxQLearning(ValueBasedLearner):
         data = libfann.training_data()
         data.set_train_data(input_values, target_values)
         net = self.module.network
-        net.reset_MSE()
+        # TODO: fann2 (or FANN?) doesn't seem to allow setting the
+        # random seed and I want reproducible results. This is slow,
+        # but I couldn't get set_weight_array to work.
+        total_neurons = net.get_total_neurons()
+        for i in range(total_neurons):
+            for j in range(i + 1, total_neurons):
+                weight = np.random.uniform(-0.5, 0.5)
+                net.set_weight(i, j, weight)
         net.set_training_algorithm(libfann.TRAIN_RPROP)
         net.set_train_error_function(libfann.ERRORFUNC_LINEAR)
         net.set_train_stop_function(libfann.STOPFUNC_MSE)
+        net.reset_MSE()
         net.train_on_data(data, self._rprop_epochs, 0, self._rprop_error)
         log.info("the training MSE is %g", net.get_MSE())
         log.debug("finished Rprop_training")
