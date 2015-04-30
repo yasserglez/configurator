@@ -126,10 +126,16 @@ class RLDialogBuilder(DialogBuilder):
         simulated_episodes = 0
         complete_episodes = 0
         while simulated_episodes < self._total_episodes:
-            exp.doEpisodes(number=self._learning_batch)
+            log.info("simulating %d episodes", self._learning_batch)
+            cumrewards = exp.doEpisodes(number=self._learning_batch)
             simulated_episodes += self._learning_batch
-            complete_episodes += agent.history.getNumSequences()
-            agent.learn()
+            if not cumrewards:
+                log.info("all the episodes reached inconsistent states")
+            else:
+                log.info("finished %d complete episodes, average total reward %g",
+                         len(cumrewards), np.mean(cumrewards))
+                complete_episodes += len(cumrewards)
+                agent.learn()
             agent.reset()  # clear the previous batch
         log.info("simulated %d episodes", simulated_episodes)
         log.info("learned from %d episodes", complete_episodes)
@@ -199,7 +205,6 @@ class DialogExperiment(EpisodicExperiment):
 
     def doEpisodes(self, number):
         # Overriding to handle skipping inconsistent episodes.
-        log.info("simulating %d episodes", number)
         cumrewards = []
         for episode in range(number):
             self.agent.newEpisode()
@@ -211,8 +216,6 @@ class DialogExperiment(EpisodicExperiment):
             else:
                 index = self.agent.history.getNumSequences() - 1
                 self.agent.history.removeSequence(index)
-        log.info("finished %d complete episodes, average total reward %g",
-                 len(cumrewards), np.mean(cumrewards))
         return cumrewards
 
 
