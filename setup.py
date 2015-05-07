@@ -59,7 +59,8 @@ setup(name="configurator",
       packages=[
           "configurator",
           "configurator.policy",
-          "configurator.sequence"
+          "configurator.sequence",
+          "configurator.util"
       ],
       install_requires=[
           "numpy >= 1.9.1",
