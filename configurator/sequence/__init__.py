@@ -23,13 +23,13 @@ import dill
 from ..dialogs import DialogBuilder, Dialog
 
 
-__all__ = ["GADialogBuilder"]
+__all__ = ["SADialogBuilder", "GADialogBuilder"]
 
 
 log = logging.getLogger(__name__)
 
 
-class PermutationDialogBuilder(DialogBuilder):
+class SequenceDialogBuilder(DialogBuilder):
     """Configuration dialog builder based on permutation sequences.
 
     This is the base class of all the configuration dialog builders
@@ -87,8 +87,8 @@ class PermutationDialogBuilder(DialogBuilder):
     def _eval_var_perm(self, var_perm):
         log.debug("evaluating permutation:\n%s", pprint.pformat(var_perm))
         log.info("simulating %d episodes", self._eval_episodes)
-        dialog = PermutationDialog(self.var_domains, var_perm,
-                                   self.rules, self.constraints)
+        dialog = SequenceDialog(self.var_domains, var_perm,
+                                self.rules, self.constraints)
         num_questions = []
         for i in range(self._eval_episodes):
             result = self._simulate_dialog(dialog)
@@ -122,7 +122,7 @@ class PermutationDialogBuilder(DialogBuilder):
         return num_questions if dialog.is_consistent() else None
 
 
-class PermutationDialog(Dialog):
+class SequenceDialog(Dialog):
     """Configuration dialog based on permutation sequences.
 
     Arguments:
@@ -166,8 +166,8 @@ class PermutationDialog(Dialog):
         rules = dill.loads(zip_file.read("rules"))
         constraints = dill.loads(zip_file.read("constraints"))
         var_perm = dill.loads(zip_file.read("var_perm"))
-        return PermutationDialog(var_domains, var_perm, rules, constraints)
+        return SequenceDialog(var_domains, var_perm, rules, constraints)
 
 
-# Keep this in the end, .sequence and .sequence.ga import each other.
+# Keep this in the end, .sequence and .sequence.sa import each other.
 from .ga import GADialogBuilder

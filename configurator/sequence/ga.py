@@ -16,7 +16,7 @@ import logging
 import numpy as np
 from pyeasyga.pyeasyga import GeneticAlgorithm
 
-from . import PermutationDialogBuilder, PermutationDialog
+from . import SequenceDialogBuilder, SequenceDialog
 
 
 __all__ = ["GADialogBuilder"]
@@ -25,7 +25,7 @@ __all__ = ["GADialogBuilder"]
 log = logging.getLogger(__name__)
 
 
-class GADialogBuilder(PermutationDialogBuilder):
+class GADialogBuilder(SequenceDialogBuilder):
     """Build a configuration dialog using genetic algorithms.
 
     Arguments:
@@ -90,9 +90,9 @@ class GADialogBuilder(PermutationDialogBuilder):
         ga.run()
         mean_questions, var_perm = ga.best_individual()
         log.info("best average number of questions %g", mean_questions)
-        dialog = PermutationDialog(self.var_domains, var_perm,
-                                   self.rules, self.constraints,
-                                   validate=self._validate)
+        dialog = SequenceDialog(self.var_domains, var_perm,
+                                self.rules, self.constraints,
+                                validate=self._validate)
         return dialog
 
     def _create_individual(self, data=None):

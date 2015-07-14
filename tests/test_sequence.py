@@ -1,20 +1,20 @@
 import pytest
 
 from configurator.dialogs import Dialog
-from configurator.sequence import PermutationDialog
+from configurator.sequence import SequenceDialog
 
 
-class TestPermutationDialog(object):
+class TestSequenceDialog(object):
 
     @pytest.mark.parametrize("use_rules", (True, False),
                              ids=("rules", "constraints"))
     def test_get_next_question(self, use_rules, email_client):
         rules = email_client.rules if use_rules else None
         constraints = None if use_rules else email_client.constraints
-        dialog = PermutationDialog(email_client.var_domains, [1, 0],
-                                   rules=rules,
-                                   constraints=constraints,
-                                   validate=True)
+        dialog = SequenceDialog(email_client.var_domains, [1, 0],
+                                rules=rules,
+                                constraints=constraints,
+                                validate=True)
         dialog.reset()
         assert dialog.get_next_question() == 1
         dialog.set_answer(1, "lgi")
@@ -25,9 +25,9 @@ class TestPermutationDialog(object):
     def test_save(self, tmpdir, use_rules, email_client):
         rules = email_client.rules if use_rules else None
         constraints = None if use_rules else email_client.constraints
-        saved_dialog = PermutationDialog(email_client.var_domains, [1, 0],
-                                         rules=rules,
-                                         constraints=constraints)
+        saved_dialog = SequenceDialog(email_client.var_domains, [1, 0],
+                                      rules=rules,
+                                      constraints=constraints)
         file_path = str(tmpdir.join("dialog.zip"))
         saved_dialog.save(file_path)
         new_dialog = Dialog.load(file_path)
