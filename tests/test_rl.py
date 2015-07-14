@@ -22,7 +22,7 @@ class TestRLDialog(object):
                                   email_client.sample,
                                   rules=rules,
                                   constraints=constraints,
-                                  total_episodes=50,
+                                  total_episodes=100,
                                   table=table)
         saved_dialog = builder.build_dialog()
         file_path = str(tmpdir.join("dialog.zip"))
@@ -55,7 +55,7 @@ class TestRuleRLDialogBuilder(_TestRLDialogBuilder):
         builder = RLDialogBuilder(email_client.var_domains,
                                   email_client.sample,
                                   rules=email_client.rules,
-                                  total_episodes=50,
+                                  total_episodes=100,
                                   table=table,
                                   validate=True)
         self._test_builder(builder, email_client)
@@ -73,7 +73,7 @@ class TestCSPRLDialogBuilder(_TestRLDialogBuilder):
                                   email_client.sample,
                                   constraints=email_client.constraints,
                                   consistency=consistency,
-                                  total_episodes=50,
+                                  total_episodes=100,
                                   table=table,
                                   validate=True)
         self._test_builder(builder, email_client)

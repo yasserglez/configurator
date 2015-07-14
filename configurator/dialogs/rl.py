@@ -423,16 +423,24 @@ class ApproxQTable(Module, ActionValueInterface):
         net.create_standard_array(net_layers)
         net.set_activation_function_hidden(libfann.SIGMOID_SYMMETRIC)
         net.set_activation_function_output(libfann.SIGMOID_SYMMETRIC)
-        # TODO: fann2 (or FANN?) doesn't seem to allow setting the
-        # random seed and I want reproducible results. This is slow,
-        # but I couldn't get set_weight_array to work.
-        total_neurons = net.get_total_neurons()
-        for i in range(total_neurons):
-            for j in range(i + 1, total_neurons):
-                weight = np.random.uniform(-0.5, 0.5)
-                net.set_weight(i, j, weight)
+        self._resetNetworkWeights(net)
         log.info("the neural net has %d weights", net.get_total_connections())
         return net
+
+    @staticmethod
+    def _resetNetworkWeights(net):
+        # WARNING: fann2 (or FANN?) doesn't seem to allow setting
+        # the random seed and the following call makes the results
+        # essentially irreproducible.
+        net.randomize_weights(-0.5, 0.5)
+        # This is an alternative to get reproducible results,
+        # but it is considerably slower (I couldn't get
+        # set_weight_array to work):
+        # total_neurons = net.get_total_neurons()
+        # for i in range(total_neurons):
+        #     for j in range(i + 1, total_neurons):
+        #         weight = np.random.uniform(-0.5, 0.5)
+        #         net.set_weight(i, j, weight)
 
     def transformState(self, config=None, state=None):
         # Each variable is represented as a group of dummy variables
@@ -562,17 +570,10 @@ class ApproxQLearning(ValueBasedLearner):
         data = libfann.training_data()
         data.set_train_data(input_values, target_values)
         net = self.module.network
-        # TODO: fann2 (or FANN?) doesn't seem to allow setting the
-        # random seed and I want reproducible results. This is slow,
-        # but I couldn't get set_weight_array to work.
-        total_neurons = net.get_total_neurons()
-        for i in range(total_neurons):
-            for j in range(i + 1, total_neurons):
-                weight = np.random.uniform(-0.5, 0.5)
-                net.set_weight(i, j, weight)
         net.set_training_algorithm(libfann.TRAIN_RPROP)
         net.set_train_error_function(libfann.ERRORFUNC_LINEAR)
         net.set_train_stop_function(libfann.STOPFUNC_MSE)
+        self.module._resetNetworkWeights(net)
         net.reset_MSE()
         net.train_on_data(data, self._rprop_epochs, 0, self._rprop_error)
         log.info("the training MSE is %g", net.get_MSE())
