@@ -212,7 +212,7 @@ class Dialog(object):
 
         In the initial configuration state the value of all the
         variables is unknown. This method must be called before making
-        any call to the other methds.
+        any call to the other methods.
         """
         self.config = {}
         if self.constraints:

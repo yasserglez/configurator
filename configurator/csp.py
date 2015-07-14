@@ -113,8 +113,7 @@ class CSP(object):
 
     def _is_consistent(self, var_domains):
         try:
-            next(_backtracking_search({}, var_domains,
-                                      self._constraints_index))
+            next(_backtracking_search({}, var_domains, self._constraints_index))
         except StopIteration:
             return False
         else:
@@ -210,9 +209,7 @@ def _has_conflicts(assignment, constraints_index):
     # Check if the given assignment generates at least one conflict.
     for constraint_vars, constraint_fun in constraints_index.values():
         if all(v in assignment for v in constraint_vars):
-            if not _call_constraint(assignment,
-                                    constraint_vars,
-                                    constraint_fun):
+            if not _call_constraint(assignment, constraint_vars, constraint_fun):
                 return True
     return False
 
