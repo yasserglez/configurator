@@ -2,7 +2,7 @@ import numpy as np
 from numpy.testing import assert_raises
 
 from configurator.dialogs import Dialog
-from configurator.policy.dp import DPDialogBuilder, EpisodicMDP
+from configurator.dialogs.dp import DPDialogBuilder, EpisodicMDP
 
 
 class TestDPDialog(object):

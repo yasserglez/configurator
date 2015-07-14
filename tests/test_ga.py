@@ -1,7 +1,7 @@
 import pytest
 
 from configurator.dialogs import Dialog
-from configurator.sequence.ga import GADialogBuilder, GADialog
+from configurator.dialogs.ga import GADialogBuilder, GADialog
 
 
 class TestGADialog(object):

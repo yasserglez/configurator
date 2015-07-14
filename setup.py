@@ -58,8 +58,6 @@ setup(name="configurator",
       author_email="contact@yassergonzalez.com",
       packages=[
           "configurator",
-          "configurator.policy",
-          "configurator.sequence",
           "configurator.util"
       ],
       install_requires=[
