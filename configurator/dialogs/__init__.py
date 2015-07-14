@@ -20,9 +20,9 @@ from operator import mul
 
 import dill
 
-from .rules import Rule
-from .csp import CSP
-from .freq_table import FrequencyTable
+from ..rules import Rule
+from ..csp import CSP
+from ..freq_table import FrequencyTable
 
 
 __all__ = ["DialogBuilder", "Dialog"]
