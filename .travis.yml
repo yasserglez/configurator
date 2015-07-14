@@ -22,4 +22,4 @@ install:
   - pip install https://github.com/pybrain/pybrain/zipball/master
   - pip install -e .
 script:
-  - py.test --verbose
+  - py.test --cov configurator tests/
