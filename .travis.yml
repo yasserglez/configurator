@@ -18,7 +18,6 @@ install:
   - conda install -n test-env "lxml >= 3.4.2"
   - conda install -n test-env "fann2"
   - conda install -n test-env "fim"
-  - pip install https://github.com/remiomosowon/pyeasyga/zipball/master
   - pip install https://github.com/sawcordwell/pymdptoolbox/zipball/master
   - pip install https://github.com/pybrain/pybrain/zipball/master
   - pip install -e .
