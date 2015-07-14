@@ -23,7 +23,7 @@ import dill
 from ..dialogs import DialogBuilder, Dialog
 
 
-__all__ = ["SADialogBuilder", "GADialogBuilder"]
+__all__ = ["GADialogBuilder"]
 
 
 log = logging.getLogger(__name__)
@@ -169,6 +169,5 @@ class PermutationDialog(Dialog):
         return PermutationDialog(var_domains, var_perm, rules, constraints)
 
 
-# Keep this in the end, .sequence and .sequence.{sa,ga} import each other.
-from .sa import SADialogBuilder
+# Keep this in the end, .sequence and .sequence.ga import each other.
 from .ga import GADialogBuilder
