@@ -46,10 +46,13 @@ The easiest way to install the package is via the
 conda install -c yasserglez configurator
 ```
 
+
 Author
 ------
 
-Yasser Gonzalez <contact@yassergonzalez.com>
+Yasser Gonzalez
+* Homepage - http://yassergonzalez.com
+* Email - contact@yassergonzalez.com
 
 
 License
