@@ -1,5 +1,5 @@
 configurator
-============
+------------
 
 This project consists of a Python package providing different
 solutions to the problem of optimizing the user interaction in a
@@ -10,17 +10,16 @@ configuration.
 An arbitrary product to be configured may be described in terms of two
 alternative configuration models. In the first model, the constraints
 that regulate the interactions between the aspects of the product that
-can be configured are given in the form of if-then rules comparable to
-association rules. In the second supported specification, the
-constraints are given as part of a formulation of the configuration
-model as a constraint satisfaction problem. The problem of minimizing
-the sequence of questions to be presented to the users is formulated
-as a Markov decision process. Different solution methods are
-implemented: classical dynamic programming algorithms (such as value
-iteration), reinforcement learning techniques (specifically,
-Q-learning and the Neural Fitted Q-iteration algorithm), and a genetic
-algorithm that solves the reinforcement learning problem as a
-stochastic optimization problem.
+can be configured are given in the form of if-then rules. In the
+second supported specification, the constraints are given as part of a
+formulation of the configuration model as a constraint satisfaction
+problem. The problem of minimizing the sequence of questions to be
+presented to the users is formulated as a Markov decision process.
+Different solution methods are implemented: classical dynamic
+programming algorithms (such as value iteration), reinforcement
+learning techniques (specifically, Q-learning and the Neural Fitted
+Q-iteration algorithm), and a genetic algorithm that solves the
+reinforcement learning problem as a stochastic optimization problem.
 
 For additional information, please refer to API documentation in the
 `docs/` directory and the following publications:
