@@ -1,9 +1,15 @@
 configurator API documentation
 ==============================
 
-Welcome! This is the API documentation of the `configurator`
+Welcome! This is the API documentation of the :mod:`configurator`
 Python package version |version|. The project is hosted at
 https://github.com/yasserglez/configurator.
+
+configurator
+------------
+
+.. automodule:: configurator
+    :members:
 
 configurator.dialogs
 --------------------

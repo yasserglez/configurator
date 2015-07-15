@@ -8,7 +8,7 @@
 #      http://www.apache.org/licenses/LICENSE-2.0
 #
 
-"""Adaptive configuration dialogs.
+"""Calculation of optimal configuration processes.
 
 Attributes:
     __version__: The current version string.

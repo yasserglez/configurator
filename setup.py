@@ -44,7 +44,7 @@ class custom_build(build):
 setup(name="configurator",
       version=version,
       url="https://github.com/yasserglez/configurator",
-      description="Adaptive configuration dialogs.",
+      description="Calculation of optimal configuration processes.",
       long_description=long_description,
       classifiers=[
           "Programming Language :: Python :: 3",
