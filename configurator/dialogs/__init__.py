@@ -36,8 +36,9 @@ class DialogBuilder(object):
 
     This is the base class of all the configuration dialog builders
     defined in the package (it is not intented to be instantiated
-    directly). See the subclasses defined in :mod:`configurator.policy`
-    and :mod:`configurator.sequence` for concrete dialog builders.
+    directly). See the subclasses defined in :mod:`configurator.dialogs.dp`,
+    :mod:`configurator.dialogs.rl`, and :mod:`configurator.dialogs.ga`
+    for concrete dialog builders.
 
     The dialog builders support representing the configuration problem
     using a rule-based or a constraint-based specification (although
@@ -257,7 +258,7 @@ class Dialog(object):
             var_value: The value of the variable. It must be one of
                 the possible values of the variable returned by
                 :meth:`get_possible_answers`.
-             consistency: Type of consistency check used to filter the
+            consistency: Type of consistency check used to filter the
                 domain of the remaining questions. Possible values
                 are: `'global'` and `'local'`. This argument is
                 ignored for rule-based dialogs.
