@@ -53,6 +53,7 @@ setup(name="configurator",
       author_email="contact@yassergonzalez.com",
       packages=[
           "configurator",
+          "configurator.dialogs",
           "configurator.util"
       ],
       install_requires=[
