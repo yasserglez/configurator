@@ -8,10 +8,6 @@ import configurator
 
 version = configurator.__version__
 
-src_dir = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(src_dir, "README.rst")) as f:
-    long_description = f.read()
-
 
 def update_version(init_py_file):
     # Save the version number in configurator/__init__.py
@@ -45,7 +41,6 @@ setup(name="configurator",
       version=version,
       url="https://github.com/yasserglez/configurator",
       description="Calculation of optimal configuration processes.",
-      long_description=long_description,
       classifiers=[
           "Programming Language :: Python :: 3",
           "Operating System :: OS Independent",
