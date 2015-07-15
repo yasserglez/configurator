@@ -26,7 +26,7 @@ def _get_version(version="0.5.1"):
         git_dir = os.path.join(src_dir, ".git")
         git_args = ("git", "--work-tree", src_dir, "--git-dir",
                     git_dir, "describe", "--tags", "--always")
-        output = subprocess.check_output(git_args)
+        output = subprocess.check_output(git_args, stderr=subprocess.DEVNULL)
         version = output.decode("utf-8").strip()
         if version.rfind("-") >= 0:
             version = version[:version.rfind("-")]  # strip SHA1 hash
