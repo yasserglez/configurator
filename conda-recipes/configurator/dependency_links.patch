@@ -1,11 +1,9 @@
 --- setup.py
 +++ setup.py
-@@ -70,8 +70,5 @@ setup(name="configurator",
+@@ -70,6 +70,3 @@ setup(name="configurator",
            "fann2",
            "fim",
        ],
 -      dependency_links=[
 -          "http://www.borgelt.net/src/pyfim.tar.gz#egg=fim",
--      ],
-       cmdclass={"sdist": custom_sdist,
-                 "build": custom_build})
+-      ])

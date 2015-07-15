@@ -18,8 +18,9 @@ import os
 import subprocess
 
 
-def _get_version(version=None):  # overwritten by setup.py
-    if version is None:
+def _get_version(version="0.5.1"):
+    try:
+        # Get version from the git repo, if installed in editable mode.
         pkg_dir = os.path.dirname(__file__)
         src_dir = os.path.abspath(os.path.join(pkg_dir, os.pardir))
         git_dir = os.path.join(src_dir, ".git")
@@ -30,6 +31,8 @@ def _get_version(version=None):  # overwritten by setup.py
         if version.rfind("-") >= 0:
             version = version[:version.rfind("-")]  # strip SHA1 hash
             version = version.replace("-", ".post")  # PEP 440 compatible
+    except Exception:
+        pass  # fallback to the hardcoded version
     return version
 
 __version__ = _get_version()
