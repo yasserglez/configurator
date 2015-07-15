@@ -17,7 +17,7 @@ import configurator
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinxcontrib.napoleon',
+    'sphinx.ext.napoleon',
 ]
 
 # Napoleon settings.
