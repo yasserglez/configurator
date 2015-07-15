@@ -26,7 +26,7 @@ algorithm), and a genetic algorithm that solves the reinforcement
 learning problem as a stochastic optimization problem.
 
 For additional information, please refer to API documentation in the
-`docs/` directory and the following publications:
+``docs/`` directory and the following publications:
 
 * Saeideh Hamidi, Periklis Andritsos, and Sotirios Liaskos.
   `Constructing adaptive configuration dialogs using crowd data
