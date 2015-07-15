@@ -1,9 +1,10 @@
 --- setup.py
 +++ setup.py
-@@ -70,6 +70,3 @@ setup(name="configurator",
+@@ -35,7 +35,4 @@ setup(name="configurator",
+           "PyBrain",
            "fann2",
            "fim",
-       ],
+-      ],
 -      dependency_links=[
 -          "http://www.borgelt.net/src/pyfim.tar.gz#egg=fim",
--      ])
+       ])
