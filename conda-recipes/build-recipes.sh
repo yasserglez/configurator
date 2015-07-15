@@ -18,10 +18,13 @@ export PATH=$PWD/miniconda/bin:$PATH
 conda config --add channels yasserglez
 conda config --set binstar_upload yes
 conda update conda
+conda install setuptools
+conda install jinja2
 conda install conda-build
 conda install patchelf
 conda install binstar
 
+sudo apt-get update
 sudo apt-get install build-essential git
 
 conda build fim
