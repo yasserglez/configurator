@@ -5,10 +5,10 @@ package:
 source:
   fn: pyfim.tar.gz
   url: http://www.borgelt.net/src/pyfim.tar.gz
-  md5: 1915ec69b8b0d958e1cc34a4982acb09
+  md5: 84a540cc868a5d0c451e8de503d55122
 
 build:
-  number: 0
+  number: 1
   script: python setup.py install
 
 requirements:

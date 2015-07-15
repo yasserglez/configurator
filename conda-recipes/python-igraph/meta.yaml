@@ -1,11 +1,11 @@
 package:
   name: python-igraph
-  version: "0.7.1.post4"
+  version: "0.7.1.post6"
 
 source:
   fn: python-igraph-0.7.1-4.tar.gz
-  url: https://pypi.python.org/packages/source/p/python-igraph/python-igraph-0.7.1-4.tar.gz
-  md5: a88b0c8ac125de1a2fbf1cb758d0c615
+  url: https://pypi.python.org/packages/source/p/python-igraph/python-igraph-0.7.1.post6.tar.gz
+  md5: a4c0b5960735b36adb5d3a40031cb7c0
 
 build:
   number: 0
