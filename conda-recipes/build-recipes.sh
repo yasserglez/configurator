@@ -32,3 +32,4 @@ conda build fann
 conda build fann2
 conda build igraph
 conda build python-igraph
+conda build configurator

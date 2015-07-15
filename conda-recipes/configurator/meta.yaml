@@ -1,0 +1,28 @@
+package:
+  name: configurator
+  version: "0.5.1"
+
+source:
+  git_url: https://github.com/yasserglez/configurator
+  patches:
+    - dependency_links.patch
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - pip
+    - numpy >=1.9.1
+    - scipy >=0.14.0j
+    - python-igraph >=0.7.1
+    - lxml >=3.4.2
+    - fann2
+    - fim
+
+about:
+  home: https://github.com/yasserglez/configurator
+  summary: Calculation of optimal configuration processes
+  license: Apache License 2.0
