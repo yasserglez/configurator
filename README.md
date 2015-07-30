@@ -1,6 +1,9 @@
 configurator
 ------------
 
+[![Build Status](https://travis-ci.org/yasserglez/configurator.svg?branch=master)](https://travis-ci.org/yasserglez/configurator)
+[![Coverage Status](https://coveralls.io/repos/yasserglez/configurator/badge.svg?branch=master&service=github)](https://coveralls.io/github/yasserglez/configurator?branch=master)
+
 This project consists of a Python package providing different
 solutions to the problem of optimizing the user interaction in a
 configuration process -- as in minimizing the number of questions
