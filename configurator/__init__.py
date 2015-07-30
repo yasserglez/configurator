@@ -18,7 +18,7 @@ import os
 import subprocess
 
 
-def _get_version(version="0.5.1"):
+def _get_version(version="0.6.0"):
     try:
         # Get version from the git repo, if installed in editable mode.
         pkg_dir = os.path.dirname(__file__)
