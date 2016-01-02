@@ -33,7 +33,7 @@ For additional information, please refer to API documentation in the
   [Automating software customization via crowdsourcing using association rule mining and Markov decision processes](http://yorkspace.library.yorku.ca/xmlui/handle/10315/28216).
   Master's thesis, York University, Ontario, Canada, 2014.
 * Yasser Gonzalez-Fernandez.
-  Efficient calculation of optimal configuration processes.
+  [Efficient calculation of optimal configuration processes](http://yorkspace.library.yorku.ca/xmlui/handle/10315/30739).
   Master's thesis, York University, Ontario, Canada, 2015.
 
 
